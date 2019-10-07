@@ -22,7 +22,7 @@ class PurchaseOrder extends Model
 
 		public function customer()
 		{
-			return $this->belongsTo('App\Customers','po_customer_id');
+			return $this->belongsTo('App\Customers','po_customer_id')->select('id','companyname');
 		}
 
 }

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateCPOSMSPurchaseOrder extends Migration
+class CreatePoItemDeliverySchedule extends Migration
 {
     /**
      * Run the migrations.
@@ -13,13 +13,13 @@ class CreateCPOSMSPurchaseOrder extends Migration
      */
     public function up()
     {
-        Schema::create('cposms_purchaseorder', function (Blueprint $table) {
+        Schema::create('cposms_poitemdelivery', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->integer('po_customer_id')->unsigned();
-            $table->string('po_currency');
-            $table->string('po_ponum',100);
-            $table->tinyInteger('po_isForeCast')->default(0);
-            $table->softDeletes();
+            $table->integer('poidel_item_id')->unsigned();
+            $table->integer('poidel_quantity');
+            $table->integer('poidel_underrun_qty');
+            $table->date('poidel_deliverydate');
+            $table->string('remarks',150);
             $table->timestamps();
         });
     }
@@ -31,6 +31,6 @@ class CreateCPOSMSPurchaseOrder extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('cposms_purchaseorder');
+        Schema::dropIfExists('cposms_poitemdelivery');
     }
 }

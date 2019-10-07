@@ -7,13 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 class PurchaseOrderItems extends Model
 {
     //
-	protected $timestamps = false;
 	protected $guarded = ['id'];
 	protected $table = 'cposms_purchaseorderitem';
+	protected $hidden = ['created_at','updated_at'];
 
 	public function po()
 	{
 		return $this->belongsTo('App\PurchaseOrder','poi_po_id');
+	}
+
+	public function delivery()
+	{
+		return $this->hasMany('App\PurchaseOrderDelivery','poidel_item_id');
 	}
 
 }
