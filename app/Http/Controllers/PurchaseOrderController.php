@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\PurchaseOrder;
 use App\PurchaseOrderItems;
+use App\Masterlist;
 use App\Customers;
 use DB;
 
@@ -18,10 +19,10 @@ class PurchaseOrderController extends Controller
 		return $string;
 	}
 
-	public function test()
+	public function test()// for testing purposes
 	{
-		$t = PurchaseOrderItems::orderBy('id','desc')->get();
-		return $this->getItems($t);
+		$t = Masterlist::select('id','m_projectname as item_desc','m_partnumber as partnumber','m_code as code')->get();
+		return $t;
 	}
 
 	public function getItems($items)
@@ -57,19 +58,26 @@ class PurchaseOrderController extends Controller
 			'others' => $item->poi_others,
 			'delivered_qty' => $delivered,
 			'remarks' => $item->poi_remarks,
+			'po_itemcount' => $item->po->poitems()->count(),
 		);
 
 	}
 
 	public function poItemsIndex()
 	{
-		$poItems_result = PurchaseOrderItems::orderBy('id','desc')->get();
-		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
+		$pageSize = request()->pageSize;
+		$q = PurchaseOrderItems::query();
+		$poItems_result = $q->orderBy('id','desc')->paginate($pageSize);
 		$poItems = $this->getItems($poItems_result);
+
+		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc','m_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
+		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
 		return response()->json(
 			[
 				'customers' => $customers,
-				'poItems' => $poItems
+				'poItems' => $poItems,
+				'itemSelectionList' => $itemSelectionList,
+				'poItemsLength' => $poItems_result->total()
 			]);
 	}
 
@@ -77,6 +85,12 @@ class PurchaseOrderController extends Controller
 
 		$cleanPO = $this->cleanString($request->po_num);
 
+		Validator::make($request->all(),
+			[
+				'po_num' => 'unique:cposms_purchaseorder,po_ponum|required|max:100',
+				'customer' => 'required',
+				'currency' => 'required',
+			],[],['po_num' => 'purchase order number'])->validate();
 
 		$po = new PurchaseOrder();
 		$po->fill(
@@ -105,6 +119,7 @@ class PurchaseOrderController extends Controller
 				]);
 
 		}
+		
 		$newItem = $this->getItems($po->poitems);
 		return response()->json([
 			'newItem' => $newItem
