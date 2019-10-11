@@ -21,8 +21,60 @@ class PurchaseOrderController extends Controller
 
 	public function test()// for testing purposes
 	{
-		$t = Masterlist::select('id','m_projectname as item_desc','m_partnumber as partnumber','m_code as code')->get();
-		return $t;
+		$t = PurchaseOrder::all();
+		return $this->getPos($t);
+	}
+
+	public function itemArray($item)
+	{
+		return [
+			'poi_code' => $item['code'],
+			'poi_partnum' => $item['partnum'],
+			'poi_itemdescription' => $item['itemdesc'],
+			'poi_quantity' => $item['quantity'],
+			'poi_unit' => $item['unit'],
+			'poi_unitprice' => $item['unitprice'],
+			'poi_deliverydate' => $item['deliverydate'],
+			'poi_kpi' => $item['kpi'],
+			'poi_others' => $item['others'],
+			'poi_remarks' => $item['remarks'],
+		];
+	}
+
+	public function getPo($po)
+	{
+		$items = $this->getItems($po->poitems);
+		$hasJo = $po->poitems()->has('jo')->count() > 0 ? true : false;
+		$totalQuantity = $po->poitems()->sum('poi_quantity');
+		$totalDelivered = array_sum(array_column($items,'delivered_qty'));
+		$status = $po->poitems()->count() > 0 ? 
+		$totalDelivered >= $totalQuantity ? 'SERVED' : 'OPEN' : 'NO ITEM/s';
+		return array(
+			'id' => $po->id,
+			'po_num' => $po->po_ponum,
+			'customer_label' => $po->customer->companyname,
+			'customer' => $po->po_customer_id,
+			'date' => $po->po_date,
+			'currency' => $po->po_currency,
+			'totalItems'=> $po->poitems()->count(),
+			'totalQuantity'=> $totalQuantity,
+			'totalDelivered'=> $totalDelivered,
+			'status' => $status,
+			'hasJo' => $hasJo,
+			'items' => $items,
+		);
+
+	}
+
+	public function getPos($pos)
+	{
+		$po_arr = array();
+
+		foreach($pos as $row){
+			array_push($po_arr,$this->getPo($row));
+		}
+
+		return $po_arr;
 	}
 
 	public function getItems($items)
@@ -58,26 +110,44 @@ class PurchaseOrderController extends Controller
 			'others' => $item->poi_others,
 			'delivered_qty' => $delivered,
 			'remarks' => $item->poi_remarks,
-			'po_itemcount' => $item->po->poitems()->count(),
+			'withJo' => $item->jo()->count() > 0 ? true : false,
+			'isNotEditable' => $status === 'SERVED' ? true : false,
 		);
 
+	}
+
+	public function poIndex()
+	{
+
+		$pageSize = request()->pageSize;
+		$q = PurchaseOrder::query();
+		$po_result = $q->orderBy('id','desc')->paginate($pageSize);
+		$po = $this->getPos($po_result);
+		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
+		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc',
+			'm_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
+
+
+		return response()->json(
+			[
+				'customers' => $customers,
+				'po' => $po,
+				'poLength' => $po_result->total(),
+				'itemSelectionList' => $itemSelectionList
+			]);
 	}
 
 	public function poItemsIndex()
 	{
 		$pageSize = request()->pageSize;
 		$q = PurchaseOrderItems::query();
-		$poItems_result = $q->orderBy('id','desc')->paginate($pageSize);
+		$poItems_result = $q->has('po')->orderBy('id','desc')->paginate($pageSize);
 		$poItems = $this->getItems($poItems_result);
 
-		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc','m_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
-		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
 		return response()->json(
 			[
-				'customers' => $customers,
 				'poItems' => $poItems,
-				'itemSelectionList' => $itemSelectionList,
-				'poItemsLength' => $poItems_result->total()
+				'poItemsLength' => $poItems_result->total(),
 			]);
 	}
 
@@ -97,6 +167,7 @@ class PurchaseOrderController extends Controller
 			[
 				'po_customer_id' => $request->customer,
 				'po_currency' => $request->currency,
+				'po_date' => $request->date,
 				'po_ponum' => $cleanPO,
 			]);
 
@@ -104,29 +175,74 @@ class PurchaseOrderController extends Controller
 
 		foreach($request->items as $row){
 
-			$po->poitems()->create(
-				[
-					'poi_code' => $row['code'],
-					'poi_partnum' => $row['partnum'],
-					'poi_itemdescription' => $row['itemdesc'],
-					'poi_quantity' => $row['quantity'],
-					'poi_unit' => $row['unit'],
-					'poi_unitprice' => $row['unitprice'],
-					'poi_deliverydate' => $row['deliverydate'],
-					'poi_kpi' => $row['kpi'],
-					'poi_others' => $row['others'],
-					'poi_remarks' => $row['remarks'],
-				]);
+			$po->poitems()->create($this->itemArray($row));
 
 		}
 		
-		$newItem = $this->getItems($po->poitems);
+		$newItem = $this->getPo($po);
 		return response()->json([
-			'newItem' => $newItem
+			'newItem' => $newItem,
+			'message' => 'Record added'
 		]);
 
 	}
 
+	public function editPurchaseOrder(Request $request){
 
+		$cleanPO = $this->cleanString($request->po_num);
 
+		Validator::make($request->all(),
+			[
+				'po_num' => 'unique:cposms_purchaseorder,po_ponum,'.$request->id.'|required|max:100',
+				'customer' => 'required',
+				'currency' => 'required',
+			],[],['po_num' => 'purchase order number'])->validate();
+
+		$po = PurchaseOrder::find($request->id);
+		$po->update(
+			[
+				'po_customer_id' => $request->customer,
+				'po_currency' => $request->currency,
+				'po_date' => $request->date,
+				'po_ponum' => $cleanPO,
+			]);
+		
+		$poitems_count = $po->poitems()->count();// get original po item count
+		$poitems_ids = $po->poitems()->pluck('id')->toArray(); //get original po item id
+		$items_ids = array_column($request->items,'id'); //get request items id
+
+		//deletion of item
+		foreach($po->poitems as $item){
+			if(!in_array($item->id,$items_ids)){
+				$po->poitems()->find($item['id'])->delete();
+			}
+		}
+
+		foreach($request->items as $item){ //adding and editing item
+			if(isset($item['id'])){ //check if item exists on po alr then update
+				$po->poitems()->find($item['id'])->update($this->itemArray($item));
+			}else{
+				//if item doesnt exist on po then add.
+				$po->poitems()->create($this->itemArray($item));
+			}
+		}
+
+		$newItem = $this->getPo(PurchaseOrder::find($request->id));
+		return response()->json([
+			'newItem' => $newItem,
+			'message' => 'Record updated'
+		]);
+	}
+
+	public function cancelPo($id)
+	{
+		$remarks = request()->remarks;
+		$po = PurchaseOrder::find($id);
+		$po->update(['po_cancellationRemarks' => $remarks]);
+		$po->delete();
+
+		return response()->json([
+			'message' => 'Record cancelled'
+		]);
+	}
 }

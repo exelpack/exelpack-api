@@ -21,4 +21,9 @@ class PurchaseOrderItems extends Model
 		return $this->hasMany('App\PurchaseOrderDelivery','poidel_item_id');
 	}
 
+	public function jo()
+	{
+		return $this->hasMany('App\JobOrder','jo_po_item_id');
+	}
+
 }

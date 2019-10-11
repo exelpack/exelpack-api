@@ -17,6 +17,7 @@ class CreateCPOSMSPurchaseOrder extends Migration
             $table->bigIncrements('id');
             $table->integer('po_customer_id')->unsigned();
             $table->string('po_currency');
+            $table->date('po_date');
             $table->string('po_ponum',100);
             $table->tinyInteger('po_isForeCast')->default(0);
             $table->softDeletes();
