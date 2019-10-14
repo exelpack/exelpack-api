@@ -4,7 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
+use DB;
 class PurchaseOrder extends Model
 {
 
@@ -18,6 +18,17 @@ class PurchaseOrder extends Model
 		public function poitems()
 		{
 			return $this->hasMany('App\PurchaseOrderItems','poi_po_id');
+		}
+
+		public function getTotalItemQuantity()
+		{
+			return $this->hasOne('App\PurchaseOrderItems','poi_po_id')
+								->select(DB::raw('sum(poi_quantity) as totalQuantity'),'poi_po_id');
+		}
+
+		public function getTotalDeliveryQuantity()
+		{
+			return $this->hasOneThrough('App\PurchaseOrderDelivery','App\PurchaseOrderItems','poi_po_id','poidel_item_id','id','id')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) as totalDelivered'));
 		}
 
 		public function customer()

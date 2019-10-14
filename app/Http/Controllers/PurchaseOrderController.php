@@ -45,10 +45,10 @@ class PurchaseOrderController extends Controller
 	{
 		$items = $this->getItems($po->poitems);
 		$hasJo = $po->poitems()->has('jo')->count() > 0 ? true : false;
-		$totalQuantity = $po->poitems()->sum('poi_quantity');
-		$totalDelivered = array_sum(array_column($items,'delivered_qty'));
-		$status = $po->poitems()->count() > 0 ? 
-		$totalDelivered >= $totalQuantity ? 'SERVED' : 'OPEN' : 'NO ITEM/s';
+		$totalQuantity = $po->getTotalItemQuantity->totalQuantity;
+		$totalDelivered = intval($po->getTotalDeliveryQuantity->totalDelivered);
+		$status = $po->poitems()->count() > 0 ? $totalDelivered >= $totalQuantity 
+		? 'SERVED' : 'OPEN' : 'NO ITEM/s';
 		return array(
 			'id' => $po->id,
 			'po_num' => $po->po_ponum,
@@ -118,9 +118,20 @@ class PurchaseOrderController extends Controller
 
 	public function poIndex()
 	{
-
 		$pageSize = request()->pageSize;
+
+		$getDelivery = DB::table('cposms_poitemdelivery')->select('poidel_item_id',DB::raw('sum(poidel_quantity + poidel_underrun_qty) as totalDeliveredQty'))->groupBy('poidel_item_id');
 		$q = PurchaseOrder::query();
+		$q->whereHas('poitems' , function($q1) use ($getDelivery){
+			$q1->from('cposms_purchaseorderitem')
+				->leftJoinSub($getDelivery,'getDelivery', function($join){
+				$join->on('cposms_purchaseorderitem.id','=','getDelivery.poidel_item_id');
+			})
+			->select(Db::raw('sum(poi_quantity) as totalItemQty'));
+			
+			$q1->having('totalItemQty','>','getDelivery.totalDeliveredQty');
+		});
+
 		$po_result = $q->orderBy('id','desc')->paginate($pageSize);
 		$po = $this->getPos($po_result);
 		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
