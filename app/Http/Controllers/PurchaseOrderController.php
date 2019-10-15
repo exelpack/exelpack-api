@@ -48,7 +48,7 @@ class PurchaseOrderController extends Controller
 		$totalQuantity = $po->getTotalItemQuantity->totalQuantity;
 		$totalDelivered = intval($po->getTotalDeliveryQuantity->totalDelivered);
 		$status = $po->poitems()->count() > 0 ? $totalDelivered >= $totalQuantity 
-		? 'SERVED' : 'OPEN' : 'NO ITEM/s';
+		? 'SERVED' : 'OPEN' : 'NO ITEM';
 		return array(
 			'id' => $po->id,
 			'po_num' => $po->po_ponum,
@@ -119,105 +119,147 @@ class PurchaseOrderController extends Controller
 	public function poIndex()
 	{
 		$pageSize = request()->pageSize;
+		$page = request()->page;
+		$offset = ($pageSize * $page) - $pageSize;
 
-		$getDelivery = DB::table('cposms_poitemdelivery')->select('poidel_item_id',DB::raw('sum(poidel_quantity + poidel_underrun_qty) as totalDeliveredQty'))->groupBy('poidel_item_id');
+		$sub = PurchaseOrderDelivery::select('poidel_item_id',DB::raw('IFNULL(sum(poidel_quantity + poidel_underrun_qty,0)'));
+
 		$q = PurchaseOrder::query();
-		$q->whereHas('poitems' , function($q1) use ($getDelivery){
+		$q->whereHas('poitems', function($q1) use ($sub){
 			$q1->from('cposms_purchaseorderitem')
-				->leftJoinSub($getDelivery,'getDelivery', function($join){
-				$join->on('cposms_purchaseorderitem.id','=','getDelivery.poidel_item_id');
-			})
-			->select(Db::raw('sum(poi_quantity) as totalItemQty'));
-			
-			$q1->having('totalItemQty','>','getDelivery.totalDeliveredQty');
-		});
+				->select(DB::raw('IFNULL(sum(poi_quantity),0)'))
+				->leftJoinSub($sub,'del', function ($j){
+					$j->on('cposms_purchaseorderitem.id','=','del.poidel_item_id');
+				})->having('');
+		})
+		// $q->withCount(['getTotalItemQuantity as totalQuantity' => function ($qt) {
+		// 	$qt->select(DB::raw('IFNULL(sum(poi_quantity),0)'));
+		// }]);
 
-		$po_result = $q->orderBy('id','desc')->paginate($pageSize);
-		$po = $this->getPos($po_result);
-		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
-		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc',
-			'm_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
+		// $q->withCount(['getTotalDeliveryQuantity as totalDelivered' => function ($qt) {
+		// 	$qt->select(DB::raw('IFNULL(sum(poidel_quantity + poidel_underrun_qty),0)'));
+		// }]);
 
 
-		return response()->json(
-			[
-				'customers' => $customers,
-				'po' => $po,
-				'poLength' => $po_result->total(),
-				'itemSelectionList' => $itemSelectionList
-			]);
+	if(request()->has('status')){
+		// if(request()->status === 'NO ITEM'){
+		// 	$q->whereDoesntHave('poitems');
+		// }else{
+		// 	if(request()->status === 'OPEN')
+				// $q->havingRaw('totalQuantity > totalDelivered');
+		// 	else
+		// 		$q->havingRaw('totalDelivered >= totalQuantity');
+		// }
 	}
 
-	public function poItemsIndex()
-	{
-		$pageSize = request()->pageSize;
-		$q = PurchaseOrderItems::query();
-		$poItems_result = $q->has('po')->orderBy('id','desc')->paginate($pageSize);
-		$poItems = $this->getItems($poItems_result);
-
-		return response()->json(
-			[
-				'poItems' => $poItems,
-				'poItemsLength' => $poItems_result->total(),
-			]);
+	if(request()->has('customer')){
+		$q->where('po_customer_id',request()->customer);
 	}
 
-	public function createPurchaseOrder(Request $request){
+	if(request()->has('month')){
+		$q->whereMonth('po_date',request()->month);
+	}
 
-		$cleanPO = $this->cleanString($request->po_num);
+	if(request()->has('year')){
+		$q->whereYear('po_date',request()->year);
+	}
 
-		Validator::make($request->all(),
-			[
-				'po_num' => 'unique:cposms_purchaseorder,po_ponum|required|max:100',
-				'customer' => 'required',
-				'currency' => 'required',
-			],[],['po_num' => 'purchase order number'])->validate();
+	if(request()->has('po')){
+		$q->where('po_ponum','LIKE','%'.request()->po.'%');
+	}
 
-		$po = new PurchaseOrder();
-		$po->fill(
-			[
-				'po_customer_id' => $request->customer,
-				'po_currency' => $request->currency,
-				'po_date' => $request->date,
-				'po_ponum' => $cleanPO,
-			]);
+	if(request()->has('sortDate')){
+		$q->orderBy('po_date',request()->sortDate);
+	}
+	// $po_result = $q->skip($offset)->take($pageSize)->get();
+	$po_result = $q->get();
+	return $po_result;
+	$po_result = $q->paginate($pageSize);
 
-		$po->save();
+	$po = $this->getPos($po_result);
+	$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
+	$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc',
+		'm_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
 
-		foreach($request->items as $row){
+	return response()->json(
+		[
+			// 'customers' => $customers,
+			'po' => $po,
+			// 'poLength' => $po_result->total(),
+			// 'itemSelectionList' => $itemSelectionList
+		]);
+}
 
-			$po->poitems()->create($this->itemArray($row));
+public function poItemsIndex()
+{
+	$pageSize = request()->pageSize;
+	$q = PurchaseOrderItems::query();
+	$poItems_result = $q->has('po')->orderBy('id','desc')->paginate($pageSize);
+	$poItems = $this->getItems($poItems_result);
 
-		}
-		
-		$newItem = $this->getPo($po);
-		return response()->json([
-			'newItem' => $newItem,
-			'message' => 'Record added'
+	return response()->json(
+		[
+			'poItems' => $poItems,
+			'poItemsLength' => $poItems_result->total(),
+		]);
+}
+
+public function createPurchaseOrder(Request $request){
+
+	$cleanPO = $this->cleanString($request->po_num);
+
+	Validator::make($request->all(),
+		[
+			'po_num' => 'unique:cposms_purchaseorder,po_ponum|required|max:100',
+			'customer' => 'required',
+			'currency' => 'required',
+		],[],['po_num' => 'purchase order number'])->validate();
+
+	$po = new PurchaseOrder();
+	$po->fill(
+		[
+			'po_customer_id' => $request->customer,
+			'po_currency' => $request->currency,
+			'po_date' => $request->date,
+			'po_ponum' => $cleanPO,
 		]);
 
+	$po->save();
+
+	foreach($request->items as $row){
+
+		$po->poitems()->create($this->itemArray($row));
+
 	}
 
-	public function editPurchaseOrder(Request $request){
+	$newItem = $this->getPo($po);
+	return response()->json([
+		'newItem' => $newItem,
+		'message' => 'Record added'
+	]);
 
-		$cleanPO = $this->cleanString($request->po_num);
+}
 
-		Validator::make($request->all(),
-			[
-				'po_num' => 'unique:cposms_purchaseorder,po_ponum,'.$request->id.'|required|max:100',
-				'customer' => 'required',
-				'currency' => 'required',
-			],[],['po_num' => 'purchase order number'])->validate();
+public function editPurchaseOrder(Request $request){
 
-		$po = PurchaseOrder::find($request->id);
-		$po->update(
-			[
-				'po_customer_id' => $request->customer,
-				'po_currency' => $request->currency,
-				'po_date' => $request->date,
-				'po_ponum' => $cleanPO,
-			]);
-		
+	$cleanPO = $this->cleanString($request->po_num);
+
+	Validator::make($request->all(),
+		[
+			'po_num' => 'unique:cposms_purchaseorder,po_ponum,'.$request->id.'|required|max:100',
+			'customer' => 'required',
+			'currency' => 'required',
+		],[],['po_num' => 'purchase order number'])->validate();
+
+	$po = PurchaseOrder::find($request->id);
+	$po->update(
+		[
+			'po_customer_id' => $request->customer,
+			'po_currency' => $request->currency,
+			'po_date' => $request->date,
+			'po_ponum' => $cleanPO,
+		]);
+
 		$poitems_count = $po->poitems()->count();// get original po item count
 		$poitems_ids = $po->poitems()->pluck('id')->toArray(); //get original po item id
 		$items_ids = array_column($request->items,'id'); //get request items id
