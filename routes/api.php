@@ -15,12 +15,10 @@ use Illuminate\Http\Request;
 Route::get('/test', 'PurchaseOrderController@test');
 Route::post('/login/{sys}','UserController@login');
 
-
-
-
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout','UserController@logout');
 
+	Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
 	Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
 	Route::put('/cposms/po','PurchaseOrderController@editPurchaseOrder'); //edit po
 	Route::get('/cposms/po','PurchaseOrderController@poIndex'); //fetch po

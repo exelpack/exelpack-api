@@ -10,6 +10,7 @@ use App\PurchaseOrderDelivery;
 use App\Masterlist;
 use App\Customers;
 use DB;
+use Carbon\Carbon;
 
 class PurchaseOrderController extends Controller
 {
@@ -26,6 +27,20 @@ class PurchaseOrderController extends Controller
 		return $this->getPos($t);
 	}
 
+	public function getOptionsPOSelect()
+	{
+		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
+		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc',
+			'm_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
+
+		return response()->json(
+			[
+				'customers' => $customers,
+				'itemSelectionList' => $itemSelectionList
+			]);
+
+	}
+
 	public function itemArray($item)
 	{
 		return [
@@ -37,8 +52,8 @@ class PurchaseOrderController extends Controller
 			'poi_unitprice' => $item['unitprice'],
 			'poi_deliverydate' => $item['deliverydate'],
 			'poi_kpi' => $item['kpi'],
-			'poi_others' => $item['others'],
-			'poi_remarks' => $item['remarks'],
+			'poi_others' => $this->cleanString($item['others']),
+			'poi_remarks' => $this->cleanString($item['remarks']),
 		];
 	}
 
@@ -93,6 +108,10 @@ class PurchaseOrderController extends Controller
 	{
 		$delivered = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
 		$status = $delivered >= $item->poi_quantity ? 'SERVED' : 'OPEN';
+
+		$diff =	Carbon::now()->diff($item->poi_deliverydate)->days;
+		$hasWarning = $diff < 3 && $status == 'OPEN' ? true : false; 
+
 		return array(
 			'id' => $item->id,
 			'customer' => $item->po->customer->companyname,
@@ -111,6 +130,7 @@ class PurchaseOrderController extends Controller
 			'others' => $item->poi_others,
 			'delivered_qty' => $delivered,
 			'remarks' => $item->poi_remarks,
+			'hasWarning' => $hasWarning,
 			'withJo' => $item->jo()->count() > 0 ? true : false,
 			'isNotEditable' => $status === 'SERVED' ? true : false,
 		);
@@ -125,7 +145,7 @@ class PurchaseOrderController extends Controller
 			Db::raw('IFNULL(sum(poidel_quantity + poidel_underrun_qty),0) as totalDelivered'));
 
 		$q = PurchaseOrder::query();
-
+		//filter
 		if(request()->has('status')){
 			if(request()->status === 'NO ITEM'){
 				$q->whereDoesntHave('poitems');
@@ -169,19 +189,14 @@ class PurchaseOrderController extends Controller
 		if(request()->has('sortDate')){
 			$q->orderBy('po_date',request()->sortDate);
 		}
-
+		// end filter
 		$po_result = $q->paginate($pageSize);	
 		$po = $this->getPos($po_result);
-		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
-		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc',
-			'm_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
-
+		
 		return response()->json(
 			[
-				'customers' => $customers,
 				'po' => $po,
 				'poLength' => $po_result->total(),
-				'itemSelectionList' => $itemSelectionList
 			]);
 	}
 
@@ -189,7 +204,47 @@ class PurchaseOrderController extends Controller
 	{
 		$pageSize = request()->pageSize;
 		$q = PurchaseOrderItems::query();
-		$poItems_result = $q->has('po')->orderBy('id','desc')->paginate($pageSize);
+		$q->has('po'); //fetch item with po only
+
+		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
+		// filter
+		if(request()->has('status')){
+			$q->from('cposms_purchaseorderitem')
+			->leftJoinSub($sub,'delivery',function ($join){
+				$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
+			});
+			if(request()->status === 'OPEN')
+				$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
+			else
+				$q->whereRaw('poi_quantity <= IFNULL(totalDelivered,0)');
+		}
+
+		if(request()->has('customer')){
+			$fCustomer = request()->customer;
+			$q->whereHas('po', function($q1) use ($fCustomer){
+				$q1->where('po_customer_id',$fCustomer);
+			});
+		}
+
+		if(request()->has('deliveryDue')){
+			$date = Carbon::now()->addDays(request()->deliveryDue)->format('Y-m-d');
+			$q->whereBetween('poi_deliverydate',[Carbon::now()->format('Y-m-d'),$date]);
+		}
+
+		if(request()->has('po')){
+			$fPo = request()->po;
+			$q->whereHas('po', function($q1) use ($fPo){
+				$q1->where('po_ponum','LIKE','%'.$fPo.'%');
+			});
+		}
+
+		if(request()->has('sortDate')){
+			$q->orderBy('poi_po_id','desc')->orderBy('poi_deliverydate',request()->sortDate);
+		}
+
+		// end filter
+		$poItems_result = $q->paginate($pageSize);
 		$poItems = $this->getItems($poItems_result);
 
 		return response()->json(
