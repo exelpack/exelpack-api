@@ -19,7 +19,9 @@ class CreatePoItemDeliverySchedule extends Migration
             $table->integer('poidel_quantity');
             $table->integer('poidel_underrun_qty');
             $table->date('poidel_deliverydate');
-            $table->string('remarks',150);
+            $table->string('poidel_invoice',70)->nullable();
+            $table->string('poidel_dr',70)->nullable();
+            $table->string('poidel_remarks',150);
             $table->timestamps();
         });
     }

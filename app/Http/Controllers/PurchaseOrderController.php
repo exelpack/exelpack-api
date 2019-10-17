@@ -40,7 +40,7 @@ class PurchaseOrderController extends Controller
 			]);
 
 	}
-
+	// PO
 	public function itemArray($item)
 	{
 		return [
@@ -229,7 +229,7 @@ class PurchaseOrderController extends Controller
 
 		if(request()->has('deliveryDue')){
 			$date = Carbon::now()->addDays(request()->deliveryDue)->format('Y-m-d');
-			$q->whereBetween('poi_deliverydate',[Carbon::now()->format('Y-m-d'),$date]);
+			$q->whereDate('poi_deliverydate','<=',$date);
 		}
 
 		if(request()->has('po')){
@@ -258,12 +258,16 @@ class PurchaseOrderController extends Controller
 
 		$cleanPO = $this->cleanString($request->po_num);
 
-		Validator::make($request->all(),
+		$validator = Validator::make($request->all(),
 			[
 				'po_num' => 'unique:cposms_purchaseorder,po_ponum|required|max:100',
 				'customer' => 'required',
 				'currency' => 'required',
-			],[],['po_num' => 'purchase order number'])->validate();
+			],[],['po_num' => 'purchase order number']);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()],422);
+		}
 
 		$po = new PurchaseOrder();
 		$po->fill(
@@ -294,12 +298,16 @@ class PurchaseOrderController extends Controller
 
 		$cleanPO = $this->cleanString($request->po_num);
 
-		Validator::make($request->all(),
+		$validator = Validator::make($request->all(),
 			[
 				'po_num' => 'unique:cposms_purchaseorder,po_ponum,'.$request->id.'|required|max:100',
 				'customer' => 'required',
 				'currency' => 'required',
-			],[],['po_num' => 'purchase order number'])->validate();
+			],[],['po_num' => 'purchase order number']);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()],422);
+		}
 
 		$po = PurchaseOrder::find($request->id);
 		$po->update(
@@ -348,4 +356,117 @@ class PurchaseOrderController extends Controller
 			'message' => 'Record cancelled'
 		]);
 	}
+	// delivery functions
+
+	public function getDeliveries($deliveries) //convert deliveries
+	{
+		$deliveries_arr = array();
+
+		foreach($deliveries as $row){
+			array_push($deliveries_arr,$this->getDelivery($row));
+		}
+
+		return $deliveries_arr;
+	}
+
+	public function getDelivery($delivery) //convert delivery
+	{
+
+		return array(
+			[
+				'id' => $delivery->id,
+				'quantity' => $delivery->poidel_quantity,
+				'underrun' => $delivery->poidel_underrun_qty,
+				'date' => $delivery->poidel_deliverydate,
+				'invoice' => $delivery->poidel_invoice,
+				'dr' => $delivery->poidel_dr,
+				'remarks' => $delivery->poidel_remarks
+			]
+		);
+
+	}
+
+	public function getItemDeliveryStats($item) //get total qty, delivered, and remainig
+	{
+		$itemQuantity = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
+		$totalDelivered = $item->poi_quantity;
+		$remainingQty =  $totalDelivered - $itemQuantity;
+
+		return [
+			'itemQuantity' => $itemQuantity,
+			'itemDelivered' => $totalDelivered,
+			'itemRemaining' => $remainingQty,
+		];
+	}
+
+	public function itemDeliveryArray($delivery){
+
+		return [
+			'poidel_quantity' => $delivery->quantity,
+			'poidel_underrun_qty' => $delivery->underrun,
+			'poidel_deliverydate' => $delivery->date,
+			'poidel_invoice' => $delivery->invoice,
+			'poidel_dr' => $delivery->dr,
+			'poidel_remarks' => $delivery->remarks,
+		];
+
+	}
+
+	public function fetchItemDelivery($id) //fetch delivered for the item
+	{
+
+		$item = PurchaseOrderItems::find($id);
+		$stats = $this->getItemDeliveryStats($item);
+		$deliveries = $this->getDeliveries($item->delivery()->get());
+
+		return response()->json(array_merge($stats,
+			['item_id' => $id,'deliveries' => $deliveries]));
+
+	}
+
+	public function addDelivery(Request $request)
+	{
+
+		$item = PurchaseOrderItems::find($request->id);
+		$stats = $this->getItemDeliveryStats($item);
+
+		$validator = Validator::make($request->all(),
+			[
+				'totalQty' => 'integer|min:1|max:'.$stats['itemRemaining'],
+				'quantity' => 'integer|required',
+				'underrun' => 'integer|required',
+				'date' => 'required|before_or_equal:'.date('Y-m-d'),
+				'dr' => 'string|max:70|nullable',
+				'invoice' => 'string|max:70|nullable',
+				'remarks' => 'string|max:150|nullable',
+			],[],['totalQty' => 'Total delivered quantity & underrun']);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()],422);
+		}
+
+		$item->delivery()->create($this->itemDeliveryArray($request));//add
+		$newDelivery = $this->getDelivery($item->delivery()->latest('created_at')->first()); //get the latest added record
+		$stats = $this->getItemDeliveryStats($item);
+		$updatedItem = $this->getItem($item);
+
+		return response()->json(array_merge($stats,
+			['newDelivery' => $newDelivery,
+			 'updatedItem' => $updatedItem,
+			]));
+
+	}
+
+	public function editDelivery(Request $request,$id)
+	{
+
+	}
+
+	public function deleteDelivery($id)
+	{
+
+	}
+
+
+
 }

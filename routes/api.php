@@ -15,6 +15,10 @@ use Illuminate\Http\Request;
 Route::get('/test', 'PurchaseOrderController@test');
 Route::post('/login/{sys}','UserController@login');
 
+
+Route::get('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@fetchItemDelivery');
+Route::post('/cposms/poitems/delivery', 'PurchaseOrderController@addDelivery');
+
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout','UserController@logout');
 
