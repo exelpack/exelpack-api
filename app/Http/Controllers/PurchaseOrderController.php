@@ -373,7 +373,6 @@ class PurchaseOrderController extends Controller
 	{
 
 		return array(
-			[
 				'id' => $delivery->id,
 				'quantity' => $delivery->poidel_quantity,
 				'underrun' => $delivery->poidel_underrun_qty,
@@ -381,16 +380,15 @@ class PurchaseOrderController extends Controller
 				'invoice' => $delivery->poidel_invoice,
 				'dr' => $delivery->poidel_dr,
 				'remarks' => $delivery->poidel_remarks
-			]
 		);
 
 	}
 
 	public function getItemDeliveryStats($item) //get total qty, delivered, and remainig
 	{
-		$itemQuantity = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
-		$totalDelivered = $item->poi_quantity;
-		$remainingQty =  $totalDelivered - $itemQuantity;
+		$totalDelivered = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
+		$itemQuantity = $item->poi_quantity;
+		$remainingQty =  $itemQuantity - $totalDelivered;
 
 		return [
 			'itemQuantity' => $itemQuantity,
@@ -417,24 +415,24 @@ class PurchaseOrderController extends Controller
 
 		$item = PurchaseOrderItems::find($id);
 		$stats = $this->getItemDeliveryStats($item);
-		$deliveries = $this->getDeliveries($item->delivery()->get());
+		$itemDeliveries = $this->getDeliveries($item->delivery()->orderBy('id','DESC')->get());
 
 		return response()->json(array_merge($stats,
-			['item_id' => $id,'deliveries' => $deliveries]));
+			['item_id' => $id,'itemDeliveries' => $itemDeliveries]));
 
 	}
 
 	public function addDelivery(Request $request)
 	{
 
-		$item = PurchaseOrderItems::find($request->id);
+		$item = PurchaseOrderItems::find($request->item_id);
 		$stats = $this->getItemDeliveryStats($item);
 
 		$validator = Validator::make($request->all(),
 			[
 				'totalQty' => 'integer|min:1|max:'.$stats['itemRemaining'],
-				'quantity' => 'integer|required',
-				'underrun' => 'integer|required',
+				'quantity' => 'integer|nullable|required_if:underrun,null,0',
+				'underrun' => 'integer|nullable|required_if:quantity,null,0',
 				'date' => 'required|before_or_equal:'.date('Y-m-d'),
 				'dr' => 'string|max:70|nullable',
 				'invoice' => 'string|max:70|nullable',

@@ -16,8 +16,8 @@ class CreatePoItemDeliverySchedule extends Migration
         Schema::create('cposms_poitemdelivery', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('poidel_item_id')->unsigned();
-            $table->integer('poidel_quantity');
-            $table->integer('poidel_underrun_qty');
+            $table->integer('poidel_quantity')->nullable();
+            $table->integer('poidel_underrun_qty')->nullable();
             $table->date('poidel_deliverydate');
             $table->string('poidel_invoice',70)->nullable();
             $table->string('poidel_dr',70)->nullable();
