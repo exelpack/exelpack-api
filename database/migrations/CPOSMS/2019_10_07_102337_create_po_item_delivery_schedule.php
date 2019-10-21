@@ -21,7 +21,7 @@ class CreatePoItemDeliverySchedule extends Migration
             $table->date('poidel_deliverydate');
             $table->string('poidel_invoice',70)->nullable();
             $table->string('poidel_dr',70)->nullable();
-            $table->string('poidel_remarks',150);
+            $table->string('poidel_remarks',150)->nullable();
             $table->timestamps();
         });
     }

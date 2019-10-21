@@ -23,8 +23,8 @@ class PurchaseOrderController extends Controller
 
 	public function test()// for testing purposes
 	{
-		$t = PurchaseOrder::all();
-		return $this->getPos($t);
+		$t = PurchaseOrderItems::find(14);
+		return $this->getItemDeliveryStats($t);
 	}
 
 	public function getOptionsPOSelect()
@@ -337,8 +337,8 @@ class PurchaseOrderController extends Controller
 				$po->poitems()->create($this->itemArray($item));
 			}
 		}
-
-		$newItem = $this->getPo(PurchaseOrder::find($request->id));
+		$po->refresh();
+		$newItem = $this->getPo($po);
 		return response()->json([
 			'newItem' => $newItem,
 			'message' => 'Record updated'
@@ -373,13 +373,13 @@ class PurchaseOrderController extends Controller
 	{
 
 		return array(
-				'id' => $delivery->id,
-				'quantity' => $delivery->poidel_quantity,
-				'underrun' => $delivery->poidel_underrun_qty,
-				'date' => $delivery->poidel_deliverydate,
-				'invoice' => $delivery->poidel_invoice,
-				'dr' => $delivery->poidel_dr,
-				'remarks' => $delivery->poidel_remarks
+			'id' => $delivery->id,
+			'quantity' => $delivery->poidel_quantity,
+			'underrun' => $delivery->poidel_underrun_qty,
+			'date' => $delivery->poidel_deliverydate,
+			'invoice' => $delivery->poidel_invoice,
+			'dr' => $delivery->poidel_dr,
+			'remarks' => $delivery->poidel_remarks
 		);
 
 	}
@@ -400,8 +400,8 @@ class PurchaseOrderController extends Controller
 	public function itemDeliveryArray($delivery){
 
 		return [
-			'poidel_quantity' => $delivery->quantity,
-			'poidel_underrun_qty' => $delivery->underrun,
+			'poidel_quantity' => $delivery->quantity ? $delivery->quantity : 0,
+			'poidel_underrun_qty' => $delivery->underrun ? $delivery->underrun : 0,
 			'poidel_deliverydate' => $delivery->date,
 			'poidel_invoice' => $delivery->invoice,
 			'poidel_dr' => $delivery->dr,
@@ -419,6 +419,18 @@ class PurchaseOrderController extends Controller
 
 		return response()->json(array_merge($stats,
 			['item_id' => $id,'itemDeliveries' => $itemDeliveries]));
+
+	}
+
+	public function fetchDeliveries()
+	{
+
+		$deliveries_result = PurchaseOrderDelivery::has('item.po')->latest()->get();
+		$deliveries = $this->getDeliveries($deliveries_result);
+		return response()->json(
+			[
+				'deliveries' => $deliveries,
+			]);
 
 	}
 
@@ -444,13 +456,16 @@ class PurchaseOrderController extends Controller
 		}
 
 		$item->delivery()->create($this->itemDeliveryArray($request));//add
+		$item->refresh(); // refresh item content
 		$newDelivery = $this->getDelivery($item->delivery()->latest('created_at')->first()); //get the latest added record
-		$stats = $this->getItemDeliveryStats($item);
+		$newStats = $this->getItemDeliveryStats($item);
 		$updatedItem = $this->getItem($item);
 
-		return response()->json(array_merge($stats,
-			['newDelivery' => $newDelivery,
-			 'updatedItem' => $updatedItem,
+		return response()->json(array_merge($newStats,
+			[
+				'newDelivery' => $newDelivery,
+				'updatedItem' => $updatedItem,
+				'message' => 'Record added'
 			]));
 
 	}
@@ -458,10 +473,60 @@ class PurchaseOrderController extends Controller
 	public function editDelivery(Request $request,$id)
 	{
 
+		$item = PurchaseOrderItems::find($request->item_id);
+		$stats = $this->getItemDeliveryStats($item);
+		$delivery = PurchaseOrderDelivery::find($id);
+		$remaining = $delivery->poidel_quantity + $delivery->poidel_underrun_qty + $stats['itemRemaining'];
+
+		$validator = Validator::make($request->all(),
+			[
+				'totalQty' => 'integer|min:1|max:'.$remaining,
+				'quantity' => 'integer|nullable|required_if:underrun,null|required_if:underrun,0',
+				'underrun' => 'integer|nullable|required_if:quantity,null|required_if:quantity,0',
+				'date' => 'required|before_or_equal:'.date('Y-m-d'),
+				'dr' => 'string|max:70|nullable',
+				'invoice' => 'string|max:70|nullable',
+				'remarks' => 'string|max:150|nullable',
+			],[],['totalQty' => 'Total delivered quantity & underrun']);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()],422);
+		}
+
+		$delivery->update($this->itemDeliveryArray($request));
+		$delivery->refresh();
+		$item->refresh(); // refresh item content
+		$updateDelivery = $this->getDelivery($delivery); //get the edited record
+		$newStats = $this->getItemDeliveryStats($item);
+		$updatedItem = $this->getItem($item);
+
+		return response()->json(array_merge($newStats,
+			[
+				'updatedDelivery' => $updateDelivery,
+				'updatedItem' => $updatedItem,
+				'message' => 'Record updated'
+			]));
+
 	}
 
 	public function deleteDelivery($id)
 	{
+
+		$delivery = PurchaseOrderDelivery::find($id);
+		$item_id = $delivery->poidel_item_id;
+
+		$delivery->delete();
+		$item = PurchaseOrderItems::find($item_id);
+		$newStats = $this->getItemDeliveryStats($item);
+		$updatedItem = $this->getItem($item);
+
+		return response()->json(array_merge($newStats,
+			[
+				'id' => intval($id),
+				'updatedItem' => $updatedItem,
+				'message' => 'Record deleted'
+			]
+		));
 
 	}
 

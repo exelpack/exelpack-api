@@ -18,6 +18,9 @@ Route::post('/login/{sys}','UserController@login');
 
 Route::get('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@fetchItemDelivery');
 Route::post('/cposms/poitems/delivery', 'PurchaseOrderController@addDelivery');
+Route::put('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@editDelivery');
+Route::delete('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@deleteDelivery');
+Route::get('/cposms/poitems/delivery', 'PurchaseOrderController@fetchDeliveries');
 
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout','UserController@logout');
