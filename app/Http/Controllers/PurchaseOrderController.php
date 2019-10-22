@@ -379,7 +379,9 @@ class PurchaseOrderController extends Controller
 			'date' => $delivery->poidel_deliverydate,
 			'invoice' => $delivery->poidel_invoice,
 			'dr' => $delivery->poidel_dr,
-			'remarks' => $delivery->poidel_remarks
+			'remarks' => $delivery->poidel_remarks,
+			'po_num' => $delivery->item->po->po_ponum,
+			'item_desc' => $delivery->item->poi_itemdescription,
 		);
 
 	}
@@ -424,12 +426,37 @@ class PurchaseOrderController extends Controller
 
 	public function fetchDeliveries()
 	{
+		$q = PurchaseOrderDelivery::query();
+		$pageSize = request()->pageSize;
 
-		$deliveries_result = PurchaseOrderDelivery::has('item.po')->latest()->get();
-		$deliveries = $this->getDeliveries($deliveries_result);
+		if(request()->has('search')){
+			$search = request()->search;
+			$q->whereHas('item.po' ,function($q) use ($search) {
+				$q->where('po_ponum','LIKE','%'.$search.'%');
+			})
+			->orWhereHas('item', function($q) use ($search){
+				$q->where('poi_itemdescription','LIKE','%'.$search.'%');
+			})
+			->orWhere('poidel_dr','LIKE','%'.$search.'%')
+			->orWhere('poidel_invoice','LIKE','%'.$search.'%');
+		}
+
+		if(request()->has('start') && request()->has('end')){
+			$start = request()->start;
+			$end = request()->end;
+
+			$q->whereBetween('poidel_deliverydate',[$start,$end]);
+		}
+		$q->has('item.po');
+		$q->orderBy('poidel_deliverydate','desc');
+		$deliveries_result = $q->paginate($pageSize);
+
+		// $deliveries_result = PurchaseOrderDelivery::has('item.po')->latest()->get();
+		$deliveredItems = $this->getDeliveries($deliveries_result);
 		return response()->json(
 			[
-				'deliveries' => $deliveries,
+				'deliveredItems' => $deliveredItems,
+				'deliveredLength' => $deliveries_result->total(),
 			]);
 
 	}

@@ -24,6 +24,7 @@ Route::get('/cposms/poitems/delivery', 'PurchaseOrderController@fetchDeliveries'
 
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout','UserController@logout');
+	Route::post('/me','UserController@me');
 
 	Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
 	Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
