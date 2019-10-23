@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use App\PurchaseOrder;
 use App\PurchaseOrderItems;
 use App\PurchaseOrderDelivery;
+use App\PurchaseOrderSchedule;
 use App\Masterlist;
 use App\Customers;
 use DB;
@@ -451,7 +453,6 @@ class PurchaseOrderController extends Controller
 		$q->orderBy('poidel_deliverydate','desc');
 		$deliveries_result = $q->paginate($pageSize);
 
-		// $deliveries_result = PurchaseOrderDelivery::has('item.po')->latest()->get();
 		$deliveredItems = $this->getDeliveries($deliveries_result);
 		return response()->json(
 			[
@@ -557,6 +558,126 @@ class PurchaseOrderController extends Controller
 
 	}
 
+
+	//schedule
+	public function scheduleArray($sched)
+	{
+		$itemQty = $sched->item->poi_quantity;
+		$delivered = $sched->item()->sum(Db::raw('poidel_quantity + poidel_underrun_qty'));
+		$remaining = $itemQty - $delivered;
+		return [
+			'pods_user_id' => auth()->user()->id,
+			'pods_scheduledate' => $sched->date,
+			'pods_remaining' => $remaining,
+			'pods_quantity' => $sched->quantity,
+			'pods_remarks' => $sched->remarks,
+			'pods_commit_qty' => $sched->commited_qty,
+			'pods_prod_remarks' => $sched->prod_remarks,
+		];
+
+	}
+
+	public function getSchedule($sched)
+	{
+
+		$hasPrivelege = auth()->user()->id == $sched->pods_user_id ? true : false;
+
+		return [
+			'id' => $sched->id,
+			'hasPrivelege' => $hasPrivelege,
+			'customer' => $sched->item->po->customer->companyname,
+			'po' => $sched->item->po->po_ponum,
+			'itemdesc' => $sched->item->poi_itemdescription,
+			'date' => $sched->pods_scheduledate,
+			'quantity' => $sched->pods_quantity,
+			'remaining' => $sched->pods_remaining,
+			'remarks' => $sched->pods_remarks,
+			'commited_qty' => $sched->pods_commit_qty,
+			'prod_remarks' => $sched->pods_prod_remarks,
+			'others' => $sched->item->poi_others,
+		];
+
+	}
+
+	public function getSchedules($scheds)
+	{
+
+		$sched_arr = [];
+		foreach($scheds as $sched){
+			array_push($sched_arr,$this->getSchedule($sched));
+		}
+
+		return $sched_arr;
+
+	}
+
+	public function getDailySchedules($date)
+	{
+
+		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
+										->get();
+		$scheds = $this->getSchedules($dailyScheds);
+
+		return response()->json(
+			[
+				'dailySchedule' => $scheds
+			]);
+
+	}
+
+	public function getOpenItems()
+	{
+
+		$q = PurchaseOrderItems::query();
+		$q->has('po'); //fetch item with po only
+
+		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
+	
+		$q->from('cposms_purchaseorderitem')
+			->leftJoinSub($sub,'delivery',function ($join){
+			$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
+		});
+		$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
+		$itemResult = $q->get();
+		return $this->getItems($itemResult);
+
+	}
+
+	public function getMonthItemCountSchedule()
+	{
+
+		$date = request()->date;
+		$month = Carbon::parse($date)->format('m');
+		$year = Carbon::parse($date)->format('Y');
+		$monthlyItemCount = array();
+
+		$monthSchedItems = PurchaseOrderSchedule::select('pods_scheduledate as date',
+												Db::raw('count(*) as totalItem'))
+												->whereMonth('pods_scheduledate',$month)
+												->whereYear('pods_scheduledate',$year)
+												->groupBy('pods_scheduledate')
+												->get();
+
+
+		foreach($monthSchedItems as $row)
+		{
+			$name = "fy".Carbon::parse($row->date)->format('Ymd');
+			$monthlyItemCount[$name] = $row->totalItem;
+		}
+
+		return response()->json(
+			[
+				'monthScheduledItems' => $monthlyItemCount
+			]);
+	}
+
+	public function addDailySchedule(Request $request)
+	{
+
+
+
+	}
 
 
 }

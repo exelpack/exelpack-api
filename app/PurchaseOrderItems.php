@@ -27,4 +27,9 @@ class PurchaseOrderItems extends Model
 		return $this->hasMany('App\JobOrder','jo_po_item_id');
 	}
 
+	public function schedule()
+	{
+		return $this->hasMany('App\PurchaseOrderSchedule','pods_item_id');
+	}
+
 }
