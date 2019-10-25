@@ -44,6 +44,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
 	Route::get('/cposms/poitems/schedules/{date}', 'PurchaseOrderController@getDailySchedules');
+	Route::post('/cposms/poitems/schedules', 'PurchaseOrderController@addDailySchedule');
 
 
 });

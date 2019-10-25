@@ -268,7 +268,7 @@ class PurchaseOrderController extends Controller
 			],[],['po_num' => 'purchase order number']);
 
 		if($validator->fails()){
-			return response()->json(['errors' => $validator->errors()],422);
+			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
 		$po = new PurchaseOrder();
@@ -308,7 +308,7 @@ class PurchaseOrderController extends Controller
 			],[],['po_num' => 'purchase order number']);
 
 		if($validator->fails()){
-			return response()->json(['errors' => $validator->errors()],422);
+			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
 		$po = PurchaseOrder::find($request->id);
@@ -480,7 +480,7 @@ class PurchaseOrderController extends Controller
 			],[],['totalQty' => 'Total delivered quantity & underrun']);
 
 		if($validator->fails()){
-			return response()->json(['errors' => $validator->errors()],422);
+			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
 		$item->delivery()->create($this->itemDeliveryArray($request));//add
@@ -518,7 +518,7 @@ class PurchaseOrderController extends Controller
 			],[],['totalQty' => 'Total delivered quantity & underrun']);
 
 		if($validator->fails()){
-			return response()->json(['errors' => $validator->errors()],422);
+			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
 		$delivery->update($this->itemDeliveryArray($request));
@@ -558,25 +558,7 @@ class PurchaseOrderController extends Controller
 
 	}
 
-
 	//schedule
-	public function scheduleArray($sched)
-	{
-		$itemQty = $sched->item->poi_quantity;
-		$delivered = $sched->item()->sum(Db::raw('poidel_quantity + poidel_underrun_qty'));
-		$remaining = $itemQty - $delivered;
-		return [
-			'pods_user_id' => auth()->user()->id,
-			'pods_scheduledate' => $sched->date,
-			'pods_remaining' => $remaining,
-			'pods_quantity' => $sched->quantity,
-			'pods_remarks' => $sched->remarks,
-			'pods_commit_qty' => $sched->commited_qty,
-			'pods_prod_remarks' => $sched->prod_remarks,
-		];
-
-	}
-
 	public function getSchedule($sched)
 	{
 
@@ -615,7 +597,7 @@ class PurchaseOrderController extends Controller
 	{
 
 		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
-										->get();
+		->get();
 		$scheds = $this->getSchedules($dailyScheds);
 
 		return response()->json(
@@ -633,14 +615,18 @@ class PurchaseOrderController extends Controller
 
 		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
 			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
-	
+
 		$q->from('cposms_purchaseorderitem')
-			->leftJoinSub($sub,'delivery',function ($join){
+		->leftJoinSub($sub,'delivery',function ($join){
 			$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
 		});
 		$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
 		$itemResult = $q->get();
-		return $this->getItems($itemResult);
+		$openItems = $this->getItems($itemResult);
+		return response()->json(
+			[
+				'openItems' => $openItems
+			]);
 
 	}
 
@@ -653,12 +639,11 @@ class PurchaseOrderController extends Controller
 		$monthlyItemCount = array();
 
 		$monthSchedItems = PurchaseOrderSchedule::select('pods_scheduledate as date',
-												Db::raw('count(*) as totalItem'))
-												->whereMonth('pods_scheduledate',$month)
-												->whereYear('pods_scheduledate',$year)
-												->groupBy('pods_scheduledate')
-												->get();
-
+			Db::raw('count(*) as totalItem'))
+		->whereMonth('pods_scheduledate',$month)
+		->whereYear('pods_scheduledate',$year)
+		->groupBy('pods_scheduledate')
+		->get();
 
 		foreach($monthSchedItems as $row)
 		{
@@ -674,8 +659,53 @@ class PurchaseOrderController extends Controller
 
 	public function addDailySchedule(Request $request)
 	{
+		$names = ['items' => 'scheduled items'];
+		$date = $request->date;
+		$validator = Validator::make($request->all(),[
+			'date' => 'after_or_equal:'.date('Y-m-d').'|required',
+			'items' => 'array|min:1'
+		],[],$names);
+
+		$error_msg = [];
+		$itemError_msg = [];
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
+		}
+
+		foreach($request->items as $key => $item)
+		{
+			if(!isset($item['schedQuantity']) || $item['schedQuantity'] === '' || $item['schedQuantity'] === null)
+				continue;
+
+			$poitem = PurchaseOrderItems::find($item['id']);
+			$val = $this->getItem($poitem);
+			$remaining = $val['quantity'] - $val['delivered_qty'];
+
+			$validateItem = Validator::make($item,[
+				'schedRemarks' => 'string|nullable|max:150',
+				'schedQuantity' => 'integer|min:1|max:'.$remaining
+			],['schedQty.max' => $val['itemdesc']." remaining quantity is ".$remaining]); 
 
 
+			if($validateItem->fails()){ // if has errors
+				$itemError_msg = array_merge($itemError_msg,$validateItem->errors()->all());
+				continue;
+			}
+
+			$poitem->schedule()->create([
+				'pods_user_id' => auth()->user()->id,
+				'pods_scheduledate' => $date,
+				'pods_remaining' => $remaining,
+				'pods_quantity' => $item['schedQuantity'],
+				'pods_remarks' => $item['schedRemarks']
+			]);
+
+		}
+
+		if(count($itemError_msg) > 0){	///iff error return this
+			return response()->json(['errors' => $itemError_msg],422);
+		}
 
 	}
 
