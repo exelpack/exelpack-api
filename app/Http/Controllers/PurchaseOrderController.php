@@ -612,6 +612,7 @@ class PurchaseOrderController extends Controller
 
 		$q = PurchaseOrderItems::query();
 		$q->has('po'); //fetch item with po only
+		$date = request()->date;
 
 		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
 			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
@@ -620,9 +621,15 @@ class PurchaseOrderController extends Controller
 		->leftJoinSub($sub,'delivery',function ($join){
 			$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
 		});
+
+		$q->whereDoesntHave('schedule', function($q) use ($date){
+			$q->where('pods_scheduledate', $date);
+		});
+
 		$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
 		$itemResult = $q->get();
 		$openItems = $this->getItems($itemResult);
+
 		return response()->json(
 			[
 				'openItems' => $openItems
@@ -668,6 +675,8 @@ class PurchaseOrderController extends Controller
 
 		$error_msg = [];
 		$itemError_msg = [];
+		$addedItems = [];
+		$addedItemKeys = [];
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
@@ -685,7 +694,7 @@ class PurchaseOrderController extends Controller
 			$validateItem = Validator::make($item,[
 				'schedRemarks' => 'string|nullable|max:150',
 				'schedQuantity' => 'integer|min:1|max:'.$remaining
-			],['schedQty.max' => $val['itemdesc']." remaining quantity is ".$remaining]); 
+			],['schedQuantity.max' => $val['itemdesc']." remaining quantity is ".$remaining]); 
 
 
 			if($validateItem->fails()){ // if has errors
@@ -693,19 +702,62 @@ class PurchaseOrderController extends Controller
 				continue;
 			}
 
-			$poitem->schedule()->create([
+			$newItem = $poitem->schedule()->create([
 				'pods_user_id' => auth()->user()->id,
 				'pods_scheduledate' => $date,
 				'pods_remaining' => $remaining,
 				'pods_quantity' => $item['schedQuantity'],
-				'pods_remarks' => $item['schedRemarks']
+				'pods_remarks' => isset($item['schedRemarks']) ? $item['schedRemarks'] : null
 			]);
 
+			array_push($addedItems,$this->getSchedule($newItem));
+			array_push($addedItemKeys,$newItem->pods_item_id);
+
 		}
 
-		if(count($itemError_msg) > 0){	///iff error return this
-			return response()->json(['errors' => $itemError_msg],422);
+
+		return response()->json(
+			[
+				'errors' => $itemError_msg,
+				'newItems' => $addedItems,
+				'itemKeys' => $addedItemKeys
+			]
+		);
+
+
+	}
+
+	public function updateItemSchedule(Request $request,$id)
+	{
+		$itemSched = PurchaseOrderSchedule::find($id);
+		$val = $this->getItem($itemSched->item);
+		$remaining = $val['quantity'] - $val['delivered_qty'];
+
+		$validateItem = Validator::make($request->all(),[
+			'remarks' => 'string|nullable|max:150',
+			'quantity' => 'integer|min:1|max:'.$remaining
+		],[
+			'quantity.max' => $val['itemdesc']." remaining quantity is ".$remaining,
+		]); 
+
+		if($validateItem->fails()){
+			return response()->json(['errors' => $validateItem->errors()->all()],422);
 		}
+
+		$itemSched->update(
+			[
+				'pods_quantity' => $request->quantity,
+				'pods_remarks' => $request->remarks,
+			]);
+
+
+		$updatedItem = $this->getSchedule($itemSched);
+
+		return response()->json(
+			[
+				'message' => 'Record updated',
+				'updateItem' => $updatedItem,
+			]);
 
 	}
 
