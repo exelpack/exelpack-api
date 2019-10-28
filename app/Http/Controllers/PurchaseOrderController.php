@@ -114,6 +114,15 @@ class PurchaseOrderController extends Controller
 		$diff =	Carbon::now()->diff($item->poi_deliverydate)->days;
 		$hasWarning = $diff < 3 && $status == 'OPEN' ? true : false; 
 
+		//restrict
+		$isNotEditable = $status === 'SERVED' ? true : false; //if served. then not editable anymore
+		$withJo = $item->jo()->count() > 0 ? true : false; // if with jo
+		$qtyDisabled = $isNotEditable || $delivered !== 0 || $withJo;// disabled editing of quantity
+		$itemRemovable = !$withJo && !$isNotEditable && $delivered === 0;//if no jo andnot served and doesnt have delivered
+
+		$hasDelivered = $item->delivery()->count() > 0 ? true : false;
+		$hasSchedule = $item->schedule()->count() > 0 ? true : false;
+
 		return array(
 			'id' => $item->id,
 			'customer' => $item->po->customer->companyname,
@@ -132,9 +141,13 @@ class PurchaseOrderController extends Controller
 			'others' => $item->poi_others,
 			'delivered_qty' => $delivered,
 			'remarks' => $item->poi_remarks,
+			'withJo' => $withJo,
+			'isNotEditable' => $isNotEditable,
+			'qtyDisabled' => $qtyDisabled,
+			'itemRemovable' => $itemRemovable,
 			'hasWarning' => $hasWarning,
-			'withJo' => $item->jo()->count() > 0 ? true : false,
-			'isNotEditable' => $status === 'SERVED' ? true : false,
+			'hasDelivered' => $hasDelivered,
+			'hasSchedule' => $hasSchedule,
 		);
 
 	}
@@ -597,6 +610,7 @@ class PurchaseOrderController extends Controller
 	{
 
 		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
+		->has('item')
 		->get();
 		$scheds = $this->getSchedules($dailyScheds);
 
@@ -647,6 +661,7 @@ class PurchaseOrderController extends Controller
 
 		$monthSchedItems = PurchaseOrderSchedule::select('pods_scheduledate as date',
 			Db::raw('count(*) as totalItem'))
+		->has('item.po')
 		->whereMonth('pods_scheduledate',$month)
 		->whereYear('pods_scheduledate',$year)
 		->groupBy('pods_scheduledate')
@@ -662,6 +677,24 @@ class PurchaseOrderController extends Controller
 			[
 				'monthScheduledItems' => $monthlyItemCount
 			]);
+	}
+
+	public function getPoItemSchedule($id)
+	{
+
+		$itemSched = PurchaseOrderItems::find($id)
+		->schedule()
+		->orderBy('pods_scheduledate', 'DESC')
+		->get();
+
+		$schedules = $this->getSchedules($itemSched);
+
+		return response()->json(
+			[
+				'itemSchedule' => $schedules
+			]
+		);
+
 	}
 
 	public function addDailySchedule(Request $request)
@@ -715,7 +748,6 @@ class PurchaseOrderController extends Controller
 
 		}
 
-
 		return response()->json(
 			[
 				'errors' => $itemError_msg,
@@ -757,6 +789,20 @@ class PurchaseOrderController extends Controller
 			[
 				'message' => 'Record updated',
 				'updateItem' => $updatedItem,
+			]);
+
+	}
+
+	public function deleteItemSchedule($ids)
+	{
+
+		$ids = json_decode('['.$ids.']', true);
+
+		PurchaseOrderSchedule::destroy($ids);
+
+		return response()->json(
+			[
+				'message' => 'Record/s deleted',
 			]);
 
 	}

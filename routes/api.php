@@ -42,10 +42,12 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::delete('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@deleteDelivery');
 	Route::get('/cposms/poitems/delivery', 'PurchaseOrderController@fetchDeliveries');
 
+	Route::get('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@getPoItemSchedule');
 	Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
 	Route::get('/cposms/poitems/schedules/{date}', 'PurchaseOrderController@getDailySchedules');
 	Route::post('/cposms/poitems/schedules', 'PurchaseOrderController@addDailySchedule');
 	Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
+	Route::delete('/cposms/poitems/schedules/{ids}', 'PurchaseOrderController@deleteItemSchedule');
 
 
 });
