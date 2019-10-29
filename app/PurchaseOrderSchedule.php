@@ -15,4 +15,5 @@ class PurchaseOrderSchedule extends Model
    {
      return $this->belongsTo('App\PurchaseOrderItems','pods_item_id');
    }
+   
 }

@@ -14,6 +14,12 @@ use App\Customers;
 use DB;
 use Carbon\Carbon;
 
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\PurchaseOrderExport;
+use App\Exports\PurchaseOrderItemExport;
+use App\Exports\PoDeliveryScheduleExport;
+use App\Exports\PoItemDeliveredExport;
+
 class PurchaseOrderController extends Controller
 {
 
@@ -23,11 +29,27 @@ class PurchaseOrderController extends Controller
 		return $string;
 	}
 
-	public function test()// for testing purposes
+	// exports
+	public function exportPoCsv()
 	{
-		$t = PurchaseOrderItems::find(14);
-		return $this->getItemDeliveryStats($t);
+		return Excel::download(new PurchaseOrderExport, 'purchaseorders.xlsx');
 	}
+
+	public function exportPoItemsCsv()
+	{
+		return Excel::download(new PurchaseOrderItemExport, 'purchaseorderitem.xlsx');
+	}
+
+	public function exportPoDailySchedule()
+	{
+		return Excel::download(new PoDeliveryScheduleExport, 'podeliveryschedule.xlsx');
+	}
+
+	public function exportPoDelivered()
+	{
+		return Excel::download(new PoItemDeliveredExport, 'purchaseorderitemdelivered.xlsx');
+	}
+	// end exports
 
 	public function getOptionsPOSelect()
 	{
@@ -120,7 +142,7 @@ class PurchaseOrderController extends Controller
 		$qtyDisabled = $isNotEditable || $delivered !== 0 || $withJo;// disabled editing of quantity
 		$itemRemovable = !$withJo && !$isNotEditable && $delivered === 0;//if no jo andnot served and doesnt have delivered
 
-		$hasDelivered = $item->delivery()->count() > 0 ? true : false;
+		$hasDelivery = $item->delivery()->count() > 0 ? true : false;
 		$hasSchedule = $item->schedule()->count() > 0 ? true : false;
 
 		return array(
@@ -146,7 +168,7 @@ class PurchaseOrderController extends Controller
 			'qtyDisabled' => $qtyDisabled,
 			'itemRemovable' => $itemRemovable,
 			'hasWarning' => $hasWarning,
-			'hasDelivered' => $hasDelivered,
+			'hasDelivery' => $hasDelivery,
 			'hasSchedule' => $hasSchedule,
 		);
 
@@ -389,6 +411,7 @@ class PurchaseOrderController extends Controller
 
 		return array(
 			'id' => $delivery->id,
+			'customer' => $delivery->item->po->customer->companyname,
 			'quantity' => $delivery->poidel_quantity,
 			'underrun' => $delivery->poidel_underrun_qty,
 			'date' => $delivery->poidel_deliverydate,

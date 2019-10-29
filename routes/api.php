@@ -25,6 +25,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout','UserController@logout');
 	Route::post('/me','UserController@me');
 
+	// cposms
 	Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
 	Route::get('/cposms/option/openitems', 'PurchaseOrderController@getOpenItems'); //fetch all open items
 
@@ -44,10 +45,19 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	Route::get('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@getPoItemSchedule');
 	Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
-	Route::get('/cposms/poitems/schedules/{date}', 'PurchaseOrderController@getDailySchedules');
+	Route::get('/cposms/poitems/schedules/{date}/item', 'PurchaseOrderController@getDailySchedules');
 	Route::post('/cposms/poitems/schedules', 'PurchaseOrderController@addDailySchedule');
 	Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
 	Route::delete('/cposms/poitems/schedules/{ids}', 'PurchaseOrderController@deleteItemSchedule');
+
+
+	//exports
+	Route::get('/cposms/po/export-csv','PurchaseOrderController@exportPoCsv');
+	Route::get('/cposms/poitems/export-csv','PurchaseOrderController@exportPoItemsCsv');
+	Route::get('/cposms/poitems/schedules/export-csv/dl','PurcaseOrderController@exportPoDailySchedule');
+	Route::get('/cposms/poitems/delivery/export-csv/dl','PurchaseOrderController@exportPoDelivered');
+
+	// end cposms
 
 
 });
