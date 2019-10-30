@@ -18,6 +18,8 @@ class UserController extends Controller
 
 		if($sys === 'cposms')
 			$access = 'cposms_access';
+    else if($sys === 'pjoms')
+      $access = 'pjoms_access';
 
 
 		$user = User::where([ [$access,1] , ['username', $username] ])->first();

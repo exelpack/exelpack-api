@@ -11,10 +11,13 @@ use App\PurchaseOrderDelivery;
 use App\PurchaseOrderSchedule;
 use App\Masterlist;
 use App\Customers;
+
 use DB;
+use Excel;
+use Crypt;
+use PDF;
 use Carbon\Carbon;
 
-use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\PurchaseOrderExport;
 use App\Exports\PurchaseOrderItemExport;
 use App\Exports\PoDeliveryScheduleExport;
@@ -48,6 +51,40 @@ class PurchaseOrderController extends Controller
 	public function exportPoDelivered()
 	{
 		return Excel::download(new PoItemDeliveredExport, 'purchaseorderitemdelivered.xlsx');
+	}
+
+	public function exportPoDailyScheduleToPDF()
+	{
+	
+		$date = request()->date;
+		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
+			->has('item')
+			->get();
+		$schedules = $this->getSchedules($dailyScheds);
+		$data = [
+			'schedules' => $schedules,
+			'date' => $date
+		];
+
+		$pdf = PDF::loadView('cposms.itemDailySChedule', $data)->setPaper('a4','landscape');
+		return $pdf->download('Schedule_for_'.$date.'.pdf');
+
+	}
+
+	public function test()
+	{
+		$date = request()->date;
+		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
+			->has('item')
+			->get();
+		$schedules = $this->getSchedules($dailyScheds);
+		$data = [
+			'schedules' => $schedules,
+			'date' => $date
+		];
+		// return view('cposms.itemDailySChedule', $data);
+		$pdf = PDF::loadView('cposms.itemDailySChedule', $data)->setPaper('a4','landscape');
+		return $pdf->download('Schedule_for_'.$date.'.pdf');
 	}
 	// end exports
 
@@ -613,6 +650,7 @@ class PurchaseOrderController extends Controller
 			'commited_qty' => $sched->pods_commit_qty,
 			'prod_remarks' => $sched->pods_prod_remarks,
 			'others' => $sched->item->poi_others,
+			'jo' => implode(",",$sched->item->jo->pluck('jo_joborder')->toArray())
 		];
 
 	}
