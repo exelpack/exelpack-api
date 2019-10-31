@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\LogsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,7 @@ use App\PurchaseOrderDelivery;
 use App\PurchaseOrderSchedule;
 use App\Masterlist;
 use App\Customers;
+use App\UserLogs;
 
 use DB;
 use Excel;
@@ -23,7 +25,7 @@ use App\Exports\PurchaseOrderItemExport;
 use App\Exports\PoDeliveryScheduleExport;
 use App\Exports\PoItemDeliveredExport;
 
-class PurchaseOrderController extends Controller
+class PurchaseOrderController extends LogsController 
 {
 
 	public function cleanString($string){
@@ -337,6 +339,7 @@ class PurchaseOrderController extends Controller
 				'po_num' => 'unique:cposms_purchaseorder,po_ponum|required|max:100',
 				'customer' => 'required',
 				'currency' => 'required',
+				'items' => 'array|min:1',
 			],[],['po_num' => 'purchase order number']);
 
 		if($validator->fails()){
@@ -353,6 +356,8 @@ class PurchaseOrderController extends Controller
 			]);
 
 		$po->save();
+
+		$this->logPoCreate($po,count($request->items)); //create log for po
 
 		foreach($request->items as $row){
 
@@ -377,6 +382,7 @@ class PurchaseOrderController extends Controller
 				'po_num' => 'unique:cposms_purchaseorder,po_ponum,'.$request->id.'|required|max:100',
 				'customer' => 'required',
 				'currency' => 'required',
+				'items' => 'array|min:1',
 			],[],['po_num' => 'purchase order number']);
 
 		if($validator->fails()){
@@ -384,13 +390,15 @@ class PurchaseOrderController extends Controller
 		}
 
 		$po = PurchaseOrder::find($request->id);
-		$po->update(
-			[
-				'po_customer_id' => $request->customer,
-				'po_currency' => $request->currency,
-				'po_date' => $request->date,
-				'po_ponum' => $cleanPO,
-			]);
+		$po->po_customer_id = $request->customer;
+		$po->po_currency = $request->currency;
+		$po->po_date = $request->date;
+		$po->po_ponum = $cleanPO;
+
+		if($po->isDirty()){
+			$this->logPoEdit($po->getDirty(),$po->getOriginal());
+			$po->save();
+		}
 
 		$poitems_count = $po->poitems()->count();// get original po item count
 		$poitems_ids = $po->poitems()->pluck('id')->toArray(); //get original po item id

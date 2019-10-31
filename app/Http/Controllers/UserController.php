@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\User;
+use App\UserLogs;
 use JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,12 @@ class UserController extends Controller
     if ($user && \Hash::check($request->password, $user->password)){ // The passwords match...
     	$token = JWTAuth::fromUser($user);
 
-			// Cookie::make('TOKEN',$token,auth('api')->factory()->getTTL() * 60);
+			UserLogs::create(
+        [
+          'user_id' => $user->id,
+          'action' => 'Logged in',
+          'system' => $sys,
+        ]);
     	return response()->json(['success' => true, 'message' => 'Login Success', 'access_token' => $token,'token_type' => 'Bearer',
     		'expires_in' => auth('api')->factory()->getTTL() * 60 ]);
     }
@@ -41,8 +47,14 @@ class UserController extends Controller
   	return response()->json(auth()->user());
   }
 
-  public function logout()
+  public function logout($sys)
   {
+    UserLogs::create(
+        [
+          'user_id' => auth()->user()->id,
+          'action' => 'Logged out',
+          'system' => $sys,
+        ]);
   	auth()->logout();
 
   	return response()->json(['message' => 'Successfully logged out']);

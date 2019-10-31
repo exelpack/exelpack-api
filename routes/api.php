@@ -21,7 +21,7 @@ Route::get('/error', function(){
 
 
 Route::group(['middleware' => ['auth:api']], function() {
-	Route::post('/logout','UserController@logout');
+	Route::post('/logout/{sys}','UserController@logout');
 	Route::post('/me','UserController@me');
 	Route::get('/test', 'PurchaseOrderController@test');
 
@@ -32,10 +32,9 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/option/openitems', 'PurchaseOrderController@getOpenItems'); //fetch all open items
 
 		Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
-		Route::put('/cposms/po','PurchaseOrderController@editPurchaseOrder'); //edit po
+		Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
 		Route::get('/cposms/po','PurchaseOrderController@poIndex'); //fetch po
 		Route::delete('/cposms/po/{id}','PurchaseOrderController@cancelPo'); //cancel po
-
 		Route::get('/cposms/poitems','PurchaseOrderController@poItemsIndex'); //fetch po items
 
 		// delivery
@@ -52,7 +51,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
 		Route::delete('/cposms/poitems/schedules/{ids}', 'PurchaseOrderController@deleteItemSchedule');
 
-
 		//exports
 		Route::get('/cposms/po/export-csv','PurchaseOrderController@exportPoCsv');
 		Route::get('/cposms/poitems/export-csv','PurchaseOrderController@exportPoItemsCsv');
@@ -60,7 +58,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/delivery/export-csv/dl','PurchaseOrderController@exportPoDelivered');
 		Route::get('/cposms/poitems/schedules/export-pdf/dl','PurchaseOrderController@exportPoDailyScheduleToPDF');
 		// end cposms
-
 
 	});
 
