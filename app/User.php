@@ -4,12 +4,14 @@ namespace App;
 
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable implements JWTSubject
 {
     use Notifiable;
+    use SoftDeletes;
 
     public $timestamps = false;
     protected $table = 'users_account';
@@ -44,8 +46,8 @@ class User extends Authenticatable implements JWTSubject
         return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
     }
 
-    // public function timeline()
-    // {
-    //     return $this->hasMany('App\Timeline');
-    // }
+    public function logs()
+    {
+        return $this->hasMany('App\UserLogs','user_id');
+    }
 }

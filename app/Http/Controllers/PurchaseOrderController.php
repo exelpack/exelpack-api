@@ -57,11 +57,11 @@ class PurchaseOrderController extends LogsController
 
 	public function exportPoDailyScheduleToPDF()
 	{
-	
+
 		$date = request()->date;
 		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
-			->has('item')
-			->get();
+		->has('item')
+		->get();
 		$schedules = $this->getSchedules($dailyScheds);
 		$data = [
 			'schedules' => $schedules,
@@ -77,8 +77,8 @@ class PurchaseOrderController extends LogsController
 	{
 		$date = request()->date;
 		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
-			->has('item')
-			->get();
+		->has('item')
+		->get();
 		$schedules = $this->getSchedules($dailyScheds);
 		$data = [
 			'schedules' => $schedules,
@@ -173,7 +173,8 @@ class PurchaseOrderController extends LogsController
 		$status = $delivered >= $item->poi_quantity ? 'SERVED' : 'OPEN';
 
 		$diff =	Carbon::now()->diff($item->poi_deliverydate)->days;
-		$hasWarning = $diff < 3 && $status == 'OPEN' ? true : false; 
+		$isGte =	Carbon::now()->gte($item->poi_deliverydate);
+		$hasWarning = ($diff < 3 || $isGte) && $status == 'OPEN' ? true : false; 
 
 		//restrict
 		$isNotEditable = $status === 'SERVED' ? true : false; //if served. then not editable anymore
@@ -390,10 +391,12 @@ class PurchaseOrderController extends LogsController
 		}
 
 		$po = PurchaseOrder::find($request->id);
-		$po->po_customer_id = $request->customer;
-		$po->po_currency = $request->currency;
-		$po->po_date = $request->date;
-		$po->po_ponum = $cleanPO;
+		$po->fill([
+			'po_customer_id' => $request->customer,
+			'po_currency' => $request->currency,
+			'po_date' => $request->date,
+			'po_ponum' => $cleanPO,
+		]);
 
 		if($po->isDirty()){
 			$this->logPoEdit($po->getDirty(),$po->getOriginal());
@@ -407,16 +410,23 @@ class PurchaseOrderController extends LogsController
 		//deletion of item
 		foreach($po->poitems as $item){
 			if(!in_array($item->id,$items_ids)){
+				$this->logPoItemAddAndDelete($po->po_ponum,$item['poi_itemdescription'],"Deleted",$request->id);
 				$po->poitems()->find($item['id'])->delete();
 			}
 		}
 
 		foreach($request->items as $item){ //adding and editing item
 			if(isset($item['id'])){ //check if item exists on po alr then update
-				$po->poitems()->find($item['id'])->update($this->itemArray($item));
+				$poitem = $po->poitems()->find($item['id'])->fill($this->itemArray($item));
+
+				if($poitem->isDirty()){
+					$this->logPoItemEdit($poitem->getDirty(),$poitem->getOriginal(),$po->po_ponum);
+					$poitem->save();
+				}
 			}else{
 				//if item doesnt exist on po then add.
-				$po->poitems()->create($this->itemArray($item));
+				$poitem = $po->poitems()->create($this->itemArray($item));
+				$this->logPoItemAddAndDelete($po->po_ponum,$poitem->poi_itemdescription,"Added",$request->id);
 			}
 		}
 		$po->refresh();
@@ -432,6 +442,7 @@ class PurchaseOrderController extends LogsController
 		$remarks = request()->remarks;
 		$po = PurchaseOrder::find($id);
 		$po->update(['po_cancellationRemarks' => $remarks]);
+		$this->logPoCancel($po->po_ponum,$remarks,$id);
 		$po->delete();
 
 		return response()->json([
@@ -566,6 +577,9 @@ class PurchaseOrderController extends LogsController
 
 		$item->delivery()->create($this->itemDeliveryArray($request));//add
 		$item->refresh(); // refresh item content
+		$ud =  $item->poidel_underrun_qty ?  $item->poidel_underrun_qty : 0;// set udnerrun to 0 if null
+		$desc = 'Quantity : '.$request->quantity.", Underrun : ". $ud .", Date : ".$request->date;
+		$this->logPoDeliveredCreateAndDelete($item->po->po_ponum,$item->id,"Added",$desc,$item->poi_itemdescription);//;log creation
 		$newDelivery = $this->getDelivery($item->delivery()->latest('created_at')->first()); //get the latest added record
 		$newStats = $this->getItemDeliveryStats($item);
 		$updatedItem = $this->getItem($item);
@@ -589,7 +603,7 @@ class PurchaseOrderController extends LogsController
 
 		$validator = Validator::make($request->all(),
 			[
-				'totalQty' => 'integer|min:1|max:'.$remaining,
+				'totalQty' => 'integer|min:1|required|max:'.$remaining,
 				'quantity' => 'integer|nullable|required_if:underrun,null|required_if:underrun,0',
 				'underrun' => 'integer|nullable|required_if:quantity,null|required_if:quantity,0',
 				'date' => 'required|before_or_equal:'.date('Y-m-d'),
@@ -602,7 +616,11 @@ class PurchaseOrderController extends LogsController
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$delivery->update($this->itemDeliveryArray($request));
+		$delivery->fill($this->itemDeliveryArray($request));
+		if($delivery->isDirty()){
+			$this->logPoDeliveredEdit($delivery->getDirty(),$delivery->getOriginal(),$item->po->po_ponum,$item->poi_itemdescription);
+			$delivery->save();
+		}
 		$delivery->refresh();
 		$item->refresh(); // refresh item content
 		$updateDelivery = $this->getDelivery($delivery); //get the edited record
@@ -623,11 +641,15 @@ class PurchaseOrderController extends LogsController
 
 		$delivery = PurchaseOrderDelivery::find($id);
 		$item_id = $delivery->poidel_item_id;
+		$desc = 'Quantity : '.$delivery->poidel_quantity.", Underrun : "
+		.$delivery->poidel_underrun_qty.", Date : ".$delivery->poidel_deliverydate;
 
 		$delivery->delete();
 		$item = PurchaseOrderItems::find($item_id);
 		$newStats = $this->getItemDeliveryStats($item);
 		$updatedItem = $this->getItem($item);
+
+		$this->logPoDeliveredCreateAndDelete($item->po->po_ponum,$item_id,"Deleted",$desc,$item->poi_itemdescription);//;log creation
 
 		return response()->json(array_merge($newStats,
 			[
@@ -783,6 +805,7 @@ class PurchaseOrderController extends LogsController
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
+		$previousCount = PurchaseOrderSchedule::where('pods_scheduledate',$date)->count();
 
 		foreach($request->items as $key => $item)
 		{
@@ -815,6 +838,11 @@ class PurchaseOrderController extends LogsController
 			array_push($addedItems,$this->getSchedule($newItem));
 			array_push($addedItemKeys,$newItem->pods_item_id);
 
+		}
+
+
+		if(count($addedItemKeys) > 0){
+			$this->logPoDeliveryCreateAndDelete($date,$previousCount,count($addedItemKeys),"Added");
 		}
 
 		return response()->json(
@@ -867,7 +895,13 @@ class PurchaseOrderController extends LogsController
 
 		$ids = json_decode('['.$ids.']', true);
 
+		if(!request()->has('date'))
+			return response()->json(['errors' => ['No date']],422);
+
+		$date = request()->date;
+		$previousCount = PurchaseOrderSchedule::where('pods_scheduledate',$date)->count();
 		PurchaseOrderSchedule::destroy($ids);
+		$this->logPoDeliveryCreateAndDelete($date,$previousCount,count($ids),"Deleted");
 
 		return response()->json(
 			[

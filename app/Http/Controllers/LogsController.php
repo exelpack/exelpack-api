@@ -10,11 +10,34 @@ use Illuminate\Support\Facades\Auth;
 class LogsController extends Controller
 {
 
-	public function getLogs()
+	public function getcposmsLogs()
 	{
 
+		$logs_arr = array();
+		$q = CposmsLogs::query();
+		$pageSize = request()->pageSize;
+		$logs = $q->latest()->paginate($pageSize);
+		foreach($logs as $log)
+		{
+			$format = $log->created_at->format('Y-m-d h:i:s');
+			$diff = $log->created_at->diffForHumans();
+			array_push($logs_arr,
+				array(
+					'id' => $log->id,
+					'user' => $log->user->username,
+					'action' => $log->action,
+					'before' => str_replace(",","\n",$log->before),
+					'after' => str_replace(",","\n",$log->after),
+					'date' => $format."(".$diff.")",
+				)
+			);
 
+		}
 
+		return response()->json([
+			'logsLength' => $logs->total(),
+			'logs' => $logs_arr,
+		]);
 	}
 
 
@@ -26,7 +49,7 @@ class LogsController extends Controller
 		$log->fill(
 			[
 				'user_id' => auth()->user()->id,
-				'action' => 'Created PO',
+				'action' => 'Added PO',
 				'before' => '---',
 				'after' => $po->po_ponum ." w/ ".$itemCount. " item/s",
 				'owner_id' => $po->id,
@@ -54,12 +77,12 @@ class LogsController extends Controller
 			$orig_val = $original[$key];
 			$dirt_val = $dirt;
 
-			if($key == $details[3]){
+			if(isset($details[3]) && $key == $details[3]){
 				$model = $details[4]['model'];
 				$cols = $details[4]['cols'];
 
 				$orig_val = $model->find($orig_val)->$cols;
-	 			$dirt_val = $model->find($dirt)->$cols;
+				$dirt_val = $model->find($dirt)->$cols;
 			}
 
 			$before .= $names[$key]." : ".$orig_val.",";
@@ -83,7 +106,7 @@ class LogsController extends Controller
 		$customer = new Customers();
 
 		$vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original,'po_customer_id',['model' => $customer, 'cols' => 'companyname']]);
-	
+
 		$log->fill(
 			[
 				'user_id' => auth()->user()->id,
@@ -98,5 +121,166 @@ class LogsController extends Controller
 
 	}
 
+	public function logPoCancel($po,$remarks,$id)
+	{
+
+		$log = new CposmsLogs();
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Cancelled PO '.$po,
+				'before' => '---',
+				'after' => 'Remarks : '.$remarks,
+				'owner_id' => $id,
+				'class' => 'PO'
+			]);
+
+		$log->save();
+
+	}
+
+	public function logPoItemAddAndDelete($po,$item,$method,$id)
+	{
+
+		$log = new CposmsLogs();
+
+		if($method == 'Deleted'){
+			$before = $item;
+			$after = '---';
+		}else{
+			$before = '---';
+			$after = $item;
+		}
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $method.' item on PO '.$po,
+				'before' => $before,
+				'after' => $after,
+				'owner_id' => $id,
+				'class' => 'PO'
+			]);
+
+		$log->save();
+
+	}
+
+	public function logPoItemEdit($dirty,$original,$po)
+	{
+
+		$log = new CposmsLogs();
+		$name_arr = [
+			'poi_code' => 'Code',
+			'poi_partnum' => 'Part no.',
+			'poi_itemdescription' => 'Item description',
+			'poi_quantity' => 'Quantity',
+			'poi_unit' => 'Unit',
+			'poi_unitprice' => 'Unit price',
+			'poi_deliverydate' => 'Delivery date',
+			'poi_kpi' => 'KPI',
+			'poi_others' => 'Others',
+			'poi_remarks' => 'Remarks',
+		];
+
+
+		$vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Edited item on po '.$po,
+				'before' => $vals['before'],
+				'after' => $vals['after'],
+				'owner_id' => $original['id'],
+				'class' => 'POITEM'
+			]);
+
+		$log->save();
+
+	}
+
+	public function logPoDeliveredCreateAndDelete($po,$id,$method,$desc,$item)
+	{
+
+		$log = new CposmsLogs();
+
+		if($method == 'Deleted'){
+			$before = $desc;
+			$after = '---';
+		}else{
+			$before = '---';
+			$after = $desc;
+		}
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $method.' delivery on PO '.$po." ".$item,
+				'before' => $before,
+				'after' => $after,
+				'owner_id' => $id,
+				'class' => 'POITEM'
+			]);
+
+		$log->save();
+
+	}
+
+	public function logPoDeliveredEdit($dirty,$original,$po,$item)
+	{
+
+		$log = new CposmsLogs();
+		$name_arr = [
+			'poidel_quantity' => 'Quantity',
+			'poidel_underrun_qty' => 'Underrun',
+			'poidel_deliverydate' => 'Date',
+			'poidel_invoice' => 'Invoice No.',
+			'poidel_dr' => 'DR No.',
+			'poidel_remarks' => 'Remarks',
+		];
+
+		$vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Edited delivery on PO '.$po." ".$item,
+				'before' => $vals['before'],
+				'after' => $vals['after'],
+				'owner_id' => $original['id'],
+				'class' => 'PODELIVERY'
+			]);
+
+		$log->save();
+	}
+
+	public function logPoDeliveryCreateAndDelete($date,$prevCount,$count,$method)
+	{
+		if($method == 'Deleted'){
+			$new = $prevCount - $count;
+			$before = $date." (".$prevCount." items)";
+			$after = $date." (".$new." items)";;
+		}else{
+			$new = $prevCount + $count;
+			$before = $date." (".$prevCount." items)";
+			$after = $date." (".$new." items)";
+		}
+
+		$log = new CposmsLogs();
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $method." ".$count. " items on delivery schedule",
+				'before' => $before,
+				'after' => $after,
+				'owner_id' => 0,
+				'class' => 'POSCHEDULE'
+			]);
+
+		$log->save();
+
+	}
 
 }

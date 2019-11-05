@@ -26,6 +26,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::get('/test', 'PurchaseOrderController@test');
 
 	Route::group(['middleware' => ['cposms']], function() {
+		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
 
 			// cposms
 		Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
@@ -41,7 +42,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@fetchItemDelivery');
 		Route::post('/cposms/poitems/delivery', 'PurchaseOrderController@addDelivery');
 		Route::put('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@editDelivery');
-		Route::delete('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@deleteDelivery');
+		Route::delete('/cposms/poitems/delivery/{id}', 'PurchaseOrderController@deleteDelivery')->middleware('checkPrivelege');
 		Route::get('/cposms/poitems/delivery', 'PurchaseOrderController@fetchDeliveries');
 
 		Route::get('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@getPoItemSchedule');

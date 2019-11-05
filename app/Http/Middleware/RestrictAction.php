@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Support\Facades\Auth;
+
+class RestrictAction
+{
+    /**
+     * Handle an incoming request.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \Closure  $next
+     * @return mixed
+     */
+    public function handle($request, Closure $next)
+    {
+        if(auth()->user()->type == 'admin' || auth()->user()->type == 'management'){
+            return $next($request);
+        }
+
+        return response()->json(['error' => 'Unauthorized'],401);
+    }
+}
