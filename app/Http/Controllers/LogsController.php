@@ -16,6 +16,13 @@ class LogsController extends Controller
 		$logs_arr = array();
 		$q = CposmsLogs::query();
 		$pageSize = request()->pageSize;
+		if(request()->has('search')){
+			$search = "%".request()->search."%";
+			$q->where('action','like',$search)
+				->orWhere('before','like',$search)
+				->orWhere('after','like',$search);
+		}
+
 		$logs = $q->latest()->paginate($pageSize);
 		foreach($logs as $log)
 		{

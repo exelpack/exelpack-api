@@ -12,11 +12,9 @@ use App\PurchaseOrderDelivery;
 use App\PurchaseOrderSchedule;
 use App\Masterlist;
 use App\Customers;
-use App\UserLogs;
 
 use DB;
 use Excel;
-use Crypt;
 use PDF;
 use Carbon\Carbon;
 
@@ -760,7 +758,7 @@ class PurchaseOrderController extends LogsController
 
 		foreach($monthSchedItems as $row)
 		{
-			$name = "fy".Carbon::parse($row->date)->format('Ymd');
+			$name = "fy".Carbon::parse($row->date)->format('Ymj');
 			$monthlyItemCount[$name] = $row->totalItem;
 		}
 

@@ -16,4 +16,9 @@ class JobOrder extends Model
 		return $this->belongsTo('App\PurchaseOrderItems','jo_po_item_id');
 	}
 
+	public function produced()
+	{
+		return $this->hasMany('App\JobOrderProduced','jop_jo_id');
+	}
+
 }

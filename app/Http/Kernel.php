@@ -62,6 +62,7 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'cposms' => \App\Http\Middleware\RestrictCPOSMS::class,
+        'pjoms' => \App\Http\Middleware\RestrictPJOMS::class,
         'checkPrivelege' => \App\Http\Middleware\RestrictAction::class,
     ];
 
