@@ -22,7 +22,7 @@ class CreateJoTable extends Migration
             $table->integer('jo_quantity');
             $table->string('jo_remarks',150)->nullable();
             $table->string('jo_others',150)->nullable();
-            $table->boolean('jo_forwardToWarehouse');
+            $table->boolean('jo_forwardToWarehouse')->default(0);
             $table->timestamps();
         });
     }

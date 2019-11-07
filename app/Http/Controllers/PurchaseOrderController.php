@@ -372,7 +372,7 @@ class PurchaseOrderController extends LogsController
 
 	}
 
-	public function editPurchaseOrder(Request $request){
+	public function editPurchaseOrder(Request $request,$id){
 
 		$cleanPO = $this->cleanString($request->po_num);
 

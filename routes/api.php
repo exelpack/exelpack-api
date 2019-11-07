@@ -65,6 +65,9 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::group(['middleware' => ['pjoms']], function() {
 
 		Route::get('pjoms/option/openitems', 'JobOrderController@getOpenItems');
+		Route::get('pjoms/option/series', 'JobOrderController@fetchJoSeries');
+		Route::post('pjoms/jo', 'JobOrderController@createJo');
+		Route::get('pjoms/jo', 'JobOrderController@fetchJo');
 		
 	});
 
