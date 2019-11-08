@@ -58,6 +58,9 @@ class JobOrderController extends LogsController
 
 	public function getOpenItems()
 	{
+		$sortDate = request()->sortDate;
+		$showItems = strtolower(request()->showItems);
+		$pageSize = request()->pageSize;
 
 		$subdel = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
 			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
@@ -74,14 +77,33 @@ class JobOrderController extends LogsController
 		});
 
 		$q->has('po');
+
+		//search filter
+		if(request()->has('search')){
+			$search = '%'.request()->search.'%';
+
+			$q->whereHas('po', function($q) use ($search){
+				$q->where('po_ponum','LIKE', $search);
+			})
+			->orWhere('poi_itemdescription','LIKE', $search)
+			->orWhere('poi_code','LIKE', $search)
+			->orWhere('poi_partnum','LIKE', $search);
+		}
+
 		$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
-		$q->whereRaw('poi_quantity > IFNULL(totalJo,0)');
-		$itemResult = $q->orderBy('id','desc')->paginate();
+
+		if($showItems == 'pending'){
+			$q->whereRaw('poi_quantity > IFNULL(totalJo,0)');
+		}
+
+		$itemResult = $q->orderBy('poi_deliverydate',$sortDate)->paginate($pageSize);
 
 		$openItems = $this->getPoItems($itemResult);
-
+		$joSeries = $this->fetchJoSeries();
 		return response()->json([
-			'openItems' => $openItems
+			'openItems' => $openItems,
+			'openItemsLength' => $itemResult->total(),
+			'joSeries' => $joSeries
 		]);
 
 	}
@@ -105,6 +127,8 @@ class JobOrderController extends LogsController
 	{
 		$po = $jo->poitems->po;
 		$item = $jo->poitems;
+		$totalJo = $jo->poitems->jo()->sum('jo_quantity');
+		$remaining = ($item->poi_quantity - $totalJo) + $jo->jo_quantity;
 
 		$producedQty = $jo->produced()->sum('jop_quantity');
 		$status = $jo->jo_quantity > $producedQty ? 'OPEN' : 'SERVED';
@@ -125,6 +149,7 @@ class JobOrderController extends LogsController
 			'status' => $status,
 			'producedQty' => $producedQty,
 			'forwardToWarehouse' => $jo->jo_forwardToWarehouse,
+			'allowedMaxQty' => $remaining,
 			'hasPr' => false
 		);
 	}
@@ -144,13 +169,16 @@ class JobOrderController extends LogsController
 	public function fetchJo()
 	{
 
-		$joresult = JobOrder::all();
+		$pageSize = request()->pageSize;
+		$q = JobOrder::query();
+		$joResult = $q->paginate($pageSize);
 		
-		$joList = $this->getJos($joresult);
+		$joList = $this->getJos($joResult);
 
 		return response()->json(
 			[
-				'joList' => $joList
+				'joList' => $joList,
+				'joListLength' => $joResult->total()
 			]);
 
 	}
@@ -161,10 +189,7 @@ class JobOrderController extends LogsController
 
 		$number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
 		$joseries = $series->series_prefix . "-".$number;
-		return response()->json(
-			[
-				'joseries' => $joseries
-			]);
+		return $joseries;
 	}
 
 	public function createJo(Request $request)
@@ -172,7 +197,6 @@ class JobOrderController extends LogsController
 		$item = PurchaseOrderItems::findOrFail($request->item_id);
 		$totalJo = $item->jo()->sum('jo_quantity');
 		$remaining = $item->poi_quantity - $totalJo;
-
 		$validator = Validator::make($request->all(),
 			[
 				'jo_num' => 'unique:pjoms_joborder,jo_joborder|required|max:60',
@@ -189,19 +213,23 @@ class JobOrderController extends LogsController
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$newJo = $item->jo()->create($this->joArray($request->all()));
+		$jo = $item->jo()->create($this->joArray($request->all()));
 
 		if($request->useSeries){
 			JobOrderSeries::first()->update(['series_number' => DB::raw('series_number + 1')]);
 		}
+		$joSeries = $this->fetchJoSeries();
+		$remainingQty = $remaining - $request->quantity;
 
 		return response()->json(
 			[
-				'newJo' => $newJo
+				'joSeries' => $joSeries,
+				'remainingQty' => $remainingQty,
+				'message' => 'Record added',
 			]);
 
 	}
-
+	
 	public function updateJo(Request $request,$id)
 	{
 		$item = PurchaseOrderItems::findOrFail($request->item_id);

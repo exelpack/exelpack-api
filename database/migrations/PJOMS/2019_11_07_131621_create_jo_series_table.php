@@ -16,7 +16,7 @@ class CreateJoSeriesTable extends Migration
         Schema::create('pjoms_joseries', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('series_prefix',15);
-            $table->integer('series_number')->default(0);
+            $table->integer('series_number')->default(1);
         });
     }
 
