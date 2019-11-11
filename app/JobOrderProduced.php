@@ -8,7 +8,7 @@ class JobOrderProduced extends Model
 {
   	protected $table = 'pjoms_joProduced';
 
-  	protected $fillable = ['jop_jo_id','jop_date','jop_quantity'];
+  	protected $fillable = ['jop_jo_id','jop_date','jop_quantity','jop_remarks'];
 
   	public $timestamps = false;
 

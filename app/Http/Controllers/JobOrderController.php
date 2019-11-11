@@ -130,7 +130,7 @@ class JobOrderController extends LogsController
 		$totalJo = $jo->poitems->jo()->sum('jo_quantity');
 		$remaining = ($item->poi_quantity - $totalJo) + $jo->jo_quantity;
 
-		$producedQty = $jo->produced()->sum('jop_quantity');
+		$producedQty = intval($jo->produced()->sum('jop_quantity'));
 		$status = $jo->jo_quantity > $producedQty ? 'OPEN' : 'SERVED';
 		return array(
 			'id' => $jo->id,
@@ -149,7 +149,7 @@ class JobOrderController extends LogsController
 			'status' => $status,
 			'producedQty' => $producedQty,
 			'forwardToWarehouse' => $jo->jo_forwardToWarehouse,
-			'allowedMaxQty' => $remaining,
+			'qtyWithoutJo' => $remaining,
 			'hasPr' => false
 		);
 	}
@@ -171,7 +171,9 @@ class JobOrderController extends LogsController
 
 		$pageSize = request()->pageSize;
 		$q = JobOrder::query();
-		$joResult = $q->paginate($pageSize);
+
+		$q->has('poitems.po');
+		$joResult = $q->orderBy('id','DESC')->paginate($pageSize);
 		
 		$joList = $this->getJos($joResult);
 
@@ -247,7 +249,6 @@ class JobOrderController extends LogsController
 				'remarks' => 'string|nullable|max:150',
 				'others' => 'string|nullable|max:150',
 				'forwardToWarehouse' => 'boolean|required',
-				'useSeries' => 'boolean|required',
 			],[],['jo_num' => 'job order number']);
 
 		if($validator->fails()){
@@ -257,10 +258,115 @@ class JobOrderController extends LogsController
 		$jo = $joInfo->fill($this->joArray($request->all()));
 		$jo->save();
 
-		$newJo = $this->getJo($jo);
+		$get_jos = PurchaseOrderItems::findOrFail($request->item_id)->jo()->get(); //to update all remaining jos available qty
+		$updatedJos = $this->getJos($get_jos);
+
 		return response()->json(
 			[
-				'newJo' => $newJo
+				'updatedJos' => $updatedJos
+			]);
+
+	}
+
+	public function deleteJo($id)
+	{
+
+		$jo = JobOrder::findOrFail($id);
+		$item_id = $jo->jo_po_item_id;
+		$jo->delete();
+		$get_jos = PurchaseOrderItems::findOrFail($item_id)->jo()->get();
+		$updatedJos = $this->getJos($get_jos);
+
+		return response()->json(
+			[
+				'message' => 'Record deleted',
+				'updatedJos' => $updatedJos
+			]);
+
+	}
+	//jo produced
+	public function getJoProducedQty($id)
+	{
+
+		$produced = JobOrder::findOrFail($id)->produced()->get();
+		$produced_arr = array();
+
+		foreach($produced as $prod)
+		{
+
+			array_push($produced_arr,
+				array(
+					'id' => $prod->id,
+					'quantity' => $prod->jop_quantity,
+					'date' => $prod->jop_date,
+					'remarks' => $prod->jop_remarks,
+				)
+			);
+
+		}
+
+		return response()->json(
+			[
+				'joProduced' => $produced_arr
+			]);
+
+	}
+
+	public function addJoProduced(Request $request)	
+	{
+
+		$jo = JobOrder::findOrFail($request->id);
+		$remaining = $jo->jo_quantity - $jo->produced()->sum('jop_quantity');
+
+		$validator = Validator::make($request->all(),
+			[
+				'date' => 'required|before_or_equal:'.date('Y-m-d'),
+				'quantity' => 'integer|required|min:1|max:'.$remaining,
+				'remarks' => 'string|nullable|max:150',
+			]);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
+		}
+
+		$produced = $jo->produced()->create(
+			[
+				'jop_quantity' => $request->quantity,
+				'jop_date' => $request->date,
+				'jop_remarks' => $request->remarks
+			]);
+
+		$newProduced = array(
+			'id' => $produced->id,
+			'quantity' => $produced->jop_quantity,
+			'date' => $produced->jop_date,
+			'remarks' => $produced->jop_remarks,
+		);
+		
+		$updatedJo = $this->getJo($jo);
+		return response()->json(
+			[
+				'message' => "Record added",
+				'newProduced' => $newProduced,
+				'updatedJo' => $updatedJo
+			]);
+
+	}
+
+	public function deleteJoProduced($id){
+
+		$produced = JobOrderProduced::findOrFail($id);
+		$jo_id = $produced->jop_jo_id;
+
+		$produced->delete();
+
+		$jo = JobOrder::findOrFail($jo_id);
+		$updatedJo = $this->getJo($jo);
+
+		return response()->json(
+			[
+				'message' => "Record deleted",
+				'updatedJo' => $updatedJo
 			]);
 
 	}

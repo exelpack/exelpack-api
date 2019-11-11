@@ -67,7 +67,13 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('pjoms/option/openitems', 'JobOrderController@getOpenItems');
 		Route::get('pjoms/option/series', 'JobOrderController@fetchJoSeries');
 		Route::post('pjoms/jo', 'JobOrderController@createJo');
+		Route::put('pjoms/jo/{id}', 'JobOrderController@updateJo');
 		Route::get('pjoms/jo', 'JobOrderController@fetchJo');
+		Route::delete('pjoms/jo/{id}', 'JobOrderController@deleteJo');
+
+		Route::get('pjoms/jo/produced/{id}','JobOrderController@getJoProducedQty');
+		Route::post('pjoms/jo/produced','JobOrderController@addJoProduced');
+		Route::delete('pjoms/jo/produced/{id}','JobOrderController@deleteJoProduced');
 		
 	});
 

@@ -18,7 +18,7 @@ class CreateJoProduce extends Migration
             $table->integer('jop_jo_id')->unsigned();
             $table->date('jop_date');
             $table->integer('jop_quantity');
-            $table->string('jop_remarks',150);
+            $table->string('jop_remarks',150)->nullable();
         });
     }
 
