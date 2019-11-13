@@ -31,6 +31,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 			// cposms
 		Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
 		Route::get('/cposms/option/openitems', 'PurchaseOrderController@getOpenItems'); //fetch all open items
+		Route::get('/cposms/option/scheduledates', 'PurchaseOrderController@getScheduleDates'); //fetch all open items
 
 		Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
 		Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
@@ -59,6 +60,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/delivery/export-csv/dl','PurchaseOrderController@exportPoDelivered');
 		Route::get('/cposms/poitems/schedules/export-pdf/dl','PurchaseOrderController@exportPoDailyScheduleToPDF');
 		// end cposms
+
+		Route::post('/mail/schedule', 'MailController@sendEmailSchedule');
 
 	});
 

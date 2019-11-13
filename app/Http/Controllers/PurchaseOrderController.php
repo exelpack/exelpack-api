@@ -768,6 +768,21 @@ class PurchaseOrderController extends LogsController
 			]);
 	}
 
+	public function getScheduleDates()
+	{
+
+		$date = PurchaseOrderSchedule::has('item.po')
+			->groupBy('pods_scheduledate')
+			->get()
+			->pluck('pods_scheduledate')
+			->toArray();
+
+		return response()->json(
+			[
+				'dates' => $date,
+			]);
+	}
+
 	public function getPoItemSchedule($id)
 	{
 
