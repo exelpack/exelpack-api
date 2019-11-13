@@ -6,6 +6,7 @@
 	>
 		<thead>
 			<tr style="background : #3c8dbc; color : #ffffff; text-align: center;">
+				<th>DATE</th>
 				<th>CUSTOMER</th>
 				<th>PO NO.</th>
 				<th>JO NO.</th>
@@ -18,6 +19,7 @@
 		<tbody>
 			@foreach($schedules as $schedule)
 			<tr>
+				<td style="width: 15%">{{ $schedule['date'] }}</td>
 				<td style="width: 15%">{{ $schedule['customer'] }}</td>
 				<td style="width: 10%">{{ $schedule['po'] }}</td>
 				<td style="width: 15%">{{ $schedule['jo'] }}</td>
