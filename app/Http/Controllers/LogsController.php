@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\CposmsLogs;
+use App\PjomsLogs;
 use App\Customers;
 use Illuminate\Support\Facades\Auth;
 
@@ -59,13 +60,13 @@ class LogsController extends Controller
 				'action' => 'Added PO',
 				'before' => '---',
 				'after' => $po->po_ponum ." w/ ".$itemCount. " item/s",
-				'owner_id' => $po->id,
-				'class' => 'PO'
 			]);
 
 		$log->save();
 
 	}
+
+	// public function modalSsdss
 
 	public function getBeforeAndAfter($details = array()){
 		//index 0 = names, 1 = dirty, 2 = original, 3 = condition, 4 = actions if condition is true;
@@ -120,8 +121,6 @@ class LogsController extends Controller
 				'action' => 'Edited PO',
 				'before' => $vals['before'],
 				'after' => $vals['after'],
-				'owner_id' => $original['id'],
-				'class' => 'PO'
 			]);
 
 		$log->save();
@@ -138,8 +137,6 @@ class LogsController extends Controller
 				'action' => 'Cancelled PO '.$po,
 				'before' => '---',
 				'after' => 'Remarks : '.$remarks,
-				'owner_id' => $id,
-				'class' => 'PO'
 			]);
 
 		$log->save();
@@ -165,8 +162,6 @@ class LogsController extends Controller
 				'action' => $method.' item on PO '.$po,
 				'before' => $before,
 				'after' => $after,
-				'owner_id' => $id,
-				'class' => 'PO'
 			]);
 
 		$log->save();
@@ -199,8 +194,6 @@ class LogsController extends Controller
 				'action' => 'Edited item on po '.$po,
 				'before' => $vals['before'],
 				'after' => $vals['after'],
-				'owner_id' => $original['id'],
-				'class' => 'POITEM'
 			]);
 
 		$log->save();
@@ -226,8 +219,6 @@ class LogsController extends Controller
 				'action' => $method.' delivery on PO '.$po." ".$item,
 				'before' => $before,
 				'after' => $after,
-				'owner_id' => $id,
-				'class' => 'POITEM'
 			]);
 
 		$log->save();
@@ -255,8 +246,6 @@ class LogsController extends Controller
 				'action' => 'Edited delivery on PO '.$po." ".$item,
 				'before' => $vals['before'],
 				'after' => $vals['after'],
-				'owner_id' => $original['id'],
-				'class' => 'PODELIVERY'
 			]);
 
 		$log->save();
@@ -282,8 +271,6 @@ class LogsController extends Controller
 				'action' => $method." ".$count. " items on delivery schedule",
 				'before' => $before,
 				'after' => $after,
-				'owner_id' => 0,
-				'class' => 'POSCHEDULE'
 			]);
 
 		$log->save();

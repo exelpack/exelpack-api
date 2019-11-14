@@ -1,3 +1,4 @@
+	<div>SENT BY : {{ strtoupper($sender) }}</div>
 	<table 
 		style="font-size : 9px; padding : 0; margin : 0; width: 100%"
 		border="1"

@@ -13,7 +13,7 @@ class JobOrderSeriesSeeder extends Seeder
     {
       JobOrderSeries::create([
       	'series_prefix' => 'JO',
-      	'series_number' => 0,
+      	'series_number' => 1,
       ]);	
     }
 }

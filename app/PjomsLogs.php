@@ -4,9 +4,9 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-class CposmsLogs extends Model
+class PjomsLogs extends Model
 {
-  protected $table = 'cposms_logs';
+  protected $table = 'pjoms_logs';
 
   protected $fillable = ['user_id','action','before','after'];
 

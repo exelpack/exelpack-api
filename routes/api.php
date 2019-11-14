@@ -62,6 +62,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		// end cposms
 
 		Route::post('/mail/schedule', 'MailController@sendEmailSchedule');
+		Route::post('/mail/endorsepo', 'MailController@endorsePo');
 
 	});
 
@@ -76,6 +77,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 		Route::get('pjoms/jo/produced/{id}','JobOrderController@getJoProducedQty');
 		Route::post('pjoms/jo/produced','JobOrderController@addJoProduced');
+		Route::post('pjoms/jo/produced/{id}','JobOrderController@closeJobOrder');
 		Route::delete('pjoms/jo/produced/{id}','JobOrderController@deleteJoProduced');
 		
 	});

@@ -76,7 +76,9 @@ class JobOrderController extends LogsController
 			$join->on('cposms_purchaseorderitem.id','=','jo.jo_po_item_id');				
 		});
 
-		$q->has('po');
+		$q->whereHas('po', function($q){
+			$q->where('isEndorsed',1);
+		});
 
 		//search filter
 		if(request()->has('search')){
@@ -366,6 +368,32 @@ class JobOrderController extends LogsController
 		return response()->json(
 			[
 				'message' => "Record deleted",
+				'updatedJo' => $updatedJo
+			]);
+
+	}
+
+	public function closeJobOrder($id){
+
+		$jo = JobOrder::findOrFail($id);
+		$joTotalProduced = $jo->produced()->sum('jop_quantity');
+		$remaining = $jo->jo_quantity - $joTotalProduced;
+
+		if($remaining < 1)
+			return response()->json(['errors' => ['Job order already served']],422);
+
+		$produced = $jo->produced()->create([
+			'jop_quantity' => $remaining,
+			'jop_date' => Carbon::now()->format('Y-m-d'),
+			'jop_remarks' => 'Closed by system'
+		]);
+
+		$jo->refresh();
+		$updatedJo = $this->getJo($jo);
+
+		return response()->json(
+			[
+				'message' => 'Job order closed',
 				'updatedJo' => $updatedJo
 			]);
 

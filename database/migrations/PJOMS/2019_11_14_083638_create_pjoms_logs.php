@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateTableForActionLogs extends Migration
+class CreatePjomsLogs extends Migration
 {
     /**
      * Run the migrations.
@@ -13,7 +13,7 @@ class CreateTableForActionLogs extends Migration
      */
     public function up()
     {
-        Schema::create('cposms_logs', function (Blueprint $table) {
+        Schema::create('pjoms_logs', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('user_id')->unsigned();
             $table->string('action');
@@ -30,6 +30,6 @@ class CreateTableForActionLogs extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('cposms_logs');
+        Schema::dropIfExists('pjoms_logs');
     }
 }

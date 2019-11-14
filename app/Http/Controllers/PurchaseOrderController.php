@@ -58,8 +58,8 @@ class PurchaseOrderController extends LogsController
 
 		$date = request()->date;
 		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
-		->has('item')
-		->get();
+			->has('item')
+			->get();
 		$schedules = $this->getSchedules($dailyScheds);
 		$data = [
 			'schedules' => $schedules,
@@ -136,6 +136,7 @@ class PurchaseOrderController extends LogsController
 			'totalItems'=> $po->poitems()->count(),
 			'totalQuantity'=> $totalQuantity,
 			'totalDelivered'=> $totalDelivered,
+			'isEndorsed' => $po->isEndorsed,
 			'status' => $status,
 			'hasJo' => $hasJo,
 			'items' => $items,

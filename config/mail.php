@@ -57,7 +57,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'exelpack@noreply.com'),
-        'name' => env('MAIL_FROM_NAME', 'EPCS'),
+        'name' => env('MAIL_FROM_NAME', 'Exelpack System'),
     ],
 
     /*

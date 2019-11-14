@@ -13,15 +13,17 @@ class PoItemScheduleMail extends Mailable
 
     protected $schedules;
     protected $subj;
+    protected $sender;
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($schedules,$subj)
+    public function __construct($schedules,$subj,$sender)
     {
         $this->schedules = $schedules;
         $this->subj = $subj;
+        $this->sender = $sender;
     }
 
     /**
@@ -34,7 +36,8 @@ class PoItemScheduleMail extends Mailable
         return $this->view('mail.PoItemScheduleMail')
             ->subject($this->subj)
             ->with([    
-                'schedules' => $this->schedules
+                'schedules' => $this->schedules,
+                'sender' => $this->sender
             ]);
     }
 }
