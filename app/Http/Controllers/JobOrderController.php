@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Exports\JobOrderExport;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LogsController;
@@ -20,6 +21,12 @@ use Carbon\Carbon;
 
 class JobOrderController extends LogsController
 {
+
+	//export
+	public function exportJobOrder()
+	{
+		return Excel::download(new JobOrderExport, 'job_order.xlsx');
+	}
 
 	public function getPoItem($item)
 	{
@@ -172,10 +179,60 @@ class JobOrderController extends LogsController
 	{
 
 		$pageSize = request()->pageSize;
+		$sort = strtolower(request()->sort);
+		$showRecord = strtolower(request()->showRecord);
+		$subProd = JobOrderProduced::select(Db::raw('sum(jop_quantity) as totalProduced'),
+			'jop_jo_id')->groupBy('jop_jo_id');
+
+
 		$q = JobOrder::query();
 
 		$q->has('poitems.po');
-		$joResult = $q->orderBy('id','DESC')->paginate($pageSize);
+
+		if(request()->has('search')){
+
+			$search = "%".strtolower(request()->search)."%";
+
+			$q->whereHas('poitems.po', function($q) use ($search){
+				$q->where('po_ponum','LIKE', $search);
+			})->orWhereHas('poitems', function($q) use ($search){
+				$q->where('poi_itemdescription','LIKE',$search)
+				->orWhere('poi_partnum','LIKE',$search);
+			})->orWhere('jo_joborder','LIKE',$search);
+
+		}
+
+		if($showRecord == 'open' || $showRecord == 'served'){
+
+			$q->from('pjoms_joborder')
+			->leftJoinSub($subProd,'produced',function ($join){
+				$join->on('pjoms_joborder.id','=','produced.jop_jo_id');				
+			});
+
+			if($showRecord == 'open')
+				$q->whereRaw('jo_quantity > IFNULL(totalProduced,0)');
+			else 
+				$q->whereRaw('jo_quantity <= IFNULL(totalProduced,0)');
+
+		}
+
+
+		if($sort == 'desc'){
+			$q->orderBy('id','DESC');
+		}else if($sort == 'asc'){
+			$q->orderBy('id','ASC');
+		}else if($sort == 'di-desc'){
+			$q->orderBy('jo_dateissued','DESC');
+		}else if($sort == 'di-asc'){
+			$q->orderBy('jo_dateissued','ASC');
+		}else if($sort == 'jo-desc'){
+			$q->orderBy('jo_joborder','DESC');
+		}else if($sort == 'jo-asc'){
+			$q->orderBy('jo_joborder','ASC');
+		}
+
+
+		$joResult = $q->paginate($pageSize);
 		
 		$joList = $this->getJos($joResult);
 
@@ -225,6 +282,9 @@ class JobOrderController extends LogsController
 		$joSeries = $this->fetchJoSeries();
 		$remainingQty = $remaining - $request->quantity;
 
+		$this->logJoCreateDelete("Added",$item->po->po_ponum,$item->poi_itemdescription,
+			$request->jo_num,$request->quantity);
+
 		return response()->json(
 			[
 				'joSeries' => $joSeries,
@@ -258,6 +318,20 @@ class JobOrderController extends LogsController
 		}
 
 		$jo = $joInfo->fill($this->joArray($request->all()));
+
+		if($jo->isDirty()){
+			$origVal = $jo->getOriginal();
+			$dirtyVal = $jo->getDirty();
+			if(array_key_exists('jo_forwardToWarehouse',$jo->getDirty())){
+
+				$origVal['jo_forwardToWarehouse'] = str_replace([1,0],['Yes','No'],$origVal['jo_forwardToWarehouse']);
+				$dirtyVal['jo_forwardToWarehouse'] = str_replace([1,0],['Yes','No'],$dirtyVal['jo_forwardToWarehouse']);
+			}
+
+			$this->logJoEdit($dirtyVal,$origVal,$request->jo_num);
+
+		}
+
 		$jo->save();
 
 		$get_jos = PurchaseOrderItems::findOrFail($request->item_id)->jo()->get(); //to update all remaining jos available qty
@@ -274,10 +348,18 @@ class JobOrderController extends LogsController
 	{
 
 		$jo = JobOrder::findOrFail($id);
+		$jo_num = $jo->jo_joborder;
 		$item_id = $jo->jo_po_item_id;
 		$jo->delete();
-		$get_jos = PurchaseOrderItems::findOrFail($item_id)->jo()->get();
+		$item = PurchaseOrderItems::findOrFail($item_id);
+		$get_jos = $item->jo()->get();
 		$updatedJos = $this->getJos($get_jos);
+
+		$this->logJoCreateDelete("Deleted",
+			$item->po->po_ponum,
+			$item->poi_itemdescription,
+			$jo_num,
+			$item->poi_quantity);
 
 		return response()->json(
 			[
@@ -338,6 +420,9 @@ class JobOrderController extends LogsController
 				'jop_remarks' => $request->remarks
 			]);
 
+		$this->logJoProducedCreateDelete("Added",$jo->jo_joborder,
+			$request->quantity,$remaining,$request->date,$request->remarks);
+
 		$newProduced = array(
 			'id' => $produced->id,
 			'quantity' => $produced->jop_quantity,
@@ -358,12 +443,17 @@ class JobOrderController extends LogsController
 	public function deleteJoProduced($id){
 
 		$produced = JobOrderProduced::findOrFail($id);
-		$jo_id = $produced->jop_jo_id;
+		$jo = JobOrder::findOrFail($produced->jop_jo_id);
+		$prodQty = $produced->jop_quantity; //get qty
+		$prodDate = $produced->jop_date; //get date
 
 		$produced->delete();
 
-		$jo = JobOrder::findOrFail($jo_id);
 		$updatedJo = $this->getJo($jo);
+		$remaining = $jo->jo_quantity - $jo->produced()->sum('jop_quantity');
+
+		$this->logJoProducedCreateDelete("Deleted",$jo->jo_joborder,
+			$prodQty,$remaining,$prodDate,null);
 
 		return response()->json(
 			[

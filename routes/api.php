@@ -67,6 +67,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 	});
 
 	Route::group(['middleware' => ['pjoms']], function() {
+		Route::get('/pjoms/logs', 'LogsController@getpjomslogs');
 
 		Route::get('pjoms/option/openitems', 'JobOrderController@getOpenItems');
 		Route::get('pjoms/option/series', 'JobOrderController@fetchJoSeries');
@@ -79,6 +80,9 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('pjoms/jo/produced','JobOrderController@addJoProduced');
 		Route::post('pjoms/jo/produced/{id}','JobOrderController@closeJobOrder');
 		Route::delete('pjoms/jo/produced/{id}','JobOrderController@deleteJoProduced');
+
+		//exports
+		Route::get('/pjoms/jo/export-csv/dl','JobOrderController@exportJobOrder');
 		
 	});
 
