@@ -58,8 +58,8 @@ class PurchaseOrderController extends LogsController
 
 		$date = request()->date;
 		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
-			->has('item')
-			->get();
+		->has('item')
+		->get();
 		$schedules = $this->getSchedules($dailyScheds);
 		$data = [
 			'schedules' => $schedules,
@@ -773,10 +773,10 @@ class PurchaseOrderController extends LogsController
 	{
 
 		$date = PurchaseOrderSchedule::has('item.po')
-			->groupBy('pods_scheduledate')
-			->get()
-			->pluck('pods_scheduledate')
-			->toArray();
+		->groupBy('pods_scheduledate')
+		->get()
+		->pluck('pods_scheduledate')
+		->toArray();
 
 		return response()->json(
 			[
@@ -924,5 +924,139 @@ class PurchaseOrderController extends LogsController
 
 	}
 
+	//for tree data of item po
+	private function getJoProduced($data){
+
+		$produced_arr = array();
+		foreach($data as $row){
+
+			array_push($produced_arr,
+				array(
+					'title' => 'Date : '.$row->jop_date." - ".$row->jop_quantity,
+					'key' => $row->jo->jo_joborder."-p-".$row->id,
+				)
+			);
+
+		}	
+		return $produced_arr;
+
+	}
+
+	public function getItemOverallDetails($itemId)
+	{
+
+		$item = PurchaseOrderItems::findOrFail($itemId);
+
+		$tree_data = array();
+		$expandedKeys = array();
+
+		foreach($item->jo as $key => $jo){
+			$getProducedQty = $jo->produced()->sum('jop_quantity');
+			$status = $jo->jo_quantity > $getProducedQty ? 'OPEN' : 'SERVED';
+
+			array_push($expandedKeys, $jo->jo_joborder);
+			$data = array(
+				'title' => $jo->jo_joborder." (Qty. ".$jo->jo_quantity." - Status : ".$status.")",
+				'key' => $jo->jo_joborder,
+				'children' => array(
+					array(
+						'title' => 'Produced '."(Qty. ".$getProducedQty.")",
+						'key' => $jo->jo_joborder."-p",
+						'children' => $this->getJoProduced($jo->produced)
+					),
+					array(
+						'title' => 'Purchase Requisition (0)',
+						'key' => $jo->jo_joborder."-pr",
+						'children' => []
+					)
+				)
+			);
+
+			array_push($tree_data,$data);
+		}
+
+		return response()->json(
+			[
+				'treeData' => $tree_data,
+				'treeDataParentKeys' => $expandedKeys
+			]);
+	}
+
+	//sales report
+	public function salesReport()
+	{
+
+		$pos = PurchaseOrder::all();
+		$customer_arr = [];
+
+		foreach($pos as $po){
+			$customer = $po->customer->companyname;
+			$total = $this->getPoTotal($po->poitems);
+
+			if(!array_key_exists($customer, $customer_arr)){
+
+				$customer_arr[$customer] = array(
+					'openAmt' => $total['openAmt'],
+					'salesAmt' => $total['salesAmt'],
+					'retentionAmt' => $total['retentionAmt'],
+					'newCustomerAmt' => $total['newCustomerAmt'],
+					'increaseAmt' => $total['increaseAmt'],
+				);
+			}else{
+				$customer_arr[$customer]['openAmt'] += $total['openAmt'];
+				$customer_arr[$customer]['salesAmt'] += $total['salesAmt'];
+				$customer_arr[$customer]['retentionAmt'] += $total['retentionAmt'];
+				$customer_arr[$customer]['newCustomerAmt'] += $total['newCustomerAmt'];
+				$customer_arr[$customer]['increaseAmt'] += $total['increaseAmt'];
+			}
+		}
+
+		return $customer_arr;
+		
+
+	}
+
+	private function getPoTotal($items){
+
+		$openAmount = 0;
+		$salesAmount = 0;
+		$retentionAmount = 0;
+		$newCustomerAmount = 0;
+		$increaseAmount = 0;
+
+		foreach($items as $item){
+			$kpi = strtolower($item->poi_kpi);
+			$open = $item->poi_quantity * $item->poi_unitprice;
+			$sales = $item->delivery()
+				->whereMonth('poidel_deliverydate',11)
+				->sum('poidel_quantity') * $item->poi_unitprice;
+
+			if(strtoupper($item->po->po_currency) == 'USD'){
+				$open = $open * 50;
+				$sales = $sales * 50;
+			}
+
+			if($kpi == 'retention')
+				$retentionAmount += $sales;
+			else if($kpi == 'increase')
+				$increaseAmount += $sales;
+			else
+				$newCustomerAmount += $sales;
+			
+
+			$openAmount+= ($open - $sales);
+			$salesAmount+= $sales;
+
+		}
+
+		return array(
+			'openAmt' => $openAmount,
+			'salesAmt' => $salesAmount,
+			'retentionAmt' => $retentionAmount,
+			'newCustomerAmt' => $newCustomerAmount,
+			'increaseAmt' => $increaseAmount,
+		);
+
+	}
 
 }

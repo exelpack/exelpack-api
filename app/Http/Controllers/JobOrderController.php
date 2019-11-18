@@ -283,7 +283,7 @@ class JobOrderController extends LogsController
 		$remainingQty = $remaining - $request->quantity;
 
 		$this->logJoCreateDelete("Added",$item->po->po_ponum,$item->poi_itemdescription,
-			$request->jo_num,$request->quantity);
+			$request->jo_num,$request->quantity,null);
 
 		return response()->json(
 			[
@@ -359,7 +359,8 @@ class JobOrderController extends LogsController
 			$item->po->po_ponum,
 			$item->poi_itemdescription,
 			$jo_num,
-			$item->poi_quantity);
+			$item->poi_quantity,
+			request()->remarks);
 
 		return response()->json(
 			[

@@ -314,7 +314,7 @@ class LogsController extends Controller
 
 	}
 
-	public function logJoCreateDelete($method,$po,$item,$jo,$qty) //create log for creating po
+	public function logJoCreateDelete($method,$po,$item,$jo,$qty,$remarks) //create log for creating po
 	{
 
 		$log = new PjomsLogs();
@@ -323,7 +323,7 @@ class LogsController extends Controller
 			$before = '---';
 			$after = $jo .", Quantity - ".$qty;
 		}else{
-			$action = 'Deleted job order on po ('.$po.') ('.$item.')';
+			$action = 'Deleted job order on po ('.$po.') ('.$item.') w/ remarks '.$remarks;
 			$before = $jo .", Quantity - ".$qty;
 			$after = '---';
 		}

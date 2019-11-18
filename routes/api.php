@@ -27,6 +27,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	Route::group(['middleware' => ['cposms']], function() {
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
+		Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
 
 			// cposms
 		Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
@@ -59,6 +60,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/schedules/export-csv/dl','PurchaseOrderController@exportPoDailySchedule');
 		Route::get('/cposms/poitems/delivery/export-csv/dl','PurchaseOrderController@exportPoDelivered');
 		Route::get('/cposms/poitems/schedules/export-pdf/dl','PurchaseOrderController@exportPoDailyScheduleToPDF');
+
+		Route::get('/cposms/po/reporting/sales','PurchaseOrderController@salesReport');
 		// end cposms
 
 		Route::post('/mail/schedule', 'MailController@sendEmailSchedule');

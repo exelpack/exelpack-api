@@ -28,7 +28,7 @@ class PurchaseOrder extends Model
 
 		public function getTotalDeliveryQuantity()
 		{
-			return $this->hasOneThrough('App\PurchaseOrderDelivery','App\PurchaseOrderItems','poi_po_id','poidel_item_id','id','id')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) as totalDelivered'));
+			return $this->hasOneThrough('App\PurchaseOrderDelivery','App\PurchaseOrderItems','poi_po_id','poidel_item_id','id','id')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) as totalDelivered'),'poidel_deliverydate');
 		}
 
 		public function customer()
