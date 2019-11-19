@@ -987,21 +987,25 @@ class PurchaseOrderController extends LogsController
 	{
 
 		$pos = PurchaseOrder::all();
+		$from = Carbon::parse(request()->from);
+		$to = Carbon::parse(request()->to);
 		$customer_arr = [];
 
 		foreach($pos as $po){
 			$customer = $po->customer->companyname;
-			$total = $this->getPoTotal($po->poitems);
+			$total = $this->getPoTotal($po->poitems,$from,$to);
 
 			if(!array_key_exists($customer, $customer_arr)){
 
 				$customer_arr[$customer] = array(
+					'cn' => strtoupper($customer),
 					'openAmt' => $total['openAmt'],
 					'salesAmt' => $total['salesAmt'],
 					'retentionAmt' => $total['retentionAmt'],
 					'newCustomerAmt' => $total['newCustomerAmt'],
 					'increaseAmt' => $total['increaseAmt'],
 				);
+
 			}else{
 				$customer_arr[$customer]['openAmt'] += $total['openAmt'];
 				$customer_arr[$customer]['salesAmt'] += $total['salesAmt'];
@@ -1011,12 +1015,31 @@ class PurchaseOrderController extends LogsController
 			}
 		}
 
-		return $customer_arr;
-		
+		$tableData = $this->removeKeyNamesFromArray($customer_arr);
 
+		array_push($tableData,array(
+			'cn' => 'TOTAL',
+			'openAmt' => array_sum(array_column($tableData,'openAmt')),
+			'salesAmt' => array_sum(array_column($tableData,'salesAmt')),
+			'retentionAmt' => array_sum(array_column($tableData,'retentionAmt')),
+			'newCustomerAmt' => array_sum(array_column($tableData,'newCustomerAmt')),
+			'increaseAmt' => array_sum(array_column($tableData,'increaseAmt'))
+		));
+		return response()->json([
+			'tableData' => $tableData
+		]);
+		
 	}
 
-	private function getPoTotal($items){
+	private function removeKeyNamesFromArray($datas){
+		$new_arr = array();
+		foreach($datas as $data){
+			array_push($new_arr,$data);
+		}
+		return $new_arr;
+	}
+
+	private function getPoTotal($items,$from,$to){
 
 		$openAmount = 0;
 		$salesAmount = 0;
@@ -1026,10 +1049,13 @@ class PurchaseOrderController extends LogsController
 
 		foreach($items as $item){
 			$kpi = strtolower($item->poi_kpi);
-			$open = $item->poi_quantity * $item->poi_unitprice;
-			$sales = $item->delivery()
-				->whereMonth('poidel_deliverydate',11)
+			$itemAmount = $item->poi_quantity * $item->poi_unitprice;
+			$open = $itemAmount - $item->delivery()->whereNotBetween('poidel_deliverydate',[$from,$to])
 				->sum('poidel_quantity') * $item->poi_unitprice;
+
+			$sales = $item->delivery()
+			->whereBetween('poidel_deliverydate',[$from,$to])
+			->sum('poidel_quantity') * $item->poi_unitprice;
 
 			if(strtoupper($item->po->po_currency) == 'USD'){
 				$open = $open * 50;
@@ -1043,7 +1069,6 @@ class PurchaseOrderController extends LogsController
 			else
 				$newCustomerAmount += $sales;
 			
-
 			$openAmount+= ($open - $sales);
 			$salesAmount+= $sales;
 
