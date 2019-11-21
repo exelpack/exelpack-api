@@ -15,7 +15,21 @@ use Carbon\Carbon;
 
 class MasterlistController extends Controller
 {
+
+	public function cleanString($string){
+		$string = trim(preg_replace('/\s+/', ' ', $string));
+		return $string;
+	}
+
 	public function getItem($item){
+
+		$attachments = '';
+		if($item->m_dwg !== '')
+			$attachments .= '(with dwg)';
+		if($item->m_bom !== '')
+			$attachments .= '(with bom)';
+		if($item->m_costing !== '')
+			$attachments .= '(with costing)';
 
 		return array(
 			'id' => $item->id,
@@ -38,6 +52,7 @@ class MasterlistController extends Controller
 			'costing' => $item->m_costing,
 			'budgetprice' => $item->m_budgetprice,
 			'customername' => $item->m_customer_id,
+			'attachment' => $attachments
 		);
 
 
@@ -66,6 +81,30 @@ class MasterlistController extends Controller
 			[
 				'itemList' => $itemList
 			]);
+
+	}
+
+	public function addItem(Request $request)
+	{
+
+		$validator = Validator::make($request->all(),[
+			'code' => 'required|max:50|regex:/^[a-zA-Z0-9-_]+$/',
+			'mspecs' => 'required|max:255|regex:/^[a-zA-Z0-9-_ ()"]+$/',
+			'itemdesc' => 'required|max:255|regex:/^[a-zA-Z0-9-_ (),"]+$/',
+			'regisdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
+			'effectdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
+			'outs' => 'min:0|required',
+			'requiredqty' => 'min:0|required',
+			'unitprice' => 'nullable|min:0',
+			'budgetprice' => 'nullable|min:0',
+			'unit' => 'nullable|max:50',
+			'supplierprice' => 'nullable|max:100',
+			'remarks' => 'nullable|max:150'
+		]);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
+		}
 
 	}
 }

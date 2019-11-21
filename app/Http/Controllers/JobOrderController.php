@@ -28,6 +28,11 @@ class JobOrderController extends LogsController
 		return Excel::download(new JobOrderExport, 'job_order.xlsx');
 	}
 
+	public function cleanString($string){
+		$string = trim(preg_replace('/\s+/', ' ', $string));
+		return $string;
+	}
+
 	public function getPoItem($item)
 	{
 
@@ -125,8 +130,8 @@ class JobOrderController extends LogsController
 			'jo_dateissued' => $val['date_issued'],
 			'jo_dateneeded' => $val['date_needed'],
 			'jo_quantity' => $val['quantity'],
-			'jo_remarks' => $val['remarks'],
-			'jo_others' => $val['others'],
+			'jo_remarks' => $this->cleanString($val['remarks']),
+			'jo_others' => $this->cleanString($val['others']),
 			'jo_forwardToWarehouse' => $val['forwardToWarehouse'],
 		);
 

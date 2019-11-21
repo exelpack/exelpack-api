@@ -90,4 +90,10 @@ Route::group(['middleware' => ['auth:api']], function() {
 		
 	});
 
+	Route::group(['middleware' => ['pjoms']], function() {
+
+		Route::post('pmms/masterlist', 'MasterlistController@addItem');
+
+	});
+
 });

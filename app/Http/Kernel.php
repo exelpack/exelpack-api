@@ -63,6 +63,7 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'cposms' => \App\Http\Middleware\RestrictCPOSMS::class,
         'pjoms' => \App\Http\Middleware\RestrictPJOMS::class,
+        'pmms' => \App\Http\Middleware\RestrictPMMS::class,
         'checkPrivelege' => \App\Http\Middleware\RestrictAction::class,
     ];
 

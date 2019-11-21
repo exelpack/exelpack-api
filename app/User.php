@@ -45,6 +45,9 @@ class User extends Authenticatable implements JWTSubject
         if($this->pjoms_access)
             $access['pjoms'] = true;
 
+        if($this->pmms_access)
+            $access['pmms'] = true;
+
         return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
     }
 
