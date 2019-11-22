@@ -68,7 +68,7 @@ class MasterlistController extends Controller
 		return $item_arr;
 
 	}
-  
+
 	public function getMasterlist()
 	{
 
@@ -76,11 +76,42 @@ class MasterlistController extends Controller
 
 		$list = $q->get();
 		$itemList = $this->getItems($list);
+
+
+		$responseArray = array(
+			'itemList' => $itemList
+		);
 		
 		return response()->json(
 			[
-				'itemList' => $itemList
+				'itemList' => $itemList,
+				// 'auth' => 
 			]);
+
+	}
+
+	public function itemArray($item)
+	{
+		$moq = $item->moq ? $item->moq : 0;
+		$partnum = $item->partnum ? $item->partnum : 'N/A';
+
+		return array(
+			'm_moq' => $moq,
+			'm_mspecs' => $item->mspecs,
+			'm_projectname' => $item->itemdesc,
+			'm_partnumber' => $partnum,
+			'm_code' => $item->code,
+			'm_regisdate' => $item->regisdate,
+			'm_effectdate' => $item->effectdate,
+			'm_customername' => $item->customer,
+			'm_requiredquantity' => $item->requiredqty,
+			'm_outs' => $item->outs,
+			'm_unit' => $item->unit,
+			'm_unitprice' => $item->unitprice,
+			'm_supplierprice' => $item->supplierprice,
+			'm_remarks' => $item->remarks,
+			'm_customer_id' => $item->customer_id
+		);
 
 	}
 
@@ -99,12 +130,30 @@ class MasterlistController extends Controller
 			'budgetprice' => 'nullable|min:0',
 			'unit' => 'nullable|max:50',
 			'supplierprice' => 'nullable|max:100',
-			'remarks' => 'nullable|max:150'
+			'remarks' => 'nullable|max:150',
+			'customer' => 'required|max:150',
+			'customer_id' => 'required',
+			'partnum' => 'integer|min:0',
 		]);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-	}
+		$item = new Masterlist();
+		$newItem = $item->create($this->itemArray($request))->refresh();
+		// if(isset($request->file)){
+
+		// 	$dateissued = Carbon::now()->format('Y-m-d h:i:s');
+		// 	$name = pathinfo($request->file->getClientOriginalName(),PATHINFO_FILENAME);
+		// 	$ext = $request->file->getClientOriginalExtension();
+		// 	$filename =  $name."_".Carbon::now()->timestamp.".".$ext;
+		// 	Storage::disk('local')->putFileAs('/public/files/'.$request->product_id."/",$request->file, $filename);
+		// 	$doesHaveFile = true;
+
+		// }
+		// $newItem->refresh();
+		return $newItem;
+
+	}	
 }

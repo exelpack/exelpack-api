@@ -478,11 +478,16 @@ class JobOrderController extends LogsController
 		if($remaining < 1)
 			return response()->json(['errors' => ['Job order already served']],422);
 
+		$dateNow = Carbon::now()->format('Y-m-d');
+		$remarks = 'Closed by system';
 		$produced = $jo->produced()->create([
 			'jop_quantity' => $remaining,
-			'jop_date' => Carbon::now()->format('Y-m-d'),
-			'jop_remarks' => 'Closed by system'
+			'jop_date' => $dateNow,
+			'jop_remarks' => $remarks
 		]);
+
+		$this->logJoProducedCreateDelete("Added",$jo->jo_joborder,
+			$remaining,$remaining,$dateNow,$remarks);
 
 		$jo->refresh();
 		$updatedJo = $this->getJo($jo);
@@ -492,6 +497,24 @@ class JobOrderController extends LogsController
 				'message' => 'Job order closed',
 				'updatedJo' => $updatedJo
 			]);
+
+	}
+
+	public function printJobOrder()
+	{
+		if(!request()->has('jos')){
+			return response()->json(
+				[
+					'error' => ['No job order ids']
+				],422);
+		}
+
+		$ids = request()->jos;
+		$joIds = explode("-",$ids);
+		$joborders = $this->getJos(JobOrder::whereIn('id',$joIds)->get());
+
+		$pdf = PDF::loadView('pjoms.printJobOrder',compact('joborders'))->setPaper('a4','portrait');
+		return $pdf->download('job_orders.pdf');
 
 	}
 
