@@ -6,15 +6,49 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Masterlist;
+use App\MasterlistAttachments;
 use App\Customers;
 
 use DB;
 use Excel;
 use PDF;
+use Storage;
 use Carbon\Carbon;
 
 class MasterlistController extends Controller
 {
+	private $itemValidationRules = array();
+
+	public function __construct(){
+		$this->itemValidationRules = array(
+			'mspecs' => 'required|max:255|regex:/^[a-zA-Z0-9-_ ()"]+$/',
+			'itemdesc' => 'required|max:255|regex:/^[a-zA-Z0-9-_ (),"]+$/',
+			'regisdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
+			'effectdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
+			'outs' => 'min:0|required',
+			'requiredqty' => 'min:0|required',
+			'unitprice' => 'nullable|min:0',
+			'budgetprice' => 'nullable|min:0',
+			'unit' => 'nullable|max:50',
+			'supplierprice' => 'nullable|max:100',
+			'remarks' => 'nullable|max:150',
+			'customer_id' => 'required',
+			'partnum' => 'integer|min:0',
+			'attachments' => 'array|min:1',
+		);
+	}
+
+	private $itemValidationName = array(
+		'mspecs' => 'material specification',
+		'itemdesc' => 'item description',
+		'regisdate' => 'registration date',
+		'effectdate' => 'effectivity date',
+		'requiredqty' => 'required qty',
+		'unitprice' => 'unit price',
+		'budgetprice' => 'budget price',
+		'supplierprice' => 'supplier price',
+		'customer_id' => 'customer'
+	);
 
 	public function cleanString($string){
 		$string = trim(preg_replace('/\s+/', ' ', $string));
@@ -40,18 +74,15 @@ class MasterlistController extends Controller
 			'code' => strtoupper($item->m_code),
 			'regisdate' => $item->m_regisdate,
 			'effectdate' => $item->m_effectdate,
-			'customer' => $item->m_customername,
+			'customer' => $item->customer->companyname,
+			'customer_id' => $item->m_customer_id,
 			'requiredqty' => $item->m_requiredquantity,
 			'outs' => $item->m_outs,
 			'unit' => $item->m_unit,
 			'unitprice' => $item->m_unitprice,
 			'supplierprice' => $item->m_supplierprice,
 			'remarks' => $item->m_remarks,
-			'dwg' => $item->m_dwg,
-			'bom' => $item->m_bom,
-			'costing' => $item->m_costing,
 			'budgetprice' => $item->m_budgetprice,
-			'customername' => $item->m_customer_id,
 			'attachment' => $attachments
 		);
 
@@ -103,7 +134,6 @@ class MasterlistController extends Controller
 			'm_code' => $item->code,
 			'm_regisdate' => $item->regisdate,
 			'm_effectdate' => $item->effectdate,
-			'm_customername' => $item->customer,
 			'm_requiredquantity' => $item->requiredqty,
 			'm_outs' => $item->outs,
 			'm_unit' => $item->unit,
@@ -115,45 +145,183 @@ class MasterlistController extends Controller
 
 	}
 
+	public function addAttachments($attachments,$id){
+		$errorMsg = array();
+		foreach($attachments as $attachment){
+
+			$validator = Validator::make(array('attachment' => $attachment),
+				['attachment' => 'mimes:pdf|max:2000']
+			);
+
+			if($validator->fails()){ // if has errors
+				$itemError_msg = array_merge($errorMsg,$validator->errors()->all());
+				continue;
+			}
+
+			$date = Carbon::now()->timestamp;
+			$name = pathinfo($attachment->getClientOriginalName(),PATHINFO_FILENAME);
+			$ext = $attachment->getClientOriginalExtension();
+			$filename =  $name."_".$date.".".$ext;
+			Storage::disk('local')->putFileAs('/pmms/files/'.$id.'/',$attachment, $filename);
+			MasterlistAttachments::create([
+				'ma_itemid' => $id,
+				'ma_attachment' => $filename,
+			]);
+		}
+
+		return $errorMsg;
+
+	}
+
 	public function addItem(Request $request)
 	{
 
-		$validator = Validator::make($request->all(),[
-			'code' => 'required|max:50|regex:/^[a-zA-Z0-9-_]+$/',
-			'mspecs' => 'required|max:255|regex:/^[a-zA-Z0-9-_ ()"]+$/',
-			'itemdesc' => 'required|max:255|regex:/^[a-zA-Z0-9-_ (),"]+$/',
-			'regisdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
-			'effectdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
-			'outs' => 'min:0|required',
-			'requiredqty' => 'min:0|required',
-			'unitprice' => 'nullable|min:0',
-			'budgetprice' => 'nullable|min:0',
-			'unit' => 'nullable|max:50',
-			'supplierprice' => 'nullable|max:100',
-			'remarks' => 'nullable|max:150',
-			'customer' => 'required|max:150',
-			'customer_id' => 'required',
-			'partnum' => 'integer|min:0',
-		]);
+		$validator = Validator::make($request->all(),
+			array_merge($this->itemValidationRules,[
+				'code' => 'required|max:50|regex:/^[a-zA-Z0-9-_]+$/|unique:pmms_masterlist,m_code',
+			]),
+			[],
+			$this->itemValidationName);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
 		$item = new Masterlist();
-		$newItem = $item->create($this->itemArray($request))->refresh();
-		// if(isset($request->file)){
+		$createdItem = $item->create($this->itemArray($request))->refresh();
+		$uploadError = $this->addAttachments($request->attachments,$createdItem->id);
 
-		// 	$dateissued = Carbon::now()->format('Y-m-d h:i:s');
-		// 	$name = pathinfo($request->file->getClientOriginalName(),PATHINFO_FILENAME);
-		// 	$ext = $request->file->getClientOriginalExtension();
-		// 	$filename =  $name."_".Carbon::now()->timestamp.".".$ext;
-		// 	Storage::disk('local')->putFileAs('/public/files/'.$request->product_id."/",$request->file, $filename);
-		// 	$doesHaveFile = true;
+		$newItem = $this->getItem($createdItem);
+		
+		return response()->json([
+			'newItem' => $newItem,
+			'uploadError' => $uploadError
+		]);
 
-		// }
-		// $newItem->refresh();
-		return $newItem;
+	}
 
-	}	
+
+	public function editItem(Request $request,$id)
+	{
+
+		$$validator = Validator::make($request->all(),
+			array_merge($this->itemValidationRules,[
+				'code' => 'required|max:50|regex:/^[a-zA-Z0-9-_]+$/|unique:pmms_masterlist,m_code,'.$id,
+			]),
+			[],
+			$this->itemValidationName);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
+		}
+
+		$item = Masterlist::find($id);
+		$updatedItem = $item->update($this->itemArray($request));
+		$newItem = $this->getItem($updatedItem);
+		
+		return response()->json([
+			'newItem' => $newItem
+		]);
+
+	}
+
+	public function addAttachmentsToItem(Request $request)
+	{
+
+		$validator = Validator::make($request->all(),
+			[
+				'attachments' => 'array|min:1',
+				'item_id' => 'integer|required|min:1'
+			]);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
+		}
+
+		foreach($request->attachments as $attachment){
+
+			$date = Carbon::now()->timestamp;
+			$name = pathinfo($attachment->getClientOriginalName(),PATHINFO_FILENAME);
+			$ext = $attachment->getClientOriginalExtension();
+			$filename =  $name."_".$date.".".$ext;
+			Storage::disk('local')->putFileAs('/pmms/files/'.$id.'/',$attachment, $filename);
+			MasterlistAttachments::create([
+				'ma_itemid' => $id,
+				'ma_attachment' => $filename,
+			]);
+
+		}
+
+	}
+
+	public function deleteItem($id)
+	{
+		$item = Masterlist::find($id);
+		$item->attachments()->delete();
+		Storage::deleteDirectory('/pmms/files/'.$id);
+		$item->delete();
+
+		return response()->json([
+			'deletedId' => $id,
+			'message' => 'Record deleted'
+		]);
+	}
+
+	public function setAttachmentViewability(Request $request,$id)
+	{
+
+		$validator = Validator::make($request->all(),
+			[
+				'view' => 'boolean|required'
+			]);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
+		}
+
+		MasterlistAttachments::find($id)->update([
+				'ma_isPublic' => $request->view,
+			]);
+
+		return response()->json(
+			[
+				'message' => 'Record updated'
+			]);	
+
+	}
+
+	public function viewItemAttachments($id)
+	{
+
+		$attachments = Masterlist::find($id)
+			->attachments()
+			->select('ma_attachment as attachment', 'ma_isPublic as isPublic')
+			->get();
+
+		return response()->json(
+			[
+				'attachments' => $attachments
+			]);
+
+	}
+
+	public function deleteAttachment($id)
+	{
+			$attachment = MasterlistAttachments::find($id);
+			$item_id = $attachment->ma_itemid;
+			$attachment = $attachment->ma_attachment;
+			Storage::delete('/pmms/files/'.$item_id."/".$attachment);// delete file
+			$attachment->delete();
+			MasterlistAttachments::create([
+				'ma_itemid' => $id,
+				'ma_attachment' => $filename,
+			]);
+
+			return response()->json(
+					'deletedId' => $id,
+					'message' => 'Attachment deleted'
+				]);
+	}
+
+
 }

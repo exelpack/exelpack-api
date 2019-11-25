@@ -13,5 +13,10 @@ class Customers extends Model
 	{
 		return $this->hasMany('App\PurchaseOrder','po_customer_id');
 	}
+
+	public function mitem()
+	{
+		return $this->hasMany('App\Masterlist','m_customer_id');
+	}
 	
 }
