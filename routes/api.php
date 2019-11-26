@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 */
 Route::post('/login/{sys}','UserController@login');
 Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
+Route::get('pmms/masterlist/attachment/{id}/pub','MasterlistController@viewItemAttachmentsPublic');
 
 Route::get('/error', function(){
 	return response()->json(['error' => 'Unauthorized'],401);

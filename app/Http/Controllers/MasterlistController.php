@@ -32,8 +32,8 @@ class MasterlistController extends Controller
 			'unit' => 'nullable|max:50',
 			'supplierprice' => 'nullable|max:100',
 			'remarks' => 'nullable|max:150',
-			'customer_id' => 'required',
-			'partnum' => 'integer|min:0',
+			'customer' => 'required',
+			'partnum' => 'string|nullable',
 			'attachments' => 'array|min:1',
 		);
 	}
@@ -57,14 +57,6 @@ class MasterlistController extends Controller
 
 	public function getItem($item){
 
-		$attachments = '';
-		if($item->m_dwg !== '')
-			$attachments .= '(with dwg)';
-		if($item->m_bom !== '')
-			$attachments .= '(with bom)';
-		if($item->m_costing !== '')
-			$attachments .= '(with costing)';
-
 		return array(
 			'id' => $item->id,
 			'moq' => $item->m_moq,
@@ -74,8 +66,8 @@ class MasterlistController extends Controller
 			'code' => strtoupper($item->m_code),
 			'regisdate' => $item->m_regisdate,
 			'effectdate' => $item->m_effectdate,
-			'customer' => $item->customer->companyname,
-			'customer_id' => $item->m_customer_id,
+			'customer_label' => $item->customer->companyname,
+			'customer' => $item->m_customer_id,
 			'requiredqty' => $item->m_requiredquantity,
 			'outs' => $item->m_outs,
 			'unit' => $item->m_unit,
@@ -83,7 +75,6 @@ class MasterlistController extends Controller
 			'supplierprice' => $item->m_supplierprice,
 			'remarks' => $item->m_remarks,
 			'budgetprice' => $item->m_budgetprice,
-			'attachment' => $attachments
 		);
 
 
@@ -140,7 +131,7 @@ class MasterlistController extends Controller
 			'm_unitprice' => $item->unitprice,
 			'm_supplierprice' => $item->supplierprice,
 			'm_remarks' => $item->remarks,
-			'm_customer_id' => $item->customer_id
+			'm_customer_id' => $item->customer
 		);
 
 	}
@@ -195,7 +186,8 @@ class MasterlistController extends Controller
 		
 		return response()->json([
 			'newItem' => $newItem,
-			'uploadError' => $uploadError
+			'uploadError' => $uploadError,
+			'message' => 'Record added'
 		]);
 
 	}
@@ -204,7 +196,7 @@ class MasterlistController extends Controller
 	public function editItem(Request $request,$id)
 	{
 
-		$$validator = Validator::make($request->all(),
+		$validator = Validator::make($request->all(),
 			array_merge($this->itemValidationRules,[
 				'code' => 'required|max:50|regex:/^[a-zA-Z0-9-_]+$/|unique:pmms_masterlist,m_code,'.$id,
 			]),
@@ -216,8 +208,8 @@ class MasterlistController extends Controller
 		}
 
 		$item = Masterlist::find($id);
-		$updatedItem = $item->update($this->itemArray($request));
-		$newItem = $this->getItem($updatedItem);
+		$item->update($this->itemArray($request));
+		$newItem = $this->getItem($item);
 		
 		return response()->json([
 			'newItem' => $newItem
@@ -238,19 +230,33 @@ class MasterlistController extends Controller
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
+		$newAttachment = array();
 		foreach($request->attachments as $attachment){
 
 			$date = Carbon::now()->timestamp;
 			$name = pathinfo($attachment->getClientOriginalName(),PATHINFO_FILENAME);
 			$ext = $attachment->getClientOriginalExtension();
 			$filename =  $name."_".$date.".".$ext;
-			Storage::disk('local')->putFileAs('/pmms/files/'.$id.'/',$attachment, $filename);
-			MasterlistAttachments::create([
-				'ma_itemid' => $id,
+			Storage::disk('local')->putFileAs('/pmms/files/'.$request->item_id.'/',$attachment, $filename);
+
+			$attach = new MasterlistAttachments();
+			$attach->fill([
+				'ma_itemid' => $request->item_id,
 				'ma_attachment' => $filename,
 			]);
+			$attach->save();
+			$attach->refresh();
+			array_push($newAttachment,array(
+				'id' => $attach->id,
+				'attachment' => $attach->ma_attachment,
+				'isPublic' => $attach->ma_isPublic
+			));
 
 		}
+
+		return response()->json([
+			'newAttachment' => $newAttachment
+		]);
 
 	}
 
@@ -279,7 +285,7 @@ class MasterlistController extends Controller
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		MasterlistAttachments::find($id)->update([
+		MasterlistAttachments::findOrFail($id)->update([
 				'ma_isPublic' => $request->view,
 			]);
 
@@ -293,9 +299,25 @@ class MasterlistController extends Controller
 	public function viewItemAttachments($id)
 	{
 
-		$attachments = Masterlist::find($id)
+		$attachments = Masterlist::findOrFail($id)
 			->attachments()
-			->select('ma_attachment as attachment', 'ma_isPublic as isPublic')
+			->select('id','ma_attachment as attachment', 'ma_isPublic as isPublic')
+			->get();
+
+		return response()->json(
+			[
+				'attachments' => $attachments
+			]);
+
+	}
+
+	public function viewItemAttachmentsPublic($id)
+	{
+
+		$attachments = Masterlist::findOrFail($id)
+			->attachments()
+			->select('id','ma_attachment as attachment')
+			->where('ma_isPublic',1)
 			->get();
 
 		return response()->json(
@@ -307,17 +329,13 @@ class MasterlistController extends Controller
 
 	public function deleteAttachment($id)
 	{
-			$attachment = MasterlistAttachments::find($id);
+			$attachment = MasterlistAttachments::findOrFail($id);
 			$item_id = $attachment->ma_itemid;
-			$attachment = $attachment->ma_attachment;
-			Storage::delete('/pmms/files/'.$item_id."/".$attachment);// delete file
+			$attachmentName = $attachment->ma_attachment;
+			Storage::delete('/pmms/files/'.$item_id."/".$attachmentName);// delete file
 			$attachment->delete();
-			MasterlistAttachments::create([
-				'ma_itemid' => $id,
-				'ma_attachment' => $filename,
-			]);
 
-			return response()->json(
+			return response()->json([
 					'deletedId' => $id,
 					'message' => 'Attachment deleted'
 				]);
