@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Masterlist;
-use App\MasterlistAttachments;
 use App\Customers;
 
 use DB;
@@ -32,9 +31,11 @@ class MasterlistController extends Controller
 			'unit' => 'nullable|max:50',
 			'supplierprice' => 'nullable|max:100',
 			'remarks' => 'nullable|max:150',
-			'customer' => 'required',
 			'partnum' => 'string|nullable',
-			'attachments' => 'array|min:1',
+			'customer' => 'required|min:1',
+			'dwg' => 'nullable|mimes:pdf|max:2000',
+			'bom' => 'nullable|mimes:pdf|max:2000',
+			'costing' => 'nullable|mimes:pdf|max:2000',
 		);
 	}
 
@@ -56,6 +57,14 @@ class MasterlistController extends Controller
 	}
 
 	public function getItem($item){
+		$attachment = '';
+
+		if($item->m_dwg !== NULL)
+			$attachment .= "(w/ drawing)";
+		if($item->m_bom !== NULL)
+			$attachment .= "(w/ bom)";
+		if($item->m_costing !== NULL)
+			$attachment .= "(w/ costing)";
 
 		return array(
 			'id' => $item->id,
@@ -75,6 +84,10 @@ class MasterlistController extends Controller
 			'supplierprice' => $item->m_supplierprice,
 			'remarks' => $item->m_remarks,
 			'budgetprice' => $item->m_budgetprice,
+			'dwg' => $item->m_dwg,
+			'bom' => $item->m_bom,
+			'costing' => $item->m_costing,
+			'attachment' => $attachment,
 		);
 
 
@@ -91,6 +104,16 @@ class MasterlistController extends Controller
 
 	}
 
+	public function getCustomerList()
+	{
+		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
+
+		return response()->json(
+			[
+				'customerList' => $customers
+			]);
+	}
+
 	public function getMasterlist()
 	{
 
@@ -98,7 +121,6 @@ class MasterlistController extends Controller
 
 		$list = $q->get();
 		$itemList = $this->getItems($list);
-
 
 		$responseArray = array(
 			'itemList' => $itemList
@@ -119,10 +141,10 @@ class MasterlistController extends Controller
 
 		return array(
 			'm_moq' => $moq,
-			'm_mspecs' => $item->mspecs,
-			'm_projectname' => $item->itemdesc,
-			'm_partnumber' => $partnum,
-			'm_code' => $item->code,
+			'm_mspecs' => $this->cleanString($item->mspecs),
+			'm_projectname' => $this->cleanString($item->itemdesc),
+			'm_partnumber' => $this->cleanString($partnum),
+			'm_code' => $this->cleanString($item->code),
 			'm_regisdate' => $item->regisdate,
 			'm_effectdate' => $item->effectdate,
 			'm_requiredquantity' => $item->requiredqty,
@@ -136,37 +158,34 @@ class MasterlistController extends Controller
 
 	}
 
-	public function addAttachments($attachments,$id){
-		$errorMsg = array();
-		foreach($attachments as $attachment){
+	public function addAttachment($id,$attachment,$type){
 
-			$validator = Validator::make(array('attachment' => $attachment),
-				['attachment' => 'mimes:pdf|max:2000']
-			);
+		$ts = Carbon::now()->timestamp;
+		$name = pathinfo($attachment->getClientOriginalName(),PATHINFO_FILENAME);
+		$ext = $attachment->getClientOriginalExtension();
+		$filename =  $name."_".$type."_".$ts.".".$ext;
+		Storage::disk('local')->putFileAs('/pmms/files/'.$id.'/',$attachment, $filename);
+		return $filename;
+	}
 
-			if($validator->fails()){ // if has errors
-				$itemError_msg = array_merge($errorMsg,$validator->errors()->all());
-				continue;
-			}
+	public function downloadAttachment($id,$type)
+	{
+		$item = Masterlist::findOrFail($id);
+		$fileName = '';
 
-			$date = Carbon::now()->timestamp;
-			$name = pathinfo($attachment->getClientOriginalName(),PATHINFO_FILENAME);
-			$ext = $attachment->getClientOriginalExtension();
-			$filename =  $name."_".$date.".".$ext;
-			Storage::disk('local')->putFileAs('/pmms/files/'.$id.'/',$attachment, $filename);
-			MasterlistAttachments::create([
-				'ma_itemid' => $id,
-				'ma_attachment' => $filename,
-			]);
-		}
-
-		return $errorMsg;
-
+		if($type == 'dwg')
+			$fileName = $item->m_dwg;
+		else if($type == 'bom')
+			$fileName = $item->m_bom;
+		else
+			$fileName = $item->m_costing;
+		
+		return Storage::download('pmms/files/'.$id."/".$fileName,'downloaded.pdf',
+			['content-type' => '']);
 	}
 
 	public function addItem(Request $request)
 	{
-
 		$validator = Validator::make($request->all(),
 			array_merge($this->itemValidationRules,[
 				'code' => 'required|max:50|regex:/^[a-zA-Z0-9-_]+$/|unique:pmms_masterlist,m_code',
@@ -180,15 +199,29 @@ class MasterlistController extends Controller
 
 		$item = new Masterlist();
 		$createdItem = $item->create($this->itemArray($request))->refresh();
-		$uploadError = $this->addAttachments($request->attachments,$createdItem->id);
 
+		if(isset($request->dwg)){
+			$filename = $this->addAttachment($createdItem->id,$request->dwg,"dwg");
+			$createdItem->m_dwg = $filename;
+		}
+
+		if(isset($request->bom)){
+			$filename = $this->addAttachment($createdItem->id,$request->bom,"bom");
+			$createdItem->m_bom = $filename;
+		}
+
+		if(isset($request->costing)){
+			$filename = $this->addAttachment($createdItem->id,$request->costing,"cost");
+			$createdItem->m_costing = $filename;
+		}
+
+		$createdItem->save();
 		$newItem = $this->getItem($createdItem);
-		
 		return response()->json([
 			'newItem' => $newItem,
-			'uploadError' => $uploadError,
 			'message' => 'Record added'
 		]);
+
 
 	}
 
@@ -210,52 +243,49 @@ class MasterlistController extends Controller
 		$item = Masterlist::find($id);
 		$item->update($this->itemArray($request));
 		$newItem = $this->getItem($item);
-		
+
 		return response()->json([
 			'newItem' => $newItem
 		]);
 
 	}
 
-	public function addAttachmentsToItem(Request $request)
+	public function addAttachmentToItem(Request $request)
 	{
 
 		$validator = Validator::make($request->all(),
 			[
-				'attachments' => 'array|min:1',
-				'item_id' => 'integer|required|min:1'
+				'dwg' => 'mimetypes:application/pdf|max:2000|nullable',
+				'bom' => 'mimetypes:application/pdf|max:2000|nullable',
+				'costing' => 'mimetypes:application/pdf|max:2000|nullable',
+				'item_id' => 'integer|required|min:1',
+				'type' => 'string|required|max:7|min:1'
 			]);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$newAttachment = array();
-		foreach($request->attachments as $attachment){
-
-			$date = Carbon::now()->timestamp;
-			$name = pathinfo($attachment->getClientOriginalName(),PATHINFO_FILENAME);
-			$ext = $attachment->getClientOriginalExtension();
-			$filename =  $name."_".$date.".".$ext;
-			Storage::disk('local')->putFileAs('/pmms/files/'.$request->item_id.'/',$attachment, $filename);
-
-			$attach = new MasterlistAttachments();
-			$attach->fill([
-				'ma_itemid' => $request->item_id,
-				'ma_attachment' => $filename,
-			]);
-			$attach->save();
-			$attach->refresh();
-			array_push($newAttachment,array(
-				'id' => $attach->id,
-				'attachment' => $attach->ma_attachment,
-				'isPublic' => $attach->ma_isPublic
-			));
-
+		$type = strtoupper($request->type);
+		$item = Masterlist::find($request->item_id);
+		if($type == 'DWG'){
+			$filename = $this->addAttachment($request->item_id,$request->dwg,"dwg");
+			$item->m_dwg = $filename;
 		}
 
+		if($type == 'BOM'){
+			$filename = $this->addAttachment($request->item_id,$request->bom,"bom");
+			$item->m_bom = $filename;
+		}
+
+		if($type == 'COSTING'){
+			$filename = $this->addAttachment($request->item_id,$request->costing,"cost");
+			$item->m_costing = $filename;
+		}
+		$item->save();
+
 		return response()->json([
-			'newAttachment' => $newAttachment
+			'message' => 'Attachment added'
 		]);
 
 	}
@@ -263,7 +293,6 @@ class MasterlistController extends Controller
 	public function deleteItem($id)
 	{
 		$item = Masterlist::find($id);
-		$item->attachments()->delete();
 		Storage::deleteDirectory('/pmms/files/'.$id);
 		$item->delete();
 
@@ -273,73 +302,40 @@ class MasterlistController extends Controller
 		]);
 	}
 
-	public function setAttachmentViewability(Request $request,$id)
-	{
-
-		$validator = Validator::make($request->all(),
-			[
-				'view' => 'boolean|required'
-			]);
-
-		if($validator->fails()){
-			return response()->json(['errors' => $validator->errors()->all()],422);
-		}
-
-		MasterlistAttachments::findOrFail($id)->update([
-				'ma_isPublic' => $request->view,
-			]);
-
-		return response()->json(
-			[
-				'message' => 'Record updated'
-			]);	
-
-	}
-
-	public function viewItemAttachments($id)
-	{
-
-		$attachments = Masterlist::findOrFail($id)
-			->attachments()
-			->select('id','ma_attachment as attachment', 'ma_isPublic as isPublic')
-			->get();
-
-		return response()->json(
-			[
-				'attachments' => $attachments
-			]);
-
-	}
-
-	public function viewItemAttachmentsPublic($id)
-	{
-
-		$attachments = Masterlist::findOrFail($id)
-			->attachments()
-			->select('id','ma_attachment as attachment')
-			->where('ma_isPublic',1)
-			->get();
-
-		return response()->json(
-			[
-				'attachments' => $attachments
-			]);
-
-	}
 
 	public function deleteAttachment($id)
 	{
-			$attachment = MasterlistAttachments::findOrFail($id);
-			$item_id = $attachment->ma_itemid;
-			$attachmentName = $attachment->ma_attachment;
-			Storage::delete('/pmms/files/'.$item_id."/".$attachmentName);// delete file
-			$attachment->delete();
-
-			return response()->json([
-					'deletedId' => $id,
-					'message' => 'Attachment deleted'
+		if(!request()->has('type')){
+			return response()->json(
+				[
+					'errors' => ['Attachment type is required']
 				]);
+		}	
+
+		$item = Masterlist::findOrFail($id);
+		$type = strtoupper(request()->type);
+		$attachmentName = '';
+
+		if($type == 'DWG'){
+			$attachmentName = $item->m_dwg;
+			$item->m_dwg = null;
+		}
+
+		if($type == 'BOM'){
+			$attachmentName = $item->m_bom;
+			$item->m_bom = null;
+		}
+
+		if($type == 'COSTING'){
+			$attachmentName = $item->m_costing;
+			$item->m_costing = null;
+		}
+		$item->save();
+
+		Storage::delete('/pmms/files/'.$id."/".$attachmentName);// delete file
+
+		return response()->json([
+			'message' => 'Attachment deleted'
+		]);
 	}
-
-
 }
