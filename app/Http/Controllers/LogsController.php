@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\CposmsLogs;
 use App\PjomsLogs;
+use App\PmmsLogs;
 use App\Customers;
 use Illuminate\Support\Facades\Auth;
 
@@ -389,6 +390,69 @@ class LogsController extends Controller
 				'action' => $action,
 				'before' => $before,
 				'after' => $after,
+			]);
+
+		$log->save();
+
+	}
+
+	public function createDeleteLogForMasterlistItem($method,$epcode,$itemdesc,$mspecs)
+	{
+		$log = new PmmsLogs();
+
+		if($method == 'Added')
+		{
+			$action = $method." new item ".$epcode;
+			$before = '';
+			$after = "Item description : ".$itemdesc.", Material specs : ".$mspecs;
+		}else {
+			$action = $method." item ".$epcode;
+			$before = "Item description : ".$itemdesc.", Material specs : ".$mspecs;
+			$after = "";
+		}
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $action,
+				'before' => $before,
+				'after' => $after,
+			]);
+
+		$log->save();
+
+	}
+
+	public function editLogForMasterlistItem($dirty,$original)
+	{
+
+		$log = new PmmsLogs();
+		$name_arr = [
+			'm_moq' => 'Moq',
+			'm_mspecs' => 'Material specs',
+			'm_projectname' => 'Project name',
+			'm_partnumber' => 'Part number',
+			'm_code' => 'Code',
+			'm_regisdate' => 'Registration date',
+			'm_effectdate' => 'Effectivity date',
+			'm_requiredquantity' => 'Required qty',
+			'm_outs' => 'Outs',
+			'm_unit' => 'Unit',
+			'm_unitprice' => 'Unit price',
+			'm_supplierprice' => 'Supplier price',
+			'm_remarks' => 'Remarks',
+			'm_customer_id' => 'Customer',
+		];
+		$customer = new Customers();
+
+		$vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original,'m_customer_id',['model' => $customer, 'cols' => 'companyname']]);
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Edited item',
+				'before' => $vals['before'],
+				'after' => $vals['after'],
 			]);
 
 		$log->save();

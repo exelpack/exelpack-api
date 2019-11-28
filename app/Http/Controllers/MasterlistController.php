@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\LogsController;
 use App\Masterlist;
 use App\Customers;
 
@@ -14,7 +15,7 @@ use PDF;
 use Storage;
 use Carbon\Carbon;
 
-class MasterlistController extends Controller
+class MasterlistController extends LogsController
 {
 	private $itemValidationRules = array();
 
@@ -172,15 +173,21 @@ class MasterlistController extends Controller
 	{
 		$item = Masterlist::findOrFail($id);
 		$fileName = '';
-
-		if($type == 'dwg')
+		$type = strtolower($type);
+		if($type == 'dwg' && ($item->m_dwg != '' || $item->m_dwg != null))
 			$fileName = $item->m_dwg;
-		else if($type == 'bom')
+		else if($type == 'bom' && ($item->m_bom != '' || $item->m_bom != null))
 			$fileName = $item->m_bom;
-		else
+		else if($type == 'costing' && ($item->m_costing != '' || $item->m_costing != null))
 			$fileName = $item->m_costing;
+		else{
+			return response()->json(
+				[
+					'errors' => ['File not found']
+				]);
+		}
 		
-		return Storage::download('pmms/files/'.$id."/".$fileName,'downloaded.pdf',
+		return Storage::download('pmms/files/'.$id."/".$fileName,$fileName.'.pdf',
 			['content-type' => '']);
 	}
 
@@ -199,6 +206,9 @@ class MasterlistController extends Controller
 
 		$item = new Masterlist();
 		$createdItem = $item->create($this->itemArray($request))->refresh();
+		$this->createDeleteLogForMasterlistItem(
+			"Added",$request->code,$request->itemdesc,$request->mspecs
+		);
 
 		if(isset($request->dwg)){
 			$filename = $this->addAttachment($createdItem->id,$request->dwg,"dwg");
@@ -240,12 +250,20 @@ class MasterlistController extends Controller
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$item = Masterlist::find($id);
-		$item->update($this->itemArray($request));
+		$item = Masterlist::findOrFail($id);
+		$item->fill($this->itemArray($request));
+
+		if($item->isDirty())
+		{
+			$this->editLogForMasterlistItem($item->getDirty(),$item->getOriginal());
+			$item->save();
+		}
+
 		$newItem = $this->getItem($item);
 
 		return response()->json([
-			'newItem' => $newItem
+			'newItem' => $newItem,
+			'message' => "Record updated"
 		]);
 
 	}
@@ -259,7 +277,7 @@ class MasterlistController extends Controller
 				'bom' => 'mimetypes:application/pdf|max:2000|nullable',
 				'costing' => 'mimetypes:application/pdf|max:2000|nullable',
 				'item_id' => 'integer|required|min:1',
-				'type' => 'string|required|max:7|min:1'
+				'type' => 'string|required|max:7|min:1|in:DWG,BOM,COSTING,dwg,bom,costing'
 			]);
 
 		if($validator->fails()){
@@ -268,24 +286,26 @@ class MasterlistController extends Controller
 
 		$type = strtoupper($request->type);
 		$item = Masterlist::find($request->item_id);
-		if($type == 'DWG'){
+		if($type == 'DWG' && ($item->m_dwg == NULL || $item->m_dwg == '' )){
 			$filename = $this->addAttachment($request->item_id,$request->dwg,"dwg");
 			$item->m_dwg = $filename;
 		}
 
-		if($type == 'BOM'){
+		if($type == 'BOM' && ($item->m_bom == NULL || $item->m_bom == '' )){
 			$filename = $this->addAttachment($request->item_id,$request->bom,"bom");
 			$item->m_bom = $filename;
 		}
 
-		if($type == 'COSTING'){
+		if($type == 'COSTING' && ($item->m_costing == NULL || $item->m_costing == '' )){
 			$filename = $this->addAttachment($request->item_id,$request->costing,"cost");
 			$item->m_costing = $filename;
 		}
 		$item->save();
+		$newItem = $this->getItem($item);
 
 		return response()->json([
-			'message' => 'Attachment added'
+			'message' => 'Attachment added',
+			'newItem' => $newItem
 		]);
 
 	}
@@ -312,30 +332,35 @@ class MasterlistController extends Controller
 				]);
 		}	
 
+
 		$item = Masterlist::findOrFail($id);
 		$type = strtoupper(request()->type);
 		$attachmentName = '';
 
-		if($type == 'DWG'){
+		if($type == 'DWG' && ($item->m_dwg != NULL || $item->m_dwg != '' )){
 			$attachmentName = $item->m_dwg;
 			$item->m_dwg = null;
-		}
-
-		if($type == 'BOM'){
+		}else if($type == 'BOM' && ($item->m_bom != NULL || $item->m_bom != '' )){
 			$attachmentName = $item->m_bom;
 			$item->m_bom = null;
-		}
-
-		if($type == 'COSTING'){
+		}else if($type == 'COSTING' && ($item->m_costing != NULL || $item->m_costing != '' )){
 			$attachmentName = $item->m_costing;
 			$item->m_costing = null;
+		}else{
+			return response()->json(
+				[
+					'errors' => ['Invalid attachment type'] //return error if invalid type
+				]);
 		}
+
+
 		$item->save();
 
 		Storage::delete('/pmms/files/'.$id."/".$attachmentName);// delete file
-
+		$newItem = $this->getItem($item);
 		return response()->json([
-			'message' => 'Attachment deleted'
+			'message' => 'Attachment deleted',
+			'newItem' => $newItem
 		]);
 	}
 }

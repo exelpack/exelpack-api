@@ -60,4 +60,9 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany('App\UserLogs','user_id');
     }
+
+    public function pmmsLogs()
+    {
+        return $this->hasMany('App\UserLogs','user_id');
+    }
 }

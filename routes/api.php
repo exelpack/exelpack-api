@@ -100,9 +100,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::put('/pmms/masterlist/{id}', 'MasterlistController@editItem');
 		Route::delete('/pmms/masterlist/{id}','MasterlistController@deleteItem');
 
-		Route::post('/pmms/masterlist/attachment','MasterlistController@addAttachmentsToItem');
+		Route::post('/pmms/masterlist/attachment','MasterlistController@addAttachmentToItem');
 		Route::put('/pmms/masterlist/attachment/{id}','MasterlistController@setAttachmentViewability');
-		Route::get('/pmms/masterlist/attachment/{id}','MasterlistController@viewItemAttachments');
 		Route::delete('/pmms/masterlist/attachment/{id}','MasterlistController@deleteAttachment');
 		Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
 		
