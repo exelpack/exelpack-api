@@ -45,11 +45,10 @@ class LogsController extends Controller
 		return ['before' => substr($before, 0,-1),'after' => substr($after, 0,-1)];
 	}
 
-	public function getcposmsLogs()
+	public function getLogs($q)
 	{
-
 		$logs_arr = array();
-		$q = CposmsLogs::query();
+
 		$pageSize = request()->pageSize;
 		if(request()->has('search')){
 			$search = "%".request()->search."%";
@@ -76,9 +75,21 @@ class LogsController extends Controller
 
 		}
 
-		return response()->json([
+		return [
 			'logsLength' => $logs->total(),
-			'logs' => $logs_arr,
+			'logs' => $logs_arr
+		];
+	}
+
+	public function getcposmsLogs()
+	{
+
+		$q = CposmsLogs::query();
+		$logs = $this->getLogs($q);
+
+		return response()->json([
+			'logsLength' => $logs['logsLength'],
+			'logs' => $logs['logs'],
 		]);
 	}
 
@@ -282,35 +293,11 @@ class LogsController extends Controller
 
 		$logs_arr = array();
 		$q = PjomsLogs::query();
-		$pageSize = request()->pageSize;
-		if(request()->has('search')){
-			$search = "%".request()->search."%";
-			$q->where('action','like',$search)
-			->orWhere('before','like',$search)
-			->orWhere('after','like',$search);
-		}
-
-		$logs = $q->latest()->paginate($pageSize);
-		foreach($logs as $log)
-		{
-			$format = $log->created_at->format('Y-m-d h:i:s');
-			$diff = $log->created_at->diffForHumans();
-			array_push($logs_arr,
-				array(
-					'id' => $log->id,
-					'user' => $log->user->username,
-					'action' => $log->action,
-					'before' => str_replace(",","\n",$log->before),
-					'after' => str_replace(",","\n",$log->after),
-					'date' => $format."(".$diff.")",
-				)
-			);
-
-		}
+		$logs = $this->getLogs($q);
 
 		return response()->json([
-			'logsLength' => $logs->total(),
-			'logs' => $logs_arr,
+			'logsLength' => $logs['logsLength'],
+			'logs' => $logs['logs'],
 		]);
 
 	}
@@ -456,6 +443,44 @@ class LogsController extends Controller
 			]);
 
 		$log->save();
+
+	}
+
+	public function addAndDeleteAttachmentMasterlistItemLog($method,$type,$filename,$ep,$itemdesc)
+	{
+
+		if($method === 'Added'){
+			$before = '';
+			$after = $filename;
+		}else{
+			$before = $filename;
+			$after = '';
+		}
+
+		$log = new PmmsLogs();
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $method." ".$type." on ".$ep." - ".$itemdesc,
+				'before' => $before,
+				'after' => $after,
+			]);
+
+		$log->save();
+
+	}
+
+	public function getpmmsLogs()
+	{
+
+		$logs_arr = array();
+		$q = PmmsLogs::query();
+		$logs = $this->getLogs($q);
+
+		return response()->json([
+			'logsLength' => $logs['logsLength'],
+			'logs' => $logs['logs'],
+		]);
 
 	}
 

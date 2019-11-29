@@ -286,6 +286,7 @@ class MasterlistController extends LogsController
 
 		$type = strtoupper($request->type);
 		$item = Masterlist::find($request->item_id);
+
 		if($type == 'DWG' && ($item->m_dwg == NULL || $item->m_dwg == '' )){
 			$filename = $this->addAttachment($request->item_id,$request->dwg,"dwg");
 			$item->m_dwg = $filename;
@@ -301,7 +302,10 @@ class MasterlistController extends LogsController
 			$item->m_costing = $filename;
 		}
 		$item->save();
+		$this->addAndDeleteAttachmentMasterlistItemLog("Added",
+			$type,$filename,$item->m_code,$item->m_projectname);
 		$newItem = $this->getItem($item);
+
 
 		return response()->json([
 			'message' => 'Attachment added',
@@ -355,7 +359,8 @@ class MasterlistController extends LogsController
 
 
 		$item->save();
-
+		$this->addAndDeleteAttachmentMasterlistItemLog("Deleted",
+			$type,$attachmentName,$item->m_code,$item->m_projectname);
 		Storage::delete('/pmms/files/'.$id."/".$attachmentName);// delete file
 		$newItem = $this->getItem($item);
 		return response()->json([

@@ -14,7 +14,8 @@ use Illuminate\Http\Request;
 */
 Route::post('/login/{sys}','UserController@login');
 Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
-Route::get('pmms/masterlist/attachment/{id}/pub','MasterlistController@viewItemAttachmentsPublic');
+Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
+
 
 Route::get('/error', function(){
 	return response()->json(['error' => 'Unauthorized'],401);
@@ -93,6 +94,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 	});
 
 	Route::group(['middleware' => ['pjoms']], function() {
+		Route::get('/pmms/logs','LogsController@getpmmsLogs');
 
 		Route::get('/pmms/masterlist/option/customers','MasterlistController@getCustomerList');
 
@@ -103,7 +105,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/pmms/masterlist/attachment','MasterlistController@addAttachmentToItem');
 		Route::put('/pmms/masterlist/attachment/{id}','MasterlistController@setAttachmentViewability');
 		Route::delete('/pmms/masterlist/attachment/{id}','MasterlistController@deleteAttachment');
-		Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
 		
 
 	});

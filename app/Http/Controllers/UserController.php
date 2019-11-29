@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\User;
 use App\UserLogs;
 use JWTAuth;
+use Validator;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cookie;
@@ -61,4 +62,44 @@ class UserController extends Controller
 
   	return response()->json(['message' => 'Successfully logged out']);
 	}  //
+
+  public function createUser(Request $request)
+  {
+
+    $validator = Validator::make([
+      $request->all(),
+      [
+        'username' => 'min:2|max:12|required',
+        'password' => 'min:3|max:12|required',
+        'type' => 'min:4|max:20|required',
+        'department' => 'min:2|max:20|required',
+        'password' => 'min:3|max:12|required',
+        'npd' => 'boolean|nullable',
+        'pmms' => 'boolean|nullable',
+        'cposms' => 'boolean|nullable',
+        'pjoms' => 'boolean|nullable',
+        'cims' => 'boolean|nullable',
+      ]
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    $user = new User();
+    $user->fill([
+      'username' => $request->username,
+      'password' => $request->password,
+      'type' => $request->type,
+      'department' => $request->department,
+      'npd_access' => $request->npd,
+      'pmms_access' => $request->pmms,
+      'cposms_access' => $request->cposms,
+      'pjoms_access' => $request->pjoms,
+      'cims_access' => $request->cims,
+    ]);
+    $user->save();
+
+  }
+
 }

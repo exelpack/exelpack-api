@@ -18,7 +18,7 @@ class CreateMasterlistTable extends Migration
             $table->integer('m_moq')->default(0)->nullable();
             $table->string('m_mspecs', 255);
             $table->string('m_projectname', 255);
-            $table->string('m_partnumber', 150)->default('N/A')->nullable();
+            $table->string('m_partnumber', 150)->default('NA')->nullable();
             $table->string('m_code', 50);
             $table->date('m_regisdate')->nullable();
             $table->date('m_effectdate')->nullable();
