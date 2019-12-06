@@ -26,7 +26,12 @@ class User extends Authenticatable implements JWTSubject
      * @var array
      */
     protected $hidden = [
-        'password'
+        'password',
+        'deleted_at'
+    ];
+
+    protected $guarded = [
+        'id'
     ];
 
 
@@ -47,6 +52,16 @@ class User extends Authenticatable implements JWTSubject
 
         if($this->pmms_access)
             $access['pmms'] = true;
+
+        if($this->cims_access)
+            $access['cims'] = true;
+
+        if($this->wims_access)
+            $access['wims'] = true;
+
+        if($this->psms_access)
+            $access['psms'] = true;
+
 
         return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
     }

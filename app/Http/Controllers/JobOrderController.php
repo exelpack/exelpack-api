@@ -518,4 +518,58 @@ class JobOrderController extends LogsController
 
 	}
 
+	public function getItemDetails($id)
+	{
+
+		$item = PurchaseOrderItems::findOrFail($id);
+
+		$deliveryArr = [];
+		$joborderArr = array();
+		//loop through delivery of the item
+		foreach($item->delivery as $delivery)
+		{
+
+			array_push($deliveryArr,
+				array(
+					'id' => $delivery->id.uniqid(),
+					'quantity' => $delivery->poidel_quantity,
+					'underrun' => $delivery->poidel_underrun_qty,
+					'deliverydate' => $delivery->poidel_deliverydate,
+					'invoice' => $delivery->poidel_invoice,
+					'dr' => $delivery->poidel_dr,
+					'remarks' => $delivery->poidel_remarks,
+				)
+			);
+
+		}
+		//loop through jo of the item
+		foreach($item->jo as $jo)
+		{
+			$producedQty = intval($jo->produced()->sum('jop_quantity'));
+			$status = $jo->jo_quantity > $producedQty ? 'OPEN' : 'SERVED';
+			array_push($joborderArr,
+				array(
+					'id' => $jo->id.uniqid(),
+					'jo_num' => $jo->jo_joborder,
+					'date_issued' => $jo->jo_dateissued,
+					'date_needed' => $jo->jo_dateneeded,
+					'quantity' => $jo->jo_quantity,
+					'remarks' => $jo->jo_remarks,
+					'others' => $jo->jo_others,
+					'producedQty' => $producedQty,
+					'status' => $status,
+					'forwardToWarehouse' => $jo->jo_forwardToWarehouse ? 'YES' : 'NO',
+				)
+			);
+
+		}
+
+		return response()->json(
+			[
+				'deliveryDetails' => $deliveryArr,
+				'jobOrderDetails' => $joborderArr
+			]);
+
+	}
+
 }

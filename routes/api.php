@@ -22,7 +22,6 @@ Route::get('/error', function(){
 })->name('unauthenticated');
 
 
-
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout/{sys}','UserController@logout');
 	Route::post('/me','UserController@me');
@@ -65,6 +64,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/schedules/export-pdf/dl','PurchaseOrderController@exportPoDailyScheduleToPDF');
 
 		Route::get('/cposms/po/reporting/sales','PurchaseOrderController@salesReport');
+		Route::get('/cposms/po/reporting/export-sales/dl','PurchaseOrderController@exportSales');
 		// end cposms
 
 		Route::post('/mail/schedule', 'MailController@sendEmailSchedule');
@@ -87,13 +87,15 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/pjoms/jo/produced/{id}','JobOrderController@closeJobOrder');
 		Route::delete('/pjoms/jo/produced/{id}','JobOrderController@deleteJoProduced');
 
+		Route::get('/pjoms/jo/itemdetails/{id}', 'JobOrderController@getItemDetails');
+
 		//exports
 		Route::get('/pjoms/jo/export-csv/dl','JobOrderController@exportJobOrder');
 		Route::get('/pjoms/jo/print','JobOrderController@printJobOrder');
 		
 	});
 
-	Route::group(['middleware' => ['pjoms']], function() {
+	Route::group(['middleware' => ['pmms']], function() {
 		Route::get('/pmms/logs','LogsController@getpmmsLogs');
 
 		Route::get('/pmms/masterlist/option/customers','MasterlistController@getCustomerList');
@@ -106,6 +108,16 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::put('/pmms/masterlist/attachment/{id}','MasterlistController@setAttachmentViewability');
 		Route::delete('/pmms/masterlist/attachment/{id}','MasterlistController@deleteAttachment');
 		
+
+	});
+
+	//user management
+	Route::group(['middleware' => ['checkPrivelege']], function() {
+
+		Route::get('/users', 'UserController@getAllUser');
+		Route::post('/users', 'UserController@createUser');
+		Route::put('/users/{id}', 'UserController@editUser');
+		Route::delete('/users/{id}','UserController@deleteUser');
 
 	});
 

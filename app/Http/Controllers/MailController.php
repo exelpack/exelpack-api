@@ -66,7 +66,7 @@ class MailController extends Controller
 			$mail->bcc($request->bcc);
 
 		// return (new PoItemScheduleMail($sched_arr,$dates,auth()->user()->username))->render();
-		$mail->send(new PoItemScheduleMail($sched_arr,$dates));
+		$mail->send(new PoItemScheduleMail($sched_arr,$dates,auth()->user()->fullname));
 
 		$log = new CposmsLogs();
 

@@ -22,6 +22,7 @@ use App\Exports\PurchaseOrderExport;
 use App\Exports\PurchaseOrderItemExport;
 use App\Exports\PoDeliveryScheduleExport;
 use App\Exports\PoItemDeliveredExport;
+use App\Exports\SalesExport;
 
 class PurchaseOrderController extends LogsController 
 {
@@ -33,6 +34,11 @@ class PurchaseOrderController extends LogsController
 	}
 
 	// exports
+	public function exportSales()
+	{
+		return Excel::download(new SalesExport, 'salesreport.xlsx');
+	}
+
 	public function exportPoCsv()
 	{
 		return Excel::download(new PurchaseOrderExport, 'purchaseorders.xlsx');
@@ -989,11 +995,12 @@ class PurchaseOrderController extends LogsController
 		$pos = PurchaseOrder::all();
 		$from = Carbon::parse(request()->from);
 		$to = Carbon::parse(request()->to);
+		$conversion = intval(request()->conversion);
 		$customer_arr = [];
 
 		foreach($pos as $po){
 			$customer = $po->customer->companyname;
-			$total = $this->getPoTotal($po->poitems,$from,$to);
+			$total = $this->getPoTotal($po->poitems,$from,$to,$conversion);
 
 			if(!array_key_exists($customer, $customer_arr)){
 
@@ -1039,7 +1046,7 @@ class PurchaseOrderController extends LogsController
 		return $new_arr;
 	}
 
-	private function getPoTotal($items,$from,$to){
+	private function getPoTotal($items,$from,$to,$conversion){
 
 		$openAmount = 0;
 		$salesAmount = 0;
@@ -1058,8 +1065,8 @@ class PurchaseOrderController extends LogsController
 			->sum('poidel_quantity') * $item->poi_unitprice;
 
 			if(strtoupper($item->po->po_currency) == 'USD'){
-				$open = $open * 50;
-				$sales = $sales * 50;
+				$open = $open * $conversion;
+				$sales = $sales * $conversion;
 			}
 
 			if($kpi == 'retention')
