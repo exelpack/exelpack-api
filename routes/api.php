@@ -108,6 +108,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::put('/pmms/masterlist/attachment/{id}','MasterlistController@setAttachmentViewability');
 		Route::delete('/pmms/masterlist/attachment/{id}','MasterlistController@deleteAttachment');
 		
+		//export
+		Route::get('/pmms/masterlist/export', 'MasterlistController@exportMasterlist');
 
 	});
 

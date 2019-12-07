@@ -15,9 +15,17 @@ use PDF;
 use Storage;
 use Carbon\Carbon;
 
+use App\Exports\MasterlistExport;
+
 class MasterlistController extends LogsController
 {
 	private $itemValidationRules = array();
+
+	// exports
+	public function exportMasterlist()
+	{
+		return Excel::download(new MasterlistExport, 'masterlist.xlsx');
+	}
 
 	public function __construct(){
 		$this->itemValidationRules = array(
@@ -130,7 +138,6 @@ class MasterlistController extends LogsController
 		return response()->json(
 			[
 				'itemList' => $itemList,
-				// 'auth' => 
 			]);
 
 	}
