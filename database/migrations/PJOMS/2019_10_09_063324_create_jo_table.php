@@ -23,6 +23,7 @@ class CreateJoTable extends Migration
             $table->string('jo_remarks',150)->nullable();
             $table->string('jo_others',150)->nullable();
             $table->boolean('jo_forwardToWarehouse')->default(0);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

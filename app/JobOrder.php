@@ -3,9 +3,11 @@
 namespace App;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class JobOrder extends Model
 {
+	use SoftDeletes;
     //
 	protected $table = 'pjoms_joborder';
 	protected $guarded = ['jo_po_item_id'];

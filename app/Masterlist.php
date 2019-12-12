@@ -13,4 +13,9 @@ class Masterlist extends Model
 	{
 		return $this->belongsTo('App\Customers','m_customer_id');
 	}
+
+	public function inventory()
+	{
+		return $this->hasMany('App\Inventory','i_code','m_code');
+	}
 }

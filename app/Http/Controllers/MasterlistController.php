@@ -145,7 +145,7 @@ class MasterlistController extends LogsController
 	public function itemArray($item)
 	{
 		$moq = $item->moq ? $item->moq : 0;
-		$partnum = $item->partnum ? $item->partnum : 'N/A';
+		$partnum = $item->partnum ? $item->partnum : 'NA';
 
 		return array(
 			'm_moq' => $moq,

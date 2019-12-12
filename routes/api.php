@@ -113,6 +113,18 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	});
 
+	//wims
+	Route::group(['middleware' => ['wims']], function() {
+
+		Route::get('/inventory/option/masterlist', 'InventoryController@getMasterlistItems');
+		Route::get('/inventory', 'InventoryController@getInventoryItems');
+		Route::post('/inventory', 'InventoryController@createInvetoryItem');
+		Route::put('/inventory/{id}', 'InventoryController@editInventoryItem');
+		Route::delete('/inventory/{id}', 'InventoryController@deleteInventoryItem');
+
+
+	});
+
 	//user management
 	Route::group(['middleware' => ['checkPrivelege']], function() {
 
