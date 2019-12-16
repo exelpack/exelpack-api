@@ -20,7 +20,8 @@ class CreateIncomingInvetory extends Migration
             $table->integer('inc_newQuantity')->unsigned();
             $table->date('inc_date');
             $table->string('inc_remarks',250)->nullable();
-            $table->integer('inc_spo_id')->unsigned()->default(0); //spo =  po for supplier
+            $table->integer('inc_spoi_id')->unsigned()->default(0); //spo =  po's item for supplier
+            $table->timestamps();
         });
     }
 

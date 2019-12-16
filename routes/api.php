@@ -122,6 +122,13 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::put('/inventory/{id}', 'InventoryController@editInventoryItem');
 		Route::delete('/inventory/{id}', 'InventoryController@deleteInventoryItem');
 
+		Route::post('/inventory/incoming','InventoryController@createInventoryIncoming');
+		Route::get('/inventory/incoming','InventoryController@getInventoryIncoming');
+		Route::delete('/inventory/incoming/{id}','InventoryController@deleteIncoming');
+
+		Route::get('/inventory/outgoing','InventoryController@getInventoryOutgoing');
+		Route::post('/inventory/outgoing','InventoryController@createInventoryOutgoing');
+		Route::delete('/inventory/outgoing/{id}','InventoryController@deleteOutgoing');
 
 	});
 

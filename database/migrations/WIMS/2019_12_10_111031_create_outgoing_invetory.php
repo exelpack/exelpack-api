@@ -22,6 +22,7 @@ class CreateOutgoingInvetory extends Migration
             $table->string('out_remarks',250)->nullable();
             $table->string('out_mr_num',50)->nullable();
             $table->integer('out_jo_id')->unsigned()->default(0)->nullable();
+            $table->timestamps();
         });
     }
 

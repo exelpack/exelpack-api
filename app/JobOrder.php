@@ -23,4 +23,9 @@ class JobOrder extends Model
 		return $this->hasMany('App\JobOrderProduced','jop_jo_id');
 	}
 
+	public function outgoing()
+	{
+		return $this->belongsTo('App\InventoryOutgoing','out_jo_id');
+	}
+
 }
