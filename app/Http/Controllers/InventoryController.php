@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Masterlist;
+use App\JobOrder;
+use App\JobOrderProduced;
 use App\Inventory;
 use App\InventoryIncoming;
 use App\InventoryOutgoing;
 
 use Carbon\Carbon;
 use Validator;
+use DB;
 
 class InventoryController extends Controller
 {
@@ -42,7 +45,6 @@ class InventoryController extends Controller
 			'm_code as code',
 			'm_unit as unit',
 			'm_unitprice as unitprice')
-		->doesntHave('inventory')
 		->get();
 
 		return response()->json(
@@ -79,17 +81,16 @@ class InventoryController extends Controller
 	public function getInventoryItems()
 	{
 
-		$inventory = Inventory::all();
+		$inventory = Inventory::orderBy('i_quantity','desc')->get();
 		$items_arr = array();
+		$inv = $inventory->map(function($item,$key) {
+			return $this->getInventoryItem($item);
+		})->all();
 
-		foreach($inventory as $item)
-		{
-			array_push($items_arr,$this->getInventoryItem($item));
-		}
 
 		return response()->json(
 			[
-				'inventoryList' => $items_arr
+				'inventoryList' => $inv
 			]);
 
 	}
@@ -231,30 +232,26 @@ class InventoryController extends Controller
 	public function getInventoryIncoming()
 	{
 
-		$incomings = InventoryIncoming::latest()->get();
-		$incoming_arr = array();
-
-		foreach($incomings as $incoming)
-		{
+		$incoming = InventoryIncoming::latest()
+		->get()
+		->map(function($incoming, $key) {
 			$diffInHrs = $incoming->created_at->diffInMinutes(Carbon::now());
 
-			array_push($incoming_arr, 
-				array(
-					'id' => $incoming->id,
-					'code' => $incoming->inventory->i_code,
-					'mspecs' => $incoming->inventory->i_mspecs,
-					'quantity' => $incoming->inc_quantity,
-					'newQuantity' => $incoming->inc_newQuantity,
-					'date' => $incoming->inc_date,
-					'remarks' => $incoming->inc_remarks,
-					'isDeletable' => $diffInHrs > 480 ? false : true
-				));
-
-		}
+			return array(
+				'id' => $incoming->id,
+				'code' => $incoming->inventory->i_code,
+				'mspecs' => $incoming->inventory->i_mspecs,
+				'quantity' => $incoming->inc_quantity,
+				'newQuantity' => $incoming->inc_newQuantity,
+				'date' => $incoming->inc_date,
+				'remarks' => $incoming->inc_remarks,
+				'isDeletable' => $diffInHrs > 480 ? false : true
+			);
+		})->all();
 
 		return response()->json(
 			[
-				'incomingList' => $incoming_arr
+				'incomingList' => $incoming
 			]);
 
 	}
@@ -342,31 +339,30 @@ class InventoryController extends Controller
 	public function getInventoryOutgoing()
 	{
 
-		$outgoings = InventoryOutgoing::latest()->get();
-		$outgoing_arr = array();
+		$outgoing = InventoryOutgoing::latest()
+		->get()
+		->map(function ($outgoing, $key){
 
-		foreach($outgoings as $outgoing)
-		{
 			$diffInHrs = $outgoing->created_at->diffInMinutes(Carbon::now());
 			$jo = $outgoing->jo;
-			array_push($outgoing_arr, 
-				array(
-					'id' => $outgoing->id,
-					'code' => $outgoing->inventory->i_code,
-					'mspecs' => $outgoing->inventory->i_mspecs,
-					'quantity' => $outgoing->out_quantity,
-					'newQuantity' => $outgoing->out_newQuantity,
-					'date' => $outgoing->out_date,
-					'remarks' => $outgoing->out_remarks,
-					'details' => $jo->jo_joborder ." / ".$jo->poitems->po->po_ponum,
-					'isDeletable' => $diffInHrs > 480 ? false : true
-				));
 
-		}
+			return array(
+				'id' => $outgoing->id,
+				'code' => $outgoing->inventory->i_code,
+				'mspecs' => $outgoing->inventory->i_mspecs,
+				'quantity' => $outgoing->out_quantity,
+				'newQuantity' => $outgoing->out_newQuantity,
+				'date' => $outgoing->out_date,
+				'remarks' => $outgoing->out_remarks,
+				'details' => $jo ? $jo->jo_joborder ." / ".$jo->poitems->po->po_ponum : '',
+				'isDeletable' => $diffInHrs > 480 ? false : true
+			);
+
+		})->all();
 
 		return response()->json(
 			[
-				'outgoingList' => $outgoing_arr
+				'outgoingList' => $outgoing
 			]);
 
 	}
@@ -398,6 +394,38 @@ class InventoryController extends Controller
 			]
 		);
 		
+	}
+
+	public function getJobOrders()
+	{
+
+		$subProd = JobOrderProduced::select(Db::raw('sum(jop_quantity) as totalProduced'),
+			'jop_jo_id')->groupBy('jop_jo_id');
+
+		$query = JobOrder::has('poitems.po')
+			->from('pjoms_joborder')
+			->leftJoinSub($subProd,'produced',function ($join){
+				$join->on('pjoms_joborder.id','=','produced.jop_jo_id');				
+			})
+			->whereRaw('jo_quantity > IFNULL(totalProduced,0)')
+			->get();
+
+		$jobOrder = $query->map(function($jo, $key) {
+
+			$desc = $jo->poitems->po->po_ponum." - ". $jo->jo_joborder."(".$jo->jo_quantity.") - "
+				.$jo->poitems->poi_itemdescription;
+
+			return array(
+				'jo_id' => $jo->id,
+				'description' => $desc
+			);
+		})->all();
+
+		return response()->json(
+			[
+				'jobOrder' => $jobOrder
+			]);
+
 	}
 
 }

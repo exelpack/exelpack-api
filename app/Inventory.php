@@ -15,11 +15,6 @@ class Inventory extends Model
 
 	public $timestamps = false;
 
-	public function masterlist()
-	{
-		return $this->belongsTo('App\Masterlist','i_code','m_code');
-	}
-
 	public function incoming()
 	{
 		return $this->hasMany('App\InventoryIncoming','inc_inventory_id');
