@@ -116,6 +116,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 	//wims
 	Route::group(['middleware' => ['wims']], function() {
 
+		Route::get('/inventory/logs', 'LogsController@getwimsLogs');
+
 		Route::get('/inventory/option/masterlist', 'InventoryController@getMasterlistItems');
 		Route::get('/inventory/option/joborder', 'InventoryController@getJobOrders');
 

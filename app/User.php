@@ -68,16 +68,21 @@ class User extends Authenticatable implements JWTSubject
 
     public function cposmsLogs()
     {
-        return $this->hasMany('App\UserLogs','user_id');
+        return $this->hasMany('App\CposmsLogs','user_id');
     }
 
     public function pjomsLogs()
     {
-        return $this->hasMany('App\UserLogs','user_id');
+        return $this->hasMany('App\PjomsLogs','user_id');
     }
 
     public function pmmsLogs()
     {
-        return $this->hasMany('App\UserLogs','user_id');
+        return $this->hasMany('App\PmmsLogs','user_id');
+    }
+
+    public function wimsLogs()
+    {
+        return $this->hasMany('App\WimsLogs','user_id');
     }
 }

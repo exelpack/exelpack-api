@@ -25,5 +25,11 @@ class Inventory extends Model
 		return $this->hasMany('App\InventoryOutgoing','out_inventory_id');
 	}
 
+  public function locations()
+  {	
+  	return $this->belongsToMany('App\InventoryLocation','wims_inventory_locations',
+  	'inventory_id', 'location_id')->withTimestamps();
+  }
+
 
 }

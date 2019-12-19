@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\CposmsLogs;
 use App\PjomsLogs;
 use App\PmmsLogs;
+use App\WimsLogs;
 use App\Customers;
 use Illuminate\Support\Facades\Auth;
 
@@ -481,6 +482,134 @@ class LogsController extends Controller
 			'logsLength' => $logs['logsLength'],
 			'logs' => $logs['logs'],
 		]);
+
+	}
+
+	//wims logs
+	public function getwimsLogs()
+	{
+
+		$q = WimsLogs::query();
+		$logs = $this->getLogs($q);
+
+		return response()->json([
+			'logsLength' => $logs['logsLength'],
+			'logs' => $logs['logs'],
+		]);
+	}
+
+	public function logAddInventoryItem($code,$spec,$quantity) //create log for creating inventory item
+	{
+
+		$log = new Wimslogs();
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Added new item on inventory',
+				'before' => '---',
+				'after' => $code ." ".$spec. " - ".$quantity,
+			]);
+
+		$log->save();
+
+	}
+
+	public function logEditInventoryItem($dirty,$original) //edit inventory log
+	{
+
+		$log = new Wimslogs();
+		$name_arr = [
+			'mspecs' => 'Material specification',
+			'itemdesc' => 'Item description',
+			'partnum'  => 'Part number',
+			'code' => 'Code',
+			'unitprice' => 'Unit price',
+			'unit' => 'Unit',
+			'quantity' => 'Quantity',
+			'min' => 'Min',
+			'max' => 'Max',
+		];
+
+		$vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Edited item on inventory',
+				'before' => $vals['before'],
+				'after' => $vals['after'],
+			]);
+
+		$log->save();
+
+	}
+
+	public function logAddIncomingToInventory($code,$spec,$quantity,$newQty) //create log for adding qty to inventory
+	{
+
+		$log = new Wimslogs();
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Added incoming '.$quantity.' quantity to '.$code ." - ".$spec,
+				'before' => "Old Quantity : ".($newQty - $quantity),
+				'after' => "New Quantity : ".$newQty,
+			]);
+
+		$log->save();
+
+	}
+
+	public function logDeleteIncomingToInventory($code,$spec,$quantity,$incQty) //create log for deleting incoming to inventory
+	{
+
+		$log = new Wimslogs();
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Deleted incoming '.$incQty.' quantity from '.$code ." - ".$spec,
+				'before' => "Old Quantity : ".$quantity,
+				'after' => "New Quantity : ".($quantity - $incQty),
+			]);
+
+		$log->save();
+
+	}
+
+	public function logAddOutgoingToInventory($code,$spec,$quantity,$newQty) //create log for adding qty to inventory
+	{
+
+		$log = new Wimslogs();
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Added outgoing '.$quantity.' quantity to '.$code ." - ".$spec,
+				'before' => "Old Quantity : ".($newQty + $quantity),
+				'after' => "New Quantity : ".$newQty,
+			]);
+
+		$log->save();
+
+	}
+
+	public function logDeleteOutgoingToInventory($code,$spec,$quantity,$outQty) //create log for deleting incoming to inventory
+	{
+
+		$log = new Wimslogs();
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Deleted outgoing '.$outQty.' quantity from '.$code ." - ".$spec,
+				'before' => "Old Quantity : ".$quantity,
+				'after' => "New Quantity : ".($quantity + $outQty),
+			]);
+
+		$log->save();
 
 	}
 

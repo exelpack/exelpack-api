@@ -14,7 +14,9 @@ use Carbon\Carbon;
 use Validator;
 use DB;
 
-class InventoryController extends Controller
+use App\Http\Controllers\LogsController;
+
+class InventoryController extends LogsController
 {
 	private $inventoryValidation = array(
 		'mspecs' => 'required|string|max:255',
@@ -74,6 +76,7 @@ class InventoryController extends Controller
 			'quantity' => $item->i_quantity,
 			'min' => $item->i_min,
 			'max' => $item->i_max,
+			'locations' => $item->locations()->get()->pluck('loc_description'),
 			'withUpdate' => $withUpdate > 0 ? false : true
 		);
 	}	
@@ -125,7 +128,7 @@ class InventoryController extends Controller
 				'i_max' => $request->max,
 			]);
 		$inventory->save();
-
+		$this->logAddInventoryItem($request->code,$request->mspecs,$request->quantity);
 		$newItem = $this->getInventoryItem($inventory);
 		return response()->json(
 			[
@@ -219,6 +222,7 @@ class InventoryController extends Controller
 		$item->update([
 			'i_quantity' => $newQty
 		]);
+		$this->logAddIncomingToInventory($item->i_code,$item->i_mspecs,$request->quantity,$newQty);
 
 		$newItem = $this->getInventoryItem($item);
 		return response()->json(
@@ -231,10 +235,38 @@ class InventoryController extends Controller
 
 	public function getInventoryIncoming()
 	{
+		$pageSize = request()->pageSize;
 
-		$incoming = InventoryIncoming::latest()
-		->get()
-		->map(function($incoming, $key) {
+		$q = InventoryIncoming::query();
+
+		if(request()->has('search')){
+			$search = request()->search;
+			$q->whereHas('inventory', function($q) use ($search){
+				$q->where('i_code','LIKE','%'.$search.'%')
+				->orWhere('i_mspecs','LIKE','%'.$search.'%');
+			});
+		}
+
+		if(request()->has('start') && request()->has('end'))
+			$q->whereBetween('inc_date',[request()->start,request()->end]);
+
+		if(request()->has('sort')){
+			$sort = request()->sort;
+
+			if($sort == 'desc')
+				$q->orderBy('id', 'desc');
+			else if($sort == 'asc')
+				$q->orderBy('id', 'asc');
+			else if($sort == 'date-desc')
+				$q->orderBy('inc_date', 'desc');
+			else if($sort == 'date-asc')
+				$q->orderBy('inc_date', 'asc');
+
+		}
+
+		$incoming = $q->paginate($pageSize);
+		
+		$incomingList = $incoming->map(function($incoming, $key) {
 			$diffInHrs = $incoming->created_at->diffInMinutes(Carbon::now());
 
 			return array(
@@ -245,13 +277,17 @@ class InventoryController extends Controller
 				'newQuantity' => $incoming->inc_newQuantity,
 				'date' => $incoming->inc_date,
 				'remarks' => $incoming->inc_remarks,
+				'details' => '',
 				'isDeletable' => $diffInHrs > 480 ? false : true
 			);
 		})->all();
 
 		return response()->json(
 			[
-				'incomingList' => $incoming
+				'incomingDetails' => array(
+					'length' => $incoming->total(),
+					'list' => $incomingList
+				)
 			]);
 
 	}
@@ -262,6 +298,9 @@ class InventoryController extends Controller
 		$incoming = InventoryIncoming::findOrFail($id);
 		$diffInHrs = $incoming->created_at->diffInMinutes(Carbon::now());
 		$inv_qty = $incoming->inventory->i_quantity;
+		$code = $incoming->inventory->i_code;
+		$spec = $incoming->inventory->i_mspecs;
+		$quantity = $incoming->inc_quantity;
 
 		if($diffInHrs > 480){
 			return response()->json(
@@ -270,20 +309,20 @@ class InventoryController extends Controller
 				],422);
 		}
 
-		if($incoming->inc_quantity >  $inv_qty)
+		if($quantity >  $inv_qty)
 		{
 			return response()->json(
 				[
-					'errors' => ['Inventory quantity is lower than '.$incoming->inc_quantity]
+					'errors' => ['Inventory quantity is lower than '.$quantity]
 				],422);
 		}
 		$incoming->inventory()->update(
 			[
-				'i_quantity' => $inv_qty - $incoming->inc_quantity
+				'i_quantity' => $inv_qty - $quantity
 			]
 		);
 		$incoming->delete();
-
+		$this->logDeleteIncomingToInventory($code,$spec,$inv_qty,$quantity);
 		return response()->json(
 			[
 				'message' => 'Record deleted',
@@ -304,7 +343,13 @@ class InventoryController extends Controller
 				'date' => 'required|before_or_equal:'.date('Y-m-d'),
 				'remarks' => 'nullable|max:250',
 				'mr_num' => 'string|nullable|max:50',
-				'jo_id' => 'integer|min:0'
+				'jo_id' => 'integer|min:0',
+				'forProdIssued' => 'boolean|required'
+			),
+			[],
+			array(
+				'jo_id' => 'Job order',
+				'forProdIssued' => 'Issued to production'
 			)
 		);
 
@@ -325,7 +370,7 @@ class InventoryController extends Controller
 		$item->update([
 			'i_quantity' => $newQty
 		]);
-
+		$this->logAddOutgoingToInventory($item->i_code,$item->i_mspecs,$request->quantity,$newQty);
 		$newItem = $this->getInventoryItem($item);
 		return response()->json(
 			[
@@ -338,14 +383,42 @@ class InventoryController extends Controller
 
 	public function getInventoryOutgoing()
 	{
+		$pageSize = request()->pageSize;
+		$q = InventoryOutgoing::query();
 
-		$outgoing = InventoryOutgoing::latest()
-		->get()
-		->map(function ($outgoing, $key){
+		if(request()->has('search')){
+			$search = request()->search;
+			$q->whereHas('inventory', function($q) use ($search){
+				$q->where('i_code','LIKE','%'.$search.'%')
+				->orWhere('i_mspecs','LIKE','%'.$search.'%');
+			});
+		}
+
+		if(request()->has('start') && request()->has('end'))
+			$q->whereBetween('out_date',[request()->start,request()->end]);
+
+		if(request()->has('sort')){
+			$sort = request()->sort;
+
+			if($sort == 'desc')
+				$q->orderBy('id', 'desc');
+			else if($sort == 'asc')
+				$q->orderBy('id', 'asc');
+			else if($sort == 'date-desc')
+				$q->orderBy('out_date', 'desc');
+			else if($sort == 'date-asc')
+				$q->orderBy('out_date', 'asc');
+
+		}
+
+		$outgoing = $q->paginate($pageSize);
+
+		$outgoingList = $outgoing->map(function ($outgoing, $key){
 
 			$diffInHrs = $outgoing->created_at->diffInMinutes(Carbon::now());
 			$jo = $outgoing->jo;
-
+			$details = $outgoing->out_mr_num;
+			$details .= $jo ? " / ".$jo->jo_joborder ." / ".$jo->poitems->po->po_ponum : '';
 			return array(
 				'id' => $outgoing->id,
 				'code' => $outgoing->inventory->i_code,
@@ -354,7 +427,7 @@ class InventoryController extends Controller
 				'newQuantity' => $outgoing->out_newQuantity,
 				'date' => $outgoing->out_date,
 				'remarks' => $outgoing->out_remarks,
-				'details' => $jo ? $jo->jo_joborder ." / ".$jo->poitems->po->po_ponum : '',
+				'details' => $details,
 				'isDeletable' => $diffInHrs > 480 ? false : true
 			);
 
@@ -362,7 +435,10 @@ class InventoryController extends Controller
 
 		return response()->json(
 			[
-				'outgoingList' => $outgoing
+				'outgoingDetails' => array(
+					'length' => $outgoing->total(),
+					'list' => $outgoingList
+				)
 			]);
 
 	}
@@ -373,6 +449,10 @@ class InventoryController extends Controller
 		$outgoing = InventoryOutgoing::findOrFail($id);
 		$diffInHrs = $outgoing->created_at->diffInMinutes(Carbon::now());
 		$inv_qty = $outgoing->inventory->i_quantity;
+		$code = $outgoing->inventory->i_code;
+		$spec = $outgoing->inventory->i_mspecs;
+		$quantity = $outgoing->out_quantity;
+
 
 		if($diffInHrs > 480){
 			return response()->json(
@@ -387,7 +467,7 @@ class InventoryController extends Controller
 			]
 		);
 		$outgoing->delete();
-
+		$this->logDeleteOutgoingToInventory($code,$spec,$inv_qty,$quantity);
 		return response()->json(
 			[
 				'message' => 'Record deleted',
@@ -403,17 +483,17 @@ class InventoryController extends Controller
 			'jop_jo_id')->groupBy('jop_jo_id');
 
 		$query = JobOrder::has('poitems.po')
-			->from('pjoms_joborder')
-			->leftJoinSub($subProd,'produced',function ($join){
-				$join->on('pjoms_joborder.id','=','produced.jop_jo_id');				
-			})
-			->whereRaw('jo_quantity > IFNULL(totalProduced,0)')
-			->get();
+		->from('pjoms_joborder')
+		->leftJoinSub($subProd,'produced',function ($join){
+			$join->on('pjoms_joborder.id','=','produced.jop_jo_id');				
+		})
+		->whereRaw('jo_quantity > IFNULL(totalProduced,0)')
+		->get();
 
 		$jobOrder = $query->map(function($jo, $key) {
 
 			$desc = $jo->poitems->po->po_ponum." - ". $jo->jo_joborder."(".$jo->jo_quantity.") - "
-				.$jo->poitems->poi_itemdescription;
+			.$jo->poitems->poi_itemdescription;
 
 			return array(
 				'jo_id' => $jo->id,
