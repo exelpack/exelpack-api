@@ -161,7 +161,8 @@ class MasterlistController extends LogsController
 			'm_unitprice' => $item->unitprice,
 			'm_supplierprice' => $item->supplierprice,
 			'm_remarks' => $item->remarks,
-			'm_customer_id' => $item->customer
+			'm_customer_id' => $item->customer,
+			'm_budgetprice' => $item->budgetprice
 		);
 
 	}
@@ -324,8 +325,15 @@ class MasterlistController extends LogsController
 	public function deleteItem($id)
 	{
 		$item = Masterlist::find($id);
+		$code = $item->m_code;
+		$itemdesc = $item->m_projectname;
+		$mspecs = $item->m_mspecs;
 		Storage::deleteDirectory('/pmms/files/'.$id);
 		$item->delete();
+
+		$this->createDeleteLogForMasterlistItem(
+			"Deleted",$code,$itemdesc,$mspecs
+		);
 
 		return response()->json([
 			'deletedId' => $id,

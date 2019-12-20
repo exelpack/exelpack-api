@@ -134,6 +134,10 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/inventory/outgoing','InventoryController@createInventoryOutgoing');
 		Route::delete('/inventory/outgoing/{id}','InventoryController@deleteOutgoing');
 
+		Route::get('/inventory/locations', 'InventoryController@getLocation');
+		Route::post('/inventory/locations', 'InventoryController@addLocation');
+		Route::delete('/inventory/locations/{id}', 'InventoryController@removeLocation');
+
 	});
 
 	//user management

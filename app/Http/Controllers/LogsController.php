@@ -430,6 +430,7 @@ class LogsController extends Controller
 			'm_supplierprice' => 'Supplier price',
 			'm_remarks' => 'Remarks',
 			'm_customer_id' => 'Customer',
+			'm_budgetprice' => 'Budget price',
 		];
 		$customer = new Customers();
 

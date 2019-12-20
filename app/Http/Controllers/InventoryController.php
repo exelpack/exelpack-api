@@ -9,6 +9,7 @@ use App\JobOrderProduced;
 use App\Inventory;
 use App\InventoryIncoming;
 use App\InventoryOutgoing;
+use App\InventoryLocation;
 
 use Carbon\Carbon;
 use Validator;
@@ -76,7 +77,12 @@ class InventoryController extends LogsController
 			'quantity' => $item->i_quantity,
 			'min' => $item->i_min,
 			'max' => $item->i_max,
-			'locations' => $item->locations()->get()->pluck('loc_description'),
+			'locations' => $item->locations()->get()->map(function($loc,$key){
+				return array(
+					'key' => strval($loc->id),
+					'label' => $loc->loc_description
+				);
+			}),
 			'withUpdate' => $withUpdate > 0 ? false : true
 		);
 	}	
@@ -89,7 +95,6 @@ class InventoryController extends LogsController
 		$inv = $inventory->map(function($item,$key) {
 			return $this->getInventoryItem($item);
 		})->all();
-
 
 		return response()->json(
 			[
@@ -506,6 +511,53 @@ class InventoryController extends LogsController
 				'jobOrder' => $jobOrder
 			]);
 
+	}
+
+	public function getLocation()
+	{
+
+		$location = InventoryLocation::get()->map(function($loc,$key){
+			return array(
+				'key' => $loc->id,
+				'label' => $loc->loc_description
+			);	
+		});
+
+		return response()->json(
+			[
+				'locations' => $location
+			]);
+	}
+
+	public function addLocation(Request $request)
+	{
+
+		$inventory = Inventory::findOrFail($request->id);
+		$inventory->locations()->attach($request->locId);
+		$newItem = $this->getInventoryItem($inventory);
+
+		return response()->json(
+			[
+				'newItem' => $newItem,
+				'message' => 'Record updated'
+			]);
+
+	}
+
+	public function removeLocation($id)
+	{
+		if(!request()->has('locId'))
+			return response()->json(['errors' => ['Location id parameter required']]);
+
+		$inventory = Inventory::findOrFail($id);
+		$inventory->locations()->detach(request()->locId);
+		$newItem = $this->getInventoryItem($inventory);
+
+		return response()->json(
+			[
+				'newItem' => $newItem,
+				'message' => 'Record deleted'
+			]);
 	}
 
 }
