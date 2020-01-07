@@ -28,4 +28,9 @@ class JobOrder extends Model
 		return $this->belongsTo('App\InventoryOutgoing','out_jo_id');
 	}
 
+	public function pr()
+	{
+		return $this->hasMany('App\PurchaseRequest','pr_jo_id');
+	}
+
 }

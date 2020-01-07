@@ -138,6 +138,13 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/inventory/locations', 'InventoryController@addLocation');
 		Route::delete('/inventory/locations/{id}', 'InventoryController@removeLocation');
 
+
+		//prms(wh)
+		Route::get('/prms/jolist', 'PurchaseRequestController@getJobOrders');
+		Route::get('/prms/pr/{id}', 'PurchaseRequestController@getPrItemDetails');
+		Route::get('/prms/pr', 'PurchaseRequestController@getPrList');
+		Route::post('/prms/pr', 'PurchaseRequestController@addPr');
+
 	});
 
 	//user management
