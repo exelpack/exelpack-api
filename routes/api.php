@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 */
 Route::post('/login/{sys}','UserController@login');
 Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
+Route::get('/options/units','LogsController@getUnits');
 Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
 
 

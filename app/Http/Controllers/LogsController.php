@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Units;
 use App\CposmsLogs;
 use App\PjomsLogs;
 use App\PmmsLogs;
@@ -12,6 +13,14 @@ use Illuminate\Support\Facades\Auth;
 
 class LogsController extends Controller
 {
+	public function getUnits()
+	{
+		$units = Units::all()->pluck('unit')->toArray();
+		return response()->json(
+			[
+				'unitsOption' => $units
+			]);
+	}
 
 	public function getBeforeAndAfter($details = array()){
 		//index 0 = names, 1 = dirty, 2 = original, 3 = condition, 4 = actions if condition is true;

@@ -16,6 +16,8 @@ use App\JobOrder;
 use App\JobOrderProduced;
 use App\PurchaseRequest;
 use App\PurchaseRequestItems;
+use App\PurchaseRequestSeries;
+use App\Masterlist;
 
 class PurchaseRequestController extends LogsController
 {
@@ -24,6 +26,15 @@ class PurchaseRequestController extends LogsController
 		$string = str_replace(","," ",$string);//replace comma with space
 		$string = trim(preg_replace('/\s+/', ' ', $string));
 		return $string;
+	}
+
+	public function fetchPrSeries()
+	{
+		$series = PurchaseRequestSeries::first();
+
+		$number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
+		$joseries = $series->series_prefix.date('y'). "-".$number;
+		return $joseries;
 	}
 
 	public function getJobOrders()
@@ -163,7 +174,6 @@ class PurchaseRequestController extends LogsController
 
 		$q = PurchaseRequest::query();
 
-
 		$prResult = $q->paginate(10);
 		$prList = $prResult->map(function ($pr) {
 			return $this->getPr($pr);
@@ -182,7 +192,7 @@ class PurchaseRequestController extends LogsController
 		return array(
 			'pr_prnum' => $data['pr_num'],
 			'pr_date' => $data['date'],
-			'pr_remarks' => $data['remarks'],
+			'pr_remarks' => $this->cleanString($data['remarks']),
 		);
 	}
 
@@ -204,14 +214,43 @@ class PurchaseRequestController extends LogsController
 				'errors' => ['Code parameter is required']
 			],422);
 		}
-
+		$code = request()->code;
+		$joQty = JobOrder::findOrFail($id)->jo_quantity;
 		$prItems = PurchaseRequestItems::whereHas('pr',function($q) use ($id){
-			$q->where('pr_jo_id',$id);	
-		})->get();
+									$q->where('pr_jo_id',$id);	
+								})
+								->get()
+								->map(function($data) {
+									return $this->getPrItems($data);
+								});
+
+		$items = Masterlist::where('m_code','LIKE','%'.$code."%")
+							->get()
+							->map(function($data) use($joQty) {
+
+								$countDash = count(explode("-",$data->m_code)) - 1;
+									return array(
+									'item_id' => $data->id,
+									'code' => $data->m_code,
+									'specs' => $data->m_mspecs,
+									'quantity' => ($joQty * $data->m_requiredquantity) / $data->m_outs,
+									'requiredQty' => $data->m_requiredquantity,
+									'outs' => $data->m_outs,
+									'remarks' => $data->m_remarks,
+								);
+
+							})
+							->reject(function($data) {
+								$countDash = count(explode("-",$data['code'])) - 1;
+								return $countDash < 2;
+							})
+							;
 
 		return response()->json(
 			[
-				'prItemList' => $prItems
+				'pr_series' => $this->fetchPrSeries(),
+				'prItemList' => $prItems,
+				'items' => $items,
 			]);
 
 

@@ -254,7 +254,7 @@ class JobOrderController extends LogsController
 		$series = JobOrderSeries::first();
 
 		$number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
-		$joseries = $series->series_prefix . "-".$number;
+		$joseries = $series->series_prefix.date('y'). "-".$number;
 		return $joseries;
 	}
 
