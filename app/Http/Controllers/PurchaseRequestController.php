@@ -162,9 +162,9 @@ class PurchaseRequestController extends LogsController
 			'pr_num' => $item->pr->pr_prnum,
 			'code' => $item->pri_code,
 			'mspecs' => $item->pri_mspecs,
-			'projectname' => $item->pri_projectname,
 			'uom' => $item->pri_uom,
 			'quantity' => $item->pri_quantity,
+			'remarks' => $item->pri_remarks
 		);
 
 	}
@@ -201,9 +201,9 @@ class PurchaseRequestController extends LogsController
 		return array(
 			'pri_code' => $data['code'],
 			'pri_mspecs' => $data['mspecs'],
-			'pri_projectname' => $data['projectname'],
 			'pri_uom' => $data['uom'],
 			'pri_quantity' => $data['quantity'],
+			'pri_remarks' => $data['remarks'],
 		);
 	}
 
@@ -226,34 +226,28 @@ class PurchaseRequestController extends LogsController
 
 		$items = Masterlist::where('m_code','LIKE','%'.$code."%")
 							->get()
-							->map(function($data) use($joQty) {
-
+							->reject(function($data) {
 								$countDash = count(explode("-",$data->m_code)) - 1;
+								return $countDash < 2;
+							})
+							->map(function($data) use($joQty) {
 									return array(
 									'item_id' => $data->id,
 									'code' => $data->m_code,
-									'specs' => $data->m_mspecs,
+									'mspecs' => $data->m_mspecs,
 									'quantity' => ($joQty * $data->m_requiredquantity) / $data->m_outs,
 									'requiredQty' => $data->m_requiredquantity,
 									'outs' => $data->m_outs,
 									'remarks' => $data->m_remarks,
 								);
 
-							})
-							->reject(function($data) {
-								$countDash = count(explode("-",$data['code'])) - 1;
-								return $countDash < 2;
-							})
-							;
-
+							})->values();
 		return response()->json(
 			[
 				'pr_series' => $this->fetchPrSeries(),
 				'prItemList' => $prItems,
 				'items' => $items,
 			]);
-
-
 	}
 
 	public function addPr(Request $request)
@@ -261,26 +255,30 @@ class PurchaseRequestController extends LogsController
 
 		$validator = Validator::make($request->all(),
 			[
-				'id' => 'required|integer',
+				'jo_id' => 'required|integer',
 				'pr_num' => 'required|string|max:60|unique:prms_prlist,pr_prnum',
 				'date' => 'date|before_or_equal:'.date('Y-m-d'),
 				'remarks' => 'nullable|max:200',
-				'pr_items' => 'array|min:1|required'
+				'items' => 'array|min:1|required',
+				'unit' => 'required',
 			],[],[
-				'pr_num' => 'Purchase Request No.',
-				'pr_items' => 'Purchase Request Items'
+				'pr_num' => 'Purchase request No.',
+				'items' => 'Purchase request items'
 			]);
 
-		$jobOrder = JobOrder::findOrFail($request->id);
+		$jobOrder = JobOrder::findOrFail($request->jo_id);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$pr = $jobOrder->pr()
-		->create($this->prArray($request->all()));
+		$pr = $jobOrder->pr()->create($this->prArray($request->all()));
 
-		foreach($request->pr_items as $data){
+		PurchaseRequestSeries::first()
+			->update(['series_number' => DB::raw('series_number + 1')]); //update series
+
+		foreach($request->items as $data){
+			$data['uom'] = $request->unit;
 			$pr->pritems()->create($this->prItemArray($data));
 		}
 
@@ -288,9 +286,9 @@ class PurchaseRequestController extends LogsController
 
 		return response()->json(
 			[
-				'newItem' => $this->getPr($pr)
+				'newItem' => $this->getPr($pr),
+				'message' => 'Record added'
 			]);
-		
 	}
 
 }

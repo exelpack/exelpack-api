@@ -47,6 +47,8 @@ class InventoryController extends LogsController
 			'm_partnumber as partnum',
 			'm_code as code',
 			'm_unit as unit',
+			'm_requiredquantity as requiredQty',
+			'm_outs as outs',
 			'm_unitprice as unitprice')
 		->get();
 
