@@ -49,7 +49,8 @@ class InventoryController extends LogsController
 			'm_unit as unit',
 			'm_requiredquantity as requiredQty',
 			'm_outs as outs',
-			'm_unitprice as unitprice')
+			'm_unitprice as unitprice',
+			'm_remarks as remarks')
 		->get();
 
 		return response()->json(

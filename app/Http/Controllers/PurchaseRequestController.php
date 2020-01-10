@@ -139,13 +139,20 @@ class PurchaseRequestController extends LogsController
 	{
 		$jo = $pr->jo;
 		$po = $jo->poitems->po;
+		$item = $jo->poitems;
 		$items = $pr->pritems;
 
 		return array(
 			'id' => $pr->id,
+			'pr_num' => $pr->pr_prnum,
 			'customer' => $po->customer->companyname,
-			'po' => $po->po_ponum,
-			'jo' => $pr->jo->jo_jonum,
+			'po_num' => $po->po_ponum,
+			'jo_num' => $pr->jo->jo_joborder,
+			'date' => $pr->pr_date,
+			'code' => $item->poi_code,
+			'quantity' => $item->poi_quantity,
+			'itemdesc' => $item->poi_itemdescription,
+			'isForPricing' => $pr->pr_forPricing,
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
 				return $this->getPrItems($data);
@@ -162,7 +169,7 @@ class PurchaseRequestController extends LogsController
 			'pr_num' => $item->pr->pr_prnum,
 			'code' => $item->pri_code,
 			'mspecs' => $item->pri_mspecs,
-			'uom' => $item->pri_uom,
+			'unit' => $item->pri_uom,
 			'quantity' => $item->pri_quantity,
 			'remarks' => $item->pri_remarks
 		);
@@ -173,8 +180,8 @@ class PurchaseRequestController extends LogsController
 	{
 
 		$q = PurchaseRequest::query();
-
-		$prResult = $q->paginate(10);
+		$pageSize = request()->pageSize;
+		$prResult = $q->paginate($pageSize);
 		$prList = $prResult->map(function ($pr) {
 			return $this->getPr($pr);
 		});
@@ -198,10 +205,15 @@ class PurchaseRequestController extends LogsController
 
 	public function prItemArray($data)
 	{
+		$uom = $data['unit'];
+
+		if($data['unit'] == '' || $data['unit'] == NULL)
+			$uom = $data['master_unit'];
+
 		return array(
 			'pri_code' => $data['code'],
 			'pri_mspecs' => $data['mspecs'],
-			'pri_uom' => $data['uom'],
+			'pri_uom' => $uom,
 			'pri_quantity' => $data['quantity'],
 			'pri_remarks' => $data['remarks'],
 		);
@@ -217,31 +229,32 @@ class PurchaseRequestController extends LogsController
 		$code = request()->code;
 		$joQty = JobOrder::findOrFail($id)->jo_quantity;
 		$prItems = PurchaseRequestItems::whereHas('pr',function($q) use ($id){
-									$q->where('pr_jo_id',$id);	
-								})
-								->get()
-								->map(function($data) {
-									return $this->getPrItems($data);
-								});
+			$q->where('pr_jo_id',$id);	
+		})
+		->get()
+		->map(function($data) {
+			return $this->getPrItems($data);
+		});
 
 		$items = Masterlist::where('m_code','LIKE','%'.$code."%")
-							->get()
-							->reject(function($data) {
-								$countDash = count(explode("-",$data->m_code)) - 1;
-								return $countDash < 2;
-							})
-							->map(function($data) use($joQty) {
-									return array(
-									'item_id' => $data->id,
-									'code' => $data->m_code,
-									'mspecs' => $data->m_mspecs,
-									'quantity' => ($joQty * $data->m_requiredquantity) / $data->m_outs,
-									'requiredQty' => $data->m_requiredquantity,
-									'outs' => $data->m_outs,
-									'remarks' => $data->m_remarks,
-								);
+		->get()
+		->reject(function($data) {
+			$countDash = count(explode("-",$data->m_code)) - 1;
+			return $countDash < 2;
+		})
+		->map(function($data) use($joQty) {
+			return array(
+				'item_id' => $data->id,
+				'code' => $data->m_code,
+				'mspecs' => $data->m_mspecs,
+				'quantity' => ($joQty * $data->m_requiredquantity) / $data->m_outs,
+				'requiredQty' => $data->m_requiredquantity,
+				'unit' => $data->m_unit,
+				'outs' => $data->m_outs,
+				'remarks' => $data->m_remarks,
+			);
 
-							})->values();
+		})->values();
 		return response()->json(
 			[
 				'pr_series' => $this->fetchPrSeries(),
@@ -277,18 +290,18 @@ class PurchaseRequestController extends LogsController
 		PurchaseRequestSeries::first()
 			->update(['series_number' => DB::raw('series_number + 1')]); //update series
 
-		foreach($request->items as $data){
-			$data['uom'] = $request->unit;
-			$pr->pritems()->create($this->prItemArray($data));
+			foreach($request->items as $data){
+				$data['master_unit'] = $request->unit;
+				$pr->pritems()->create($this->prItemArray($data));
+			}
+
+			$pr->refresh();
+
+			return response()->json(
+				[
+					'newItem' => $this->getPr($pr),
+					'message' => 'Record added'
+				]);
 		}
 
-		$pr->refresh();
-
-		return response()->json(
-			[
-				'newItem' => $this->getPr($pr),
-				'message' => 'Record added'
-			]);
 	}
-
-}

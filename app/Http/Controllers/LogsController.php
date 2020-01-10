@@ -623,4 +623,9 @@ class LogsController extends Controller
 
 	}
 
+	public function logCreatePrForJo($jo,$pr,$itemCount)
+	{
+		
+	}
+
 }
