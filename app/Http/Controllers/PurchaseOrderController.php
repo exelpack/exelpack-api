@@ -408,8 +408,6 @@ class PurchaseOrderController extends LogsController
 			$po->save();
 		}
 
-		$poitems_count = $po->poitems()->count();// get original po item count
-		$poitems_ids = $po->poitems()->pluck('id')->toArray(); //get original po item id
 		$items_ids = array_column($request->items,'id'); //get request items id
 
 		//deletion of item

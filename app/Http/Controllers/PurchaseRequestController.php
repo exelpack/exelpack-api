@@ -151,8 +151,10 @@ class PurchaseRequestController extends LogsController
 			'date' => $pr->pr_date,
 			'code' => $item->poi_code,
 			'quantity' => $item->poi_quantity,
-			'itemdesc' => $item->poi_itemdescription,
+			'item_desc' => $item->poi_itemdescription,
+			'remarks' => $pr->pr_remarks,
 			'isForPricing' => $pr->pr_forPricing,
+			'status' => $pr->pr_hasPrice ? 'W/ PRICE' : 'NO PRICE',
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
 				return $this->getPrItems($data);
@@ -181,6 +183,8 @@ class PurchaseRequestController extends LogsController
 
 		$q = PurchaseRequest::query();
 		$pageSize = request()->pageSize;
+
+		$q->whereHas('jo.poitems.po');
 		$prResult = $q->paginate($pageSize);
 		$prList = $prResult->map(function ($pr) {
 			return $this->getPr($pr);
@@ -208,7 +212,7 @@ class PurchaseRequestController extends LogsController
 		$uom = $data['unit'];
 
 		if($data['unit'] == '' || $data['unit'] == NULL)
-			$uom = $data['master_unit'];
+			$uom = $data['master_unit'] || 'pc';
 
 		return array(
 			'pri_code' => $data['code'],
@@ -244,7 +248,7 @@ class PurchaseRequestController extends LogsController
 		})
 		->map(function($data) use($joQty) {
 			return array(
-				'item_id' => $data->id,
+				'id' => $data->id,
 				'code' => $data->m_code,
 				'mspecs' => $data->m_mspecs,
 				'quantity' => ($joQty * $data->m_requiredquantity) / $data->m_outs,
@@ -273,7 +277,6 @@ class PurchaseRequestController extends LogsController
 				'date' => 'date|before_or_equal:'.date('Y-m-d'),
 				'remarks' => 'nullable|max:200',
 				'items' => 'array|min:1|required',
-				'unit' => 'required',
 			],[],[
 				'pr_num' => 'Purchase request No.',
 				'items' => 'Purchase request items'
@@ -302,6 +305,98 @@ class PurchaseRequestController extends LogsController
 					'newItem' => $this->getPr($pr),
 					'message' => 'Record added'
 				]);
+	}
+
+	public function editPr(Request $request, $id)
+	{
+		$pr = PurchaseRequest::findOrFail($id);
+		$validator = Validator::make($request->all(),
+			[
+				'id' => 'required|integer',
+				'pr_num' => 'required|string|max:60|unique:prms_prlist,pr_prnum,'.$id,
+				'remarks' => 'nullable|max:200',
+				'items' => 'array|min:1|required',
+			],[],[
+				'pr_num' => 'Purchase request No.',
+				'items' => 'Purchase request items'
+			]);
+
+		if($validator->fails()){
+			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
+		$pr->fill($this->prArray($request->all()));
+
+		if($pr->isDirty()){
+			$pr->save();
+		}
+
+		$item_ids = array_column($request->items,'id'); //get request items id
+		$pritem_ids = $pr->pritems()->pluck('id')->toArray(); //get pr items id
+
+		foreach($pr->pritems as $item){
+			if(!in_array($item->id,$item_ids)){ // delete item if didnt exist anymore on edited pr
+				$pr->pritems()->find($item['id'])->delete();
+			}
+		}
+
+		foreach($request->items as $item){ //adding and editing item
+			if(in_array($item['id'],$pritem_ids)){ //check if item exists on po alr then update
+				$pritem = $pr->pritems()->find($item['id'])->fill($this->prItemArray($item));
+
+				if($pritem->isDirty()){
+					$pritem->save();
+				}
+			}else{
+				//if item doesnt exist on po then add.
+				$pritem = $pr->pritems()->create($this->prItemArray($item));
+			}
+		}
+		$pr->refresh();
+
+		return response()->json(
+			[
+				'newItem' => $this->getPr($pr),
+				'message' => 'Record updated'
+			]);
+
 	}
+
+	public function deletePr($id)
+	{
+
+
+		$pr = PurchaseRequest::findOrFail($id);
+
+		if($pr->pr_hasPrice){
+			return response()->json(['errors' => 'Record not deletable']);
+		}
+
+		$pr->pritems()->delete();
+		
+		$pr->delete();
+
+		return response()->json(
+			[
+				'message' => 'Record deleted',
+				'deletedId' => $id
+			]);
+
+	}
+
+	public function forwardPrToPurchasing($id)
+	{
+
+		$pr = PurchaseRequest::findOrFail($id);
+		$pr->update([
+			'pr_forPricing' => true
+		]);
+
+		return response()->json(
+			[
+				'message' => 'Record forwaded to purchasing'
+			]);
+
+	}
+
+}
