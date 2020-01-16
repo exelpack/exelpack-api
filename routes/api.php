@@ -146,6 +146,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/prms/pr', 'PurchaseRequestController@getPrList');
 		Route::post('/prms/pr', 'PurchaseRequestController@addPr');
 		Route::put('/prms/pr/{id}', 'PurchaseRequestController@editPr');
+		Route::delete('/prms/pr/{id}', 'PurchaseRequestController@deletePr');
 
 	});
 

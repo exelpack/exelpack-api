@@ -8,6 +8,7 @@ use App\CposmsLogs;
 use App\PjomsLogs;
 use App\PmmsLogs;
 use App\WimsLogs;
+use App\PrmsLogs;
 use App\Customers;
 use Illuminate\Support\Facades\Auth;
 
@@ -623,9 +624,85 @@ class LogsController extends Controller
 
 	}
 
-	public function logCreatePrForJo($jo,$pr,$itemCount)
+	public function logCreateDeletePrForJo($jo,$pr,$itemCount,$method)
 	{
-		
+		if($method === 'Added'){
+			$before = '';
+			$after = "Purchase request no. ".$pr." on ".$jo ." w/ ".$itemCount." items";
+		}else{
+			$before = "Purchase request no. ".$pr." on ".$jo;
+			$after = '';
+		}
+
+		$log = new PrmsLogs();
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $method,
+				'before' => $before,
+				'after' => $after,
+			]);
+
+		$log->save();
+	}
+
+	public function logPrEdit($pr,$oldRemarks,$newRemarks){
+
+		$log = new PrmsLogs();
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Edited pr '.$pr,
+				'before' => "Remarks : ".$oldRemarks,
+				'after' => "Remarks : ".$newRemarks,
+			]);
+		$log->save();
+
+	}
+
+	public function logPrItemEdit($dirty,$original,$pr,$code)
+	{
+
+		$log = new PrmsLogs();
+		$name_arr = [
+			'pri_uom' => 'Unit',
+			'pri_quantity' => 'Quantity',
+		];
+
+		$vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => 'Edited '.$code.' on pr '.$pr,
+				'before' => $vals['before'],
+				'after' => $vals['after'],
+			]);
+
+		$log->save();
+
+	}
+
+	public function logCreateDeletePrItem($pr,$epcode,$method)
+	{
+		if($method === 'Added'){
+			$before = '';
+			$after = $epcode;
+		}else{
+			$before = $epcode;
+			$after = '';
+		}
+
+		$log = new PrmsLogs();
+		$log->fill(
+			[
+				'user_id' => auth()->user()->id,
+				'action' => $method." item on ".$pr,
+				'before' => $before,
+				'after' => $after,
+			]);
+
+		$log->save();
 	}
 
 }

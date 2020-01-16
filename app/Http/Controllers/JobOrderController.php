@@ -164,7 +164,7 @@ class JobOrderController extends LogsController
 			'producedQty' => $producedQty,
 			'forwardToWarehouse' => $jo->jo_forwardToWarehouse,
 			'qtyWithoutJo' => $remaining,
-			'hasPr' => false
+			'hasPr' => $jo->pr()->count() > 0 
 		);
 	}
 

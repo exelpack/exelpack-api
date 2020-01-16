@@ -154,6 +154,7 @@ class PurchaseRequestController extends LogsController
 			'item_desc' => $item->poi_itemdescription,
 			'remarks' => $pr->pr_remarks,
 			'isForPricing' => $pr->pr_forPricing,
+			'hasPrice' => $pr->pr_hasPrice,
 			'status' => $pr->pr_hasPrice ? 'W/ PRICE' : 'NO PRICE',
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
@@ -183,8 +184,45 @@ class PurchaseRequestController extends LogsController
 
 		$q = PurchaseRequest::query();
 		$pageSize = request()->pageSize;
-
+		$sort = strtolower(request()->sort);
+		$showRecord = strtolower(request()->showRecord);
 		$q->whereHas('jo.poitems.po');
+
+		if(request()->has('search')){
+
+			$search = "%".strtolower(request()->search)."%";
+
+			$q->whereHas('jo.poitems.po', function($q) use ($search){
+				$q->where('po_ponum','LIKE', $search);
+			})->orWhereHas('jo', function($q) use ($search){
+				$q->where('jo_joborder','LIKE',$search);
+			})->orWhere('pr_prnum','LIKE',$search);
+
+		}
+
+		if(trim($showRecord) != ''){
+
+			if($showRecord == 'with')
+				$q->where('pr_hasPrice',1);
+			else if($showRecord == 'Pending')
+				$q->where('pr_forPricing',1);
+			else if($showRecord == 'not-forwarded')
+				$q->where('pr_forPricing',0);
+
+		}
+
+
+		if($sort == 'desc'){
+			$q->orderBy('id','DESC');
+		}else if($sort == 'asc'){
+			$q->orderBy('id','ASC');
+		}else if($sort == 'date-desc'){
+			$q->orderBy('pr_date','DESC');
+		}else if($sort == 'date-asc'){
+			$q->orderBy('pr_date','ASC');
+		}
+
+
 		$prResult = $q->paginate($pageSize);
 		$prList = $prResult->map(function ($pr) {
 			return $this->getPr($pr);
@@ -292,13 +330,14 @@ class PurchaseRequestController extends LogsController
 
 		PurchaseRequestSeries::first()
 			->update(['series_number' => DB::raw('series_number + 1')]); //update series
-
 			foreach($request->items as $data){
 				$data['master_unit'] = $request->unit;
 				$pr->pritems()->create($this->prItemArray($data));
 			}
 
 			$pr->refresh();
+			$this->logCreateDeletePrForJo($pr->jo->jo_joborder,$pr->pr_prnum,
+				$pr->pritems()->count(),"Added");//log created;
 
 			return response()->json(
 				[
@@ -310,6 +349,22 @@ class PurchaseRequestController extends LogsController
 	public function editPr(Request $request, $id)
 	{
 		$pr = PurchaseRequest::findOrFail($id);
+
+		if($pr->pr_hasPrice && 
+			 (auth()->user()->type != 'admin' || auth()->user()->type != 'management') ){
+			return response()->json(['errors' => ['Record not editable']],422);
+		}
+
+		if($request->forwardPr){
+			$pr->update(['pr_forPricing' => true]);
+			$pr->refresh();
+			return response()->json(
+				[
+					'newItem' => $this->getPr($pr),
+					'message' => 'Record forwaded to purchasing'
+				]);
+		}
+
 		$validator = Validator::make($request->all(),
 			[
 				'id' => 'required|integer',
@@ -328,6 +383,7 @@ class PurchaseRequestController extends LogsController
 		$pr->fill($this->prArray($request->all()));
 
 		if($pr->isDirty()){
+			$this->logPrEdit($pr->pr_prnum,$pr->getOriginal()['pr_remarks'],$request->remarks);
 			$pr->save();
 		}
 
@@ -337,6 +393,7 @@ class PurchaseRequestController extends LogsController
 		foreach($pr->pritems as $item){
 			if(!in_array($item->id,$item_ids)){ // delete item if didnt exist anymore on edited pr
 				$pr->pritems()->find($item['id'])->delete();
+				$this->logCreateDeletePrItem($pr->pr_prnum,$item['pri_code'],"Deleted");
 			}
 		}
 
@@ -345,11 +402,14 @@ class PurchaseRequestController extends LogsController
 				$pritem = $pr->pritems()->find($item['id'])->fill($this->prItemArray($item));
 
 				if($pritem->isDirty()){
+					$this->logPrItemEdit($pritem->getDirty(),$pritem->getOriginal(),
+						$pritem->pr->pr_prnum,$pritem->pri_code);
 					$pritem->save();
 				}
 			}else{
 				//if item doesnt exist on po then add.
 				$pritem = $pr->pritems()->create($this->prItemArray($item));
+				$this->logCreateDeletePrItem($pr->pr_prnum,$pritem->pri_code,"Added");
 			}
 		}
 		$pr->refresh();
@@ -367,14 +427,23 @@ class PurchaseRequestController extends LogsController
 
 
 		$pr = PurchaseRequest::findOrFail($id);
+		$jonum = $pr->jo->jo_num;
+		$prnum = $pr->pr_prnum;
+		$prItemCount = $pr->pritems()->count();
 
-		if($pr->pr_hasPrice){
-			return response()->json(['errors' => 'Record not deletable']);
+		if(!request()->has('remarks')){
+			return response(['errors' => ['Remarks parameter is required']],422);
 		}
 
+		if($pr->pr_hasPrice){
+			return response()->json(['errors' => ['Record not deletable']],422);
+		}
+		
 		$pr->pritems()->delete();
 		
 		$pr->delete();
+
+		$this->logCreateDeletePrForJo($jonum,$prnum,$prItemCount,"Deleted");//log created;
 
 		return response()->json(
 			[
@@ -383,20 +452,4 @@ class PurchaseRequestController extends LogsController
 			]);
 
 	}
-
-	public function forwardPrToPurchasing($id)
-	{
-
-		$pr = PurchaseRequest::findOrFail($id);
-		$pr->update([
-			'pr_forPricing' => true
-		]);
-
-		return response()->json(
-			[
-				'message' => 'Record forwaded to purchasing'
-			]);
-
-	}
-
 }
