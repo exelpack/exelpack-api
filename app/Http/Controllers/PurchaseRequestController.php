@@ -200,6 +200,17 @@ class PurchaseRequestController extends LogsController
 
 		}
 
+		if(request()->has('searchItem')){
+
+			$searchItem = "%".strtolower(request()->searchItem)."%";
+
+			$q->whereHas('pritems', function($q) use ($searchItem){
+				$q->where('pri_code','LIKE', $searchItem)
+					->orWhere('pri_mspecs','LIKE',$searchItem);
+			});
+
+		}
+
 		if(trim($showRecord) != ''){
 
 			if($showRecord == 'with')
@@ -337,7 +348,7 @@ class PurchaseRequestController extends LogsController
 
 			$pr->refresh();
 			$this->logCreateDeletePrForJo($pr->jo->jo_joborder,$pr->pr_prnum,
-				$pr->pritems()->count(),"Added");//log created;
+				$pr->pritems()->count(),null,"Added");//log created;
 
 			return response()->json(
 				[
@@ -427,7 +438,7 @@ class PurchaseRequestController extends LogsController
 
 
 		$pr = PurchaseRequest::findOrFail($id);
-		$jonum = $pr->jo->jo_num;
+		$jonum = $pr->jo->jo_joborder;
 		$prnum = $pr->pr_prnum;
 		$prItemCount = $pr->pritems()->count();
 
@@ -443,7 +454,7 @@ class PurchaseRequestController extends LogsController
 		
 		$pr->delete();
 
-		$this->logCreateDeletePrForJo($jonum,$prnum,$prItemCount,"Deleted");//log created;
+		$this->logCreateDeletePrForJo($jonum,$prnum,$prItemCount,request()->remarks,"Deleted");//log created;
 
 		return response()->json(
 			[

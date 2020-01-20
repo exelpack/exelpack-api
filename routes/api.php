@@ -148,6 +148,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::put('/prms/pr/{id}', 'PurchaseRequestController@editPr');
 		Route::delete('/prms/pr/{id}', 'PurchaseRequestController@deletePr');
 
+		Route::get('/prms/logs', 'PurchaseRequestController@getprmsLogs');
+
 	});
 
 	//user management

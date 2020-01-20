@@ -623,14 +623,27 @@ class LogsController extends Controller
 		$log->save();
 
 	}
+	///prms
 
-	public function logCreateDeletePrForJo($jo,$pr,$itemCount,$method)
+	public function getprmsLogs()
+	{
+
+		$q = PrmsLogs::query();
+		$logs = $this->getLogs($q);
+
+		return response()->json([
+			'logsLength' => $logs['logsLength'],
+			'logs' => $logs['logs'],
+		]);
+	}
+
+	public function logCreateDeletePrForJo($jo,$pr,$itemCount,$remarks,$method)
 	{
 		if($method === 'Added'){
 			$before = '';
-			$after = "Purchase request no. ".$pr." on ".$jo ." w/ ".$itemCount." items";
+			$after = "W/ ".$itemCount." item/s";
 		}else{
-			$before = "Purchase request no. ".$pr." on ".$jo;
+			$before = "W/ remarks: ".$remarks;
 			$after = '';
 		}
 
@@ -638,7 +651,7 @@ class LogsController extends Controller
 		$log->fill(
 			[
 				'user_id' => auth()->user()->id,
-				'action' => $method,
+				'action' => $method. " PR no. ".$pr." on ".$jo,
 				'before' => $before,
 				'after' => $after,
 			]);

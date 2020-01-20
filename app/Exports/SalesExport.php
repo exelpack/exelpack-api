@@ -9,118 +9,165 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class SalesExport implements FromArray, WithHeadings
 {
+
     /**
     * @return \Illuminate\Support\Collection
     */
     public function array(): array
     {
 
-    	$pos = PurchaseOrder::all();
-			$from = Carbon::parse(request()->from);
-			$to = Carbon::parse(request()->to);
-			$customer_arr = [];
+    	$pos = PurchaseOrder::latest()->get();
+    	$from = Carbon::parse(request()->from);
+    	$to = Carbon::parse(request()->to);
+    	$summaryFormat = request()->summary;
+    	$conversion = intval(request()->conversion);
+    	$customer_arr = [];
 
-			foreach($pos as $po){
-				$customer = $po->customer->companyname;
-				$total = $this->getPoTotal($po->poitems,$from,$to);
+    	foreach($pos as $po){
+    		$customer = $po->customer->companyname;
+    		$total = $this->getPoTotal($po->poitems,$from,$to,$conversion,$summaryFormat);
+    		if(!array_key_exists($customer, $customer_arr)){
 
-				if(!array_key_exists($customer, $customer_arr)){
+    			$customer_arr[$customer] = array_merge(array(
+    				'company_name' => strtoupper($customer),
+    				'open_amount' => $total['openAmt'],
+    				'sales_amount' => $total['salesAmt'],
+    				'retention_amount' => $total['retentionAmt'],
+    				'new_customer_amount' => $total['newCustomerAmt'],
+    				'increase_amount' => $total['increaseAmt'],
+    			),$total['salesSummary']);
 
-					$customer_arr[$customer] = array(
-						'cn' => strtoupper($customer),
-						'openAmt' => $total['openAmt'],
-						'salesAmt' => $total['salesAmt'],
-						'retentionAmt' => $total['retentionAmt'],
-						'newCustomerAmt' => $total['newCustomerAmt'],
-						'increaseAmt' => $total['increaseAmt'],
-					);
+    		}else{
+    			$customer_arr[$customer]['open_amount'] += $total['openAmt'];
+    			$customer_arr[$customer]['sales_amount'] += $total['salesAmt'];
+    			$customer_arr[$customer]['retention_amount'] += $total['retentionAmt'];
+    			$customer_arr[$customer]['new_customer_amount'] += $total['newCustomerAmt'];
+    			$customer_arr[$customer]['increase_amount'] += $total['increaseAmt'];
 
-				}else{
-					$customer_arr[$customer]['openAmt'] += $total['openAmt'];
-					$customer_arr[$customer]['salesAmt'] += $total['salesAmt'];
-					$customer_arr[$customer]['retentionAmt'] += $total['retentionAmt'];
-					$customer_arr[$customer]['newCustomerAmt'] += $total['newCustomerAmt'];
-					$customer_arr[$customer]['increaseAmt'] += $total['increaseAmt'];
-				}
-			}
+    			foreach($total['salesSummary'] as $key => $sales){
+    				if(!array_key_exists($key, $customer_arr[$customer]))
+    					$customer_arr[$customer][$key] = $key;
+    				else
+    					$customer_arr[$customer][$key] += $sales;
+    			}
 
-			$tableData = $this->removeKeyNamesFromArray($customer_arr);
+    		}
+    	}
+    	$tableCollect = collect($customer_arr);
+    	$tableData = array();
+    	$tableKeys = array();
 
-			array_push($tableData,array(
-				'cn' => 'TOTAL',
-				'openAmt' => array_sum(array_column($tableData,'openAmt')),
-				'salesAmt' => array_sum(array_column($tableData,'salesAmt')),
-				'retentionAmt' => array_sum(array_column($tableData,'retentionAmt')),
-				'newCustomerAmt' => array_sum(array_column($tableData,'newCustomerAmt')),
-				'increaseAmt' => array_sum(array_column($tableData,'increaseAmt'))
-			));
+    	$tableDataTotal = array();
+    	$tableDataTotal['company_name'] = 'Total';
 
-			return $tableData;
-		
-		}	
+    	foreach($tableCollect->values() as $key => $row){
+    		$keys = collect($row)->keys();
+    		$data = array();
+    		if($key == 0)
+    			$tableKeys = $keys;
 
-	public function headings(): array
-	{
-		return [
-			'CUSTOMER',
-			'OPEN AMOUNT',
-			'SALES AMOUNT',
-			'RETENTION',
-			'INCREASE',
-			'NEW CUSTOMER',
-		];
-	}
+    		foreach($keys as $k){
+    			$data[$k] = $row[$k];
 
-	private function removeKeyNamesFromArray($datas){
-		$new_arr = array();
-		foreach($datas as $data){
-			array_push($new_arr,$data);
-		}
-		return $new_arr;
-	}
+    			if($k === "company_name"){
+    				continue;
+    			}
 
-	private function getPoTotal($items,$from,$to){
+    			if(array_key_exists($k, $tableDataTotal))
+    				$tableDataTotal[$k] += $row[$k];
+    			else
+    				$tableDataTotal[$k] = $row[$k];
+    		}
 
-		$openAmount = 0;
-		$salesAmount = 0;
-		$retentionAmount = 0;
-		$newCustomerAmount = 0;
-		$increaseAmount = 0;
+    		array_push($tableData,$data);
 
-		foreach($items as $item){
-			$kpi = strtolower($item->poi_kpi);
-			$itemAmount = $item->poi_quantity * $item->poi_unitprice;
-			$open = $itemAmount - $item->delivery()->whereNotBetween('poidel_deliverydate',[$from,$to])
-			->sum('poidel_quantity') * $item->poi_unitprice;
+    	}
 
-			$sales = $item->delivery()
-			->whereBetween('poidel_deliverydate',[$from,$to])
-			->sum('poidel_quantity') * $item->poi_unitprice;
+    	array_push($tableData,$tableDataTotal);
 
-			if(strtoupper($item->po->po_currency) == 'USD'){
-				$open = $open * 50;
-				$sales = $sales * 50;
-			}
+    	$keys =  ['keys' => collect($tableKeys)
+    			->mapWithKeys(function($key){
+    				return [$key => strtoupper(str_replace('_',' ', $key))];
+    			})
+    			->all()];
 
-			if($kpi == 'retention')
-				$retentionAmount += $sales;
-			else if($kpi == 'increase')
-				$increaseAmount += $sales;
-			else
-				$newCustomerAmount += $sales;
-			
-			$openAmount+= ($open - $sales);
-			$salesAmount+= $sales;
+    	return array_merge($keys,$tableData);
 
-		}
+    }	
 
-		return array(
-			'openAmt' => $openAmount,
-			'salesAmt' => $salesAmount,
-			'retentionAmt' => $retentionAmount,
-			'newCustomerAmt' => $newCustomerAmount,
-			'increaseAmt' => $increaseAmount,
-		);
+    public function headings(): array
+    {
+    	return [];
+    }
 
-	}
-}
+    private function getPoTotal($items,$from,$to,$conversion,$summaryFormat = 'none'){
+
+    	$openAmount = 0;
+    	$salesAmount = 0;
+    	$retentionAmount = 0;
+    	$newCustomerAmount = 0;
+    	$increaseAmount = 0;
+    	$salesSummary = array();
+
+    	foreach($items as $item){
+    		$kpi = strtolower($item->poi_kpi);
+    		$itemAmount = $item->poi_quantity * $item->poi_unitprice;
+    		$open = $itemAmount - $item->delivery()->whereNotBetween('poidel_deliverydate',[$from,$to])
+    		->sum('poidel_quantity') * $item->poi_unitprice;
+
+    		$sales = $item->delivery()
+    		->whereBetween('poidel_deliverydate',[$from,$to])
+    		->sum('poidel_quantity') * $item->poi_unitprice;
+
+    		$itemDeliveries = $item->delivery()->whereBetween('poidel_deliverydate',[$from,$to])
+    		->orderBy('poidel_deliverydate', 'ASC')
+    		->get();
+
+    		if($summaryFormat !== 'none'){
+    			foreach($itemDeliveries as $data){
+
+    				$date = Carbon::parse($data->poidel_deliverydate);
+    				$key = $date->format('Y-m-d');
+
+    				if($summaryFormat == 'weekly')
+    					$key = "Week_".$date->weekOfYear."_".$date->format('Y');
+    				else if($summaryFormat == 'monthly')
+    					$key = $date->format('M')."_".$date->format('Y');
+
+
+    				if(!array_key_exists($key, $salesSummary))
+    					$salesSummary[$key] = $data->poidel_quantity * $item->poi_unitprice;
+    				else
+    					$salesSummary[$key] += $data->poidel_quantity * $item->poi_unitprice;
+    			}
+    		}
+
+
+    		if(strtoupper($item->po->po_currency) == 'USD'){
+    			$open = $open * $conversion;
+    			$sales = $sales * $conversion;
+    		}
+
+    		if($kpi == 'retention')
+    			$retentionAmount += $sales;
+    		else if($kpi == 'increase')
+    			$increaseAmount += $sales;
+    		else
+    			$newCustomerAmount += $sales;
+
+    		$openAmount+= ($open - $sales);
+    		$salesAmount+= $sales;
+
+    	}
+
+    	return array(
+    		'openAmt' => $openAmount,
+    		'salesAmt' => $salesAmount,
+    		'retentionAmt' => $retentionAmount,
+    		'newCustomerAmt' => $newCustomerAmount,
+    		'increaseAmt' => $increaseAmount,
+    		'salesSummary' => $salesSummary,
+    	);
+
+    }
+  }
