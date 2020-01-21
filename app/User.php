@@ -62,6 +62,9 @@ class User extends Authenticatable implements JWTSubject
         if($this->psms_access)
             $access['psms'] = true;
 
+        if($this->salesms_access)
+            $access['salesms'] = true;
+
 
         return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
     }
@@ -90,4 +93,5 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany('App\PrmsLogs','user_id');
     }
+
 }

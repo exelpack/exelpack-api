@@ -65,6 +65,7 @@ class Kernel extends HttpKernel
         'pjoms' => \App\Http\Middleware\RestrictPJOMS::class,
         'pmms' => \App\Http\Middleware\RestrictPMMS::class,
         'wims' => \App\Http\Middleware\RestrictWims::class,
+        'salesms' => \App\Http\Middleware\RestrictSales::class,
         'checkPrivelege' => \App\Http\Middleware\RestrictAction::class,
     ];
 

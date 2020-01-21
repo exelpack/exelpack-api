@@ -31,6 +31,8 @@ class UserController extends Controller
       $access = 'wims_access';
     else if($sys === 'psms')
       $access = 'psms_access';
+    else if($sys === 'salesms')
+      $access = 'salesms_access';
     else {
       return response()->json(
         [
@@ -107,6 +109,7 @@ class UserController extends Controller
       'cims' => $user->cims_access,
       'wims' => $user->wims_access,
       'psms' => $user->psms_access,
+      'salesms' => $user->salesms_access,
       'fullname' => $user->fullname,
       'position' => $user->position,
     );
@@ -130,6 +133,7 @@ class UserController extends Controller
         'cims' => 'boolean|nullable',
         'wims' => 'boolean|nullable',
         'psms' => 'boolean|nullable',
+        'salesms' => 'boolean|nullable',
         'fullname' => 'string|max:50|required',
         'position' => 'string|max:50|required',
         'signature' => 'string|nullable',
@@ -153,6 +157,7 @@ class UserController extends Controller
       'cims_access' => $request->cims,
       'wims_access' => $request->wims,
       'psms_access' => $request->psms,
+      'salesms_access' => $request->salesms,
       'fullname' => $request->fullname,
       'position' => $request->position,
     ]);
@@ -186,6 +191,7 @@ class UserController extends Controller
         'cims' => 'boolean|nullable',
         'wims' => 'boolean|nullable',
         'psms' => 'boolean|nullable',
+        'salesms' => 'boolean|nullable',
         'fullname' => 'string|max:50|required',
         'position' => 'string|max:50|required',
         'signature' => 'string|nullable',
@@ -208,6 +214,7 @@ class UserController extends Controller
       'cims_access' => $request->cims,
       'wims_access' => $request->wims,
       'psms_access' => $request->psms,
+      'salesms_access' => $request->salesms,
       'fullname' => $request->fullname,
       'position' => $request->position,
     ]);

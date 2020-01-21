@@ -152,6 +152,14 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	});
 
+		//sales
+	Route::group(['middleware' => ['salesms']], function() {
+
+		Route::get('/salesms/invoice','SalesController@getSales');
+		Route::get('/salesms/customer','SalesController@getCustomers');
+
+	});
+
 	//user management
 	Route::group(['middleware' => ['checkPrivelege']], function() {
 
