@@ -156,7 +156,10 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::group(['middleware' => ['salesms']], function() {
 
 		Route::get('/salesms/invoice','SalesController@getSales');
-		Route::get('/salesms/customer','SalesController@getCustomers');
+    Route::get('/salesms/customer','SalesController@getCustomers');
+    Route::post('/salesms/invoice','SalesController@createSales');
+    Route::put('/salesms/invoice/{id}','SalesController@updateSales');
+		Route::delete('/salesms/invoice/{id}','SalesController@deleteSales');
 
 	});
 

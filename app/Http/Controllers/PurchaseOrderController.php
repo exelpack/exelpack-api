@@ -97,8 +97,17 @@ class PurchaseOrderController extends LogsController
 	public function getOptionsPOSelect()
 	{
 		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
-		$itemSelectionList	= Masterlist::select('id','m_projectname as itemdesc',
-			'm_partnumber as partnum','m_code as code','m_unit as unit','m_unitprice as unitprice')->get();
+		$itemSelectionList	= Masterlist::all()->map(function($item){
+				return array(
+					'id' => $item->id,
+					'itemdesc' => $item->m_projectname,
+					'partnum' => $item->m_partnumber,
+					'code' => $item->m_code,
+					'unit' => $item->m_unit,
+					'unitprice' => $item->m_unitprice,
+					'customer' => $item->customer->companyname,
+				);
+		})->toArray();
 
 		return response()->json(
 			[
