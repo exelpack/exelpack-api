@@ -27,11 +27,9 @@ class SalesController extends Controller
       'invoiceItems' => 'array|min:1|required',
       'or_num' => 'sometimes|required_if:markAsPaid,true',
       'date_collected' => 'sometimes|required_if:markAsPaid,true|nullable',
-      'withholdingtax' => 'required_if:markAsPaid,true|nullable',
+      'withholdingtax' => 'sometimes|integer|nullable|min:0',
     );
   }
-
-  // end rules
 
 	public function getCustomers()
 	{
@@ -53,16 +51,26 @@ class SalesController extends Controller
   
 	public function getSales()
 	{
+    $pageSize = request()->pageSize;
 
-		$sales = SalesInvoice::orderBy('s_invoicenum','DESC')
-      ->get()
-      ->map(function($invoice){	
-      	 return $this->invoiceGetArray($invoice);
+    $q = SalesInvoice::query();
+
+    $q->withTrashed();
+
+    $q->orderBy('s_invoicenum','DESC');
+
+    $salesRes = $q->paginate($pageSize);
+
+    $sales = $salesRes->map(function($invoice){ 
+         return $this->invoiceGetArray($invoice);
       })->toArray();
+
 
   return response()->json(
   	[
+      'salesListLength' => $salesRes->total(),
   		'salesList' => $sales,
+      
   	]);
 
 	}
@@ -148,25 +156,69 @@ class SalesController extends Controller
   public function deleteSales($id)
   {
 
-    $sales = SalesInvoice::findOrFail($id);
+    $sales = SalesInvoice::withTrashed()->find($id);
     $invoice = $sales->s_invoicenum;
 
-    $sales->items()->delete();
-    $sales->delete();
+    if($sales->deleted_at){
+      $sales->restore();
+    }else
+      $sales->delete();
+
+    $sales->refresh();
 
     return response()->json(
       [
-        'deleteId' => $id,
-        'message' => 'Record deleted'
+        'updatedSales' => $this->invoiceGetArray($sales),
+        'message' => 'Record updated'
       ]);
 
   } 
+
+  public function markInvoicesCollected(Request $request)
+  {
+
+    $validator = Validator::make($request->all(),[
+      'invoiceKeys' => 'array|min:1|required',
+      'or_num' => 'required_if:markAsPaid,true',
+      'date_collected' => 'required_if:markAsPaid,true|nullable',
+      'withholdingtax' => 'integer|nullable|min:0',
+    ],[],
+    [
+      'invoiceKeys' => 'Invoice id'
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    SalesInvoice::whereIn('id',$request->invoiceKeys)->update([
+      's_ornumber' => $request->or_num,
+      's_datecollected' => $request->date_collected,
+      's_withholding' => $request->withholdingtax,
+    ]);
+
+    $sales = SalesInvoice::whereIn('id',$request->invoiceKeys)
+      ->get()
+      ->map(function($invoice){  
+         return $this->invoiceGetArray($invoice);
+      })->toArray();
+
+      return response()->json(
+      [
+        'salesList' => $sales,
+        'message' => 'Record/s successfully updated as collected'
+      ]);
+
+  }
 
   public function invoiceGetArray($invoice){
     $status = 'Not Collected';
 
     if($invoice->s_ornumber && $invoice->s_datecollected)
       $status = 'Collected';
+
+    if($invoice->deleted_at)
+      $status = 'Cancelled';
 
     return array(
       'id' => $invoice->id,

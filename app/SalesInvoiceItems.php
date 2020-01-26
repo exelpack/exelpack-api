@@ -14,7 +14,7 @@ class SalesInvoiceItems extends Model
 
   public function sales()
   {
-  	return $this->belongsTo('App\SalesInvoice','sitem_sales_id');
+  	return $this->belongsTo('App\SalesInvoice','sitem_sales_id')->withTrashed();
   }
 
 }

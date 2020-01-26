@@ -26,7 +26,7 @@ Route::get('/error', function(){
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout/{sys}','UserController@logout');
 	Route::post('/me','UserController@me');
-	Route::get('/test', 'PurchaseOrderController@test');
+	Route::get('/test', 'SalesController@test');
 
 	Route::group(['middleware' => ['cposms']], function() {
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
@@ -159,7 +159,8 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/salesms/customer','SalesController@getCustomers');
     Route::post('/salesms/invoice','SalesController@createSales');
     Route::put('/salesms/invoice/{id}','SalesController@updateSales');
-		Route::delete('/salesms/invoice/{id}','SalesController@deleteSales');
+    Route::put('/salesms/invoice','SalesController@markInvoicesCollected');
+    Route::delete('/salesms/invoice/{id}','SalesController@deleteSales');
 
 	});
 

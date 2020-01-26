@@ -23,6 +23,7 @@ class CreateSalesInvoiceInfo extends Migration
             $table->date('s_datecollected')->nullable();
             $table->double('s_withholding')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
