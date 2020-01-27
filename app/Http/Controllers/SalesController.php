@@ -14,8 +14,89 @@ use Carbon\Carbon;
 use App\SalesCustomer;
 use App\SalesInvoice;
 use App\SalesInvoiceItems;
+
+use App\Exports\SmsSalesExport;
+
 class SalesController extends Controller
 {
+
+  public function exportSales()
+  {
+
+    return Excel::download(new SmsSalesExport, 'sales.xlsx');
+  }
+
+  public function test()
+  {
+
+    $items = DB::table('test_table')->get()
+              ->map(function ($item) {
+
+                $si = SalesInvoice::where('s_invoicenum',$item->si)->first();
+                $i = array(
+                  'sitem_sales_id' => $si->id,
+                  'sitem_drnum' => $item->dr,
+                  'sitem_ponum' => $item->po,
+                  'sitem_partnum' => $item->pn == '' ? 'NA' : $item->pn,
+                  'sitem_quantity' => $item->qty,
+                  'sitem_unitprice' => $item->un,
+                  'sitem_totalamount' => doubleval($item->un) 
+                    * intval($item->qty),
+                );
+
+                SalesInvoiceItems::create($i);
+                return $i;
+              });
+    return $items;
+
+    // $sales = DB::table('salesms_invoicecopy')
+    //           ->groupBy('s_invoicenum')
+    //           ->get()
+    //           ->map(function ($invoice){
+
+    //             $wht = $invoice->s_withholding;
+    //             $or = trim($invoice->s_ornumber);
+    //             $date = $invoice->s_datecollected;
+    //             $deleted = null;
+    //             $remarks = $invoice->s_remarks;
+
+    //             if($invoice->s_withholding == 0)
+    //               $wht = null;
+
+    //             if($date == "0000-00-00"){
+    //               $wht = null;
+    //               $or = null;
+    //               $date = null;
+    //             }
+
+    //             if($invoice->s_remarks == 'cancelled')
+    //               $deleted = date('Y-m-d H:i:s');
+
+    //             if($remarks == ""){
+    //               $remarks =  null;
+    //             }
+
+    //             $s = array(
+    //               's_customer_id' => $invoice->s_customer_id,
+    //               's_invoicenum' => trim($invoice->s_invoicenum),
+    //               's_deliverydate' => $invoice->s_deliverydate,
+    //               's_currency' => trim($invoice->s_currency),
+    //               's_ornumber' => $or,
+    //               's_datecollected' => $date,
+    //               's_withholding' => $wht,
+    //               's_remarks' => trim($invoice->s_remarks),
+    //               's_isRevised' => $invoice->s_isRevised,
+    //               'deleted_at' => $deleted
+    //             );
+    //             // SalesInvoice::insert($s);   
+    //             return $s;
+
+
+    //           })
+    //           ->toArray();
+    // return $sales;
+    //   return count($sales);
+  }
 
   private $salesRules = array();
 
@@ -54,10 +135,61 @@ class SalesController extends Controller
     $pageSize = request()->pageSize;
 
     $q = SalesInvoice::query();
+    
+    if(request()->has('showRecord')){
+      $showRecord = request()->showRecord;
+      if($showRecord == 'All'){
+        $q->withTrashed();
+      }else if($showRecord == 'Collected'){
+        $q->where('s_ornumber','!=',NULL)
+          ->where('s_datecollected','!=',NULL);
+      }else if($showRecord == 'NotCollected'){
+        $q->where('s_ornumber',NULL)
+          ->where('s_datecollected',NULL);
+      }else if($showRecord == 'Revised'){
+        $q->where('s_isRevised',1);
+      }else if($showRecord == 'Cancelled'){
+        $q->onlyTrashed();
+      }
 
-    $q->withTrashed();
+    }
 
-    $q->orderBy('s_invoicenum','DESC');
+    if(request()->has('currency')){
+      $currency = request()->currency;
+
+      if($currency !== 'All')
+        $q->where('s_currency',$currency);
+    }
+
+    if(request()->has('month')){
+      $q->whereMonth('s_deliverydate',request()->month);
+    }
+
+    if(request()->has('year')){
+      $q->whereYear('s_customer_id',request()->year);
+    }
+
+    if(request()->has('customer')){
+      $q->where('s_customer_id',request()->customer);
+    }
+
+    if(request()->has('search')){
+      $q->where('s_invoicenum','LIKE','%'.request()->search.'%');
+    }
+    
+    if(request()->has('sort')){
+      $sort = request()->sort;
+
+      if($sort == 'invoiceDesc')
+        $q->orderBy('s_invoicenum','DESC');
+      else if($sort == 'invoiceAsc')
+        $q->orderBy('s_invoicenum','ASC');
+      else if($sort == 'dateAsc')
+        $q->orderBy('s_deliverydate','ASC');
+      else if($sort == 'dateDesc')
+        $q->orderBy('s_deliverydate','DESC');
+
+    }
 
     $salesRes = $q->paginate($pageSize);
 
@@ -156,14 +288,14 @@ class SalesController extends Controller
   public function deleteSales($id)
   {
 
-    $sales = SalesInvoice::withTrashed()->find($id);
+    $sales = SalesInvoice::withTrashed()->findOrFail($id);
     $invoice = $sales->s_invoicenum;
 
     if($sales->deleted_at){
       $sales->restore();
     }else
       $sales->delete();
-
+ 
     $sales->refresh();
 
     return response()->json(
@@ -173,6 +305,31 @@ class SalesController extends Controller
       ]);
 
   } 
+
+  public function reviseSales($id)
+  {
+
+    $sales = SalesInvoice::withTrashed()->findOrFail($id);
+    $invoice = $sales->s_invoicenum;
+
+    $isRev = 1;
+    if($sales->s_isRevised){
+      $isRev = 0;
+    }
+
+    $sales->update([
+      's_isRevised' => $isRev
+    ]);
+ 
+    $sales->refresh();
+
+    return response()->json(
+      [
+        'updatedSales' => $this->invoiceGetArray($sales),
+        'message' => 'Record updated'
+      ]);
+
+  }
 
   public function markInvoicesCollected(Request $request)
   {
@@ -213,12 +370,19 @@ class SalesController extends Controller
 
   public function invoiceGetArray($invoice){
     $status = 'Not Collected';
+    $wht = $invoice->s_withholding;
 
     if($invoice->s_ornumber && $invoice->s_datecollected)
       $status = 'Collected';
 
     if($invoice->deleted_at)
       $status = 'Cancelled';
+
+    if($invoice->s_isRevised)
+      $status = 'Revised';
+
+    if($wht)
+      $wht = $wht / 100 .'%';
 
     return array(
       'id' => $invoice->id,
@@ -229,10 +393,12 @@ class SalesController extends Controller
       'customer' => $invoice->customer->id,
       'customer_name' => $invoice->customer->c_customername,
       'payment_terms' => $invoice->customer->c_paymentterms,
-      'withholdingtax' => $invoice->s_withholding,
+      'withholdingtax' => $wht,
       'or_num' => $invoice->s_ornumber,
       'date_collected' => $invoice->s_datecollected,
+      'isRevised' => $invoice->s_isRevised,
       'itemCount' => $invoice->items()->count(),
+      'totalAmount' => number_format($invoice->items()->sum('sitem_totalamount'),2,'.',''),
       'invoiceItems' => $invoice->items->map(function($item) {
           return $this->invoiceItemGetArray($item);
         })
@@ -271,7 +437,7 @@ class SalesController extends Controller
       'sitem_ponum' => $item['po'],
       'sitem_partnum' => $item['partnum'] == '' ? 'NA' : $item['partnum'],
       'sitem_quantity' => $item['quantity'],
-      'sitem_unitprice' => $item['unitprice'],
+      'sitem_unitprice' => number_format($item['unitprice'],2),
       'sitem_totalamount' => doubleval($item['unitprice']) 
         * intval($item['quantity']),
     );
