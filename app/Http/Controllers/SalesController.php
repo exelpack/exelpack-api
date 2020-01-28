@@ -16,14 +16,45 @@ use App\SalesInvoice;
 use App\SalesInvoiceItems;
 
 use App\Exports\SmsSalesExport;
+use App\Exports\SmsSalesSummary;
+use App\Exports\SmsSalesSummaryExternal;
 
 class SalesController extends Controller
 {
 
   public function exportSales()
   {
-
     return Excel::download(new SmsSalesExport, 'sales.xlsx');
+  }
+
+  public function exportSalesSummary()
+  {
+
+    if(!request()->has('month') || !request()->has('year') || !request()->has('conversion')){
+      return response()->json([
+        ['Month, year & conversion parameters are required.']
+      ],422); 
+    }
+    $month = request()->month;
+    $year = request()->year;
+    $conversion = request()->conversion;
+
+    return Excel::download(new SmsSalesSummary($month,$year,$conversion), 'salesSummary.xlsx');
+  }
+
+  public function exportSalesSummaryExternal()
+  {
+
+    if(!request()->has('month') || !request()->has('year') || !request()->has('conversion')){
+      return response()->json([
+        ['Month, year & conversion parameters are required.']
+      ],422); 
+    }
+    $month = request()->month;
+    $year = request()->year;
+    $conversion = request()->conversion;
+
+    return Excel::download(new SmsSalesSummaryExternal($month,$year,$conversion), 'salesSummaryExternal.xlsx');
   }
 
   public function test()

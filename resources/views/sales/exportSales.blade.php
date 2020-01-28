@@ -70,7 +70,7 @@
         @endphp
         <tr style="text-align:center">
           <td>{{ $status }}</td>
-          <td>{{ $row->s_deliverydate }}</td>
+          <td>{{ $row->sales->s_deliverydate }}</td>
           <td>{{ $row->sales->customer->c_customername }}</td>
           <td>{{ $row->sales->s_invoicenum }}</td>
           <td>{{ $row->sitem_drnum }}</td>

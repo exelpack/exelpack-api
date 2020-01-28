@@ -26,7 +26,7 @@ Route::get('/error', function(){
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout/{sys}','UserController@logout');
 	Route::post('/me','UserController@me');
-	Route::get('/test', 'SalesController@exportSales');
+	Route::get('/test', 'SalesController@exportSalesSummaryExternal');
 
 	Route::group(['middleware' => ['cposms']], function() {
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
