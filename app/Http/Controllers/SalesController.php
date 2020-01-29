@@ -18,9 +18,220 @@ use App\SalesInvoiceItems;
 use App\Exports\SmsSalesExport;
 use App\Exports\SmsSalesSummary;
 use App\Exports\SmsSalesSummaryExternal;
+use App\Exports\SmsSOA;
 
 class SalesController extends Controller
 {
+
+  public function exportAR(){
+
+    if(!request()->has('month') || !request()->has('year') || !request()->has('conversion')){
+      return response()->json([
+        ['Month, year & conversion parameters are required.']
+      ],422); 
+    }
+    $month = request()->month;
+    $year = request()->year;
+    $conversion = request()->conversion;
+
+    $sales=  SalesInvoice::whereHas('customer', function($q){
+        $q->where('c_customername','NOT LIKE','%NO CUSTOMER%');
+      })->groupBy('s_customer_id','s_currency')
+      ->get();
+    $customers = array();
+    $amounts = array();
+   
+
+    foreach($sales as $row){
+      array_push($customers,array('customer' => $row->customer->c_customername, 
+          'customer_id' => $row->s_customer_id,
+          'currency' => $row->s_currency,
+          'payment_terms' => $row->customer->c_paymentterms));
+    }
+
+    $_endDate = Carbon::createFromDate($year,$month)->endOfMonth();
+
+    //totals
+    $total_overall_php = 0;
+    $total_overall_usd = 0;
+    $aging_first_php = 0;
+    $aging_first_usd = 0;
+    $aging_second_php = 0;
+    $aging_second_usd = 0;
+    $aging_third_php = 0;
+    $aging_third_usd = 0;
+    $aging_fourth_php = 0;
+    $aging_fourth_usd = 0;
+    $aging_fifth_php = 0;
+    $aging_fifth_usd = 0;
+    $aging_six_php = 0;
+    $aging_six_usd = 0;
+    $receivable_of_month_php = 0;
+    $receivable_of_month_usd = 0;
+    $total_remaining_php = 0;
+    $total_remaining_usd = 0;
+    $total_collected_php = 0;
+    $total_collected_usd = 0;
+    return $customers;
+        foreach($customers as $row){
+
+          $aging_first = 0;
+          $aging_second = 0;
+          $aging_third = 0;
+          $aging_fourth = 0;
+          $aging_fifth = 0;
+          $aging_six = 0;
+
+          $overall_receivable = 0;
+          $total_collectibles_month = 0;
+
+          //
+          $date_collected = 0;
+          $amt_collected = 0;
+
+          $acct_receivable = SalesItems::whereHas('sales',function ($q) use($row){
+              $q->where('currency',$row['currency'])
+              ->where('customer_id',$row['customer_id']);
+          })
+          ->get();
+
+            foreach($acct_receivable as $key => $data)
+            {   
+                //declare object
+                $ar = $data->sales->ar;
+                $sales = $data->sales;
+                //delivered
+                $delivered = new Carbon($sales->delivery_date);
+                $diff = $delivered->diffInDays($_endDate->format('Y-m-d'));
+                $due = $delivered->addDays($row['payment_terms']);
+                // $_date_col = new Carbon($data->date_collected);
+
+                if($ar)
+                    $_date_col = new Carbon($ar->date_collected);
+                else{
+                    $_date_col = Carbon::now();
+                    $_date_col->subDays(365);
+                }
+
+                //check if date collected is this month
+                if($_date_col->format('Y-m') == $_endDate->format('Y-m')){
+                    $overall_receivable+= $data->total_amount;
+
+                    if($ar){
+                        $percent = (100 - $ar->withholdingtax) / 100;
+                        $amt_collected+= $data->total_amount * $percent;
+                    }
+
+                    if($_endDate->format('Y-m-d') >= $due->format('Y-m-d')){
+                        $total_collectibles_month+= $data->total_amount; 
+                    }
+                }else{
+                    if(!$ar){
+                        $overall_receivable+= $data->total_amount;
+
+                        if($_endDate->format('Y-m-d') >= $due->format('Y-m-d')){
+
+                            $total_collectibles_month+= $data->total_amount;
+                        }
+
+                    }else{
+                        continue;
+                    }
+                }
+
+                if($diff > 365){
+                    $aging_six+= $data->total_amount;
+                }
+                else if($diff > 119){
+                    $aging_fifth+= $data->total_amount;
+                }
+                else if($diff > 89){
+                    $aging_fourth+= $data->total_amount; 
+                }
+                else if($diff > 59){
+                    $aging_third+= $data->total_amount; 
+                }
+                else if($diff > 29){
+                    $aging_second+= $data->total_amount; 
+                }
+                else if($diff < 30){
+                    $aging_first+= $data->total_amount;
+                }
+
+            }
+
+            $crcy = $row['currency'] === 'USD' ? '$' : '';
+            $remaining = $total_collectibles_month  - $amt_collected;
+
+            if($amt_collected === 0 || $total_collectibles_month === 0){
+                $perc_collected = 0;
+            }else
+            $perc_collected = ($amt_collected / $total_collectibles_month)  * 100;
+
+
+            if($row['currency'] === 'PHP'){
+                $total_overall_php+=$overall_receivable;
+                $aging_first_php+= $aging_first;
+                $aging_second_php+= $aging_second;
+                $aging_third_php+= $aging_third;
+                $aging_fourth_php+= $aging_fourth;
+                $aging_fifth_php+= $aging_fifth;
+                $aging_six_php+= $aging_six;
+                $receivable_of_month_php+= $total_collectibles_month;
+                $total_remaining_php+= $remaining;   
+                $total_collected_php+= $amt_collected;
+            }else{
+                $total_overall_usd+=$overall_receivable;
+                $aging_first_usd+= $aging_first;
+                $aging_second_usd+= $aging_second;
+                $aging_third_usd+= $aging_third;
+                $aging_fourth_usd+= $aging_fourth;
+                $aging_fifth_usd+= $aging_fifth;
+                $aging_six_usd+= $aging_six;
+                $receivable_of_month_usd+= $total_collectibles_month;
+                $total_remaining_usd+= $remaining;
+                $total_collected_usd+= $amt_collected;
+            }
+
+            
+
+            
+
+
+            array_push($amounts,
+                array(
+                    'c_id' => $row['customer_id'],
+                    'companyname' => $row['customer'] ,
+                    'currency' => $row['currency'] ,
+                    'payment_terms' => $row['payment_terms'],
+                    'overall' => $overall_receivable == 0 ? '' : $crcy.' '.number_format($overall_receivable,2),
+                    'aging_first' => $aging_first == 0 ? '' : $crcy.' '.number_format($aging_first,2),
+                    'aging_second' => $aging_second == 0 ? '' : $crcy.' '.number_format($aging_second,2),
+                    'aging_third' => $aging_third == 0 ? '' : $crcy.' '.number_format($aging_third,2),
+                    'aging_fourth' => $aging_fourth == 0 ? '' : $crcy.' '.number_format($aging_fourth,2),
+                    'aging_fifth' => $aging_fifth == 0 ? '' : $crcy.' '.number_format($aging_fifth,2),
+                    'aging_six' => $aging_six == 0 ? '' : $crcy.' '.number_format($aging_six,2),
+                    'total_collectibles_month' => $total_collectibles_month == 0 
+                    ? '' : $crcy.' '.number_format($total_collectibles_month,2),
+                    'total_remaining_balance' => $remaining <= 0 
+                    ? '' : $crcy.' '.number_format($remaining,2),
+                    'amt_collected'  => $amt_collected == 0 ? '' : $crcy.' '.number_format($amt_collected,2),
+                    'perc_collected' => number_format($perc_collected,2)."%"
+                    // 'tester' => $tester
+                )
+            );
+
+        }//loop on customer by currency
+
+        //get collected dates on selected date
+        $collected_dates = AccountsReceivable::select('date_collected')
+        ->whereRaw('extract(month from date_collected) = ?',array($month))
+        ->whereRaw('extract(year from date_collected) = ?',array($year))
+        ->groupBy('date_collected')
+        ->orderBy('date_collected','asc')
+        ->get();
+
+  }
 
   public function exportSales()
   {
@@ -55,6 +266,21 @@ class SalesController extends Controller
     $conversion = request()->conversion;
 
     return Excel::download(new SmsSalesSummaryExternal($month,$year,$conversion), 'salesSummaryExternal.xlsx');
+  }
+
+  public function exportSoa()
+  {
+
+    if(!request()->has('cid') || !request()->has('currency')){
+      return response()->json([
+        ['Customer ID and currency parameters are required.']
+      ],422); 
+    }
+
+    $cid = request()->cid;
+    $currency = request()->currency;
+
+    return Excel::download(new SmsSOA($cid,$currency), 'SmsSOA.xlsx');
   }
 
   public function test()
