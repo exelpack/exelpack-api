@@ -30,7 +30,7 @@ class SmsSalesSummary implements FromView
         ->whereMonth('s.s_deliverydate',$month)
         ->whereYear('s.s_deliverydate',$year)
         ->whereHas('sales.customer', function($q){
-          $q->where('id','!=','NO CUSTOMER');
+          $q->where('c_customername','!=','NO CUSTOMER');
         })
         ->where('s.s_isRevised',0)
         ->orderBy('c.c_customername','ASC')

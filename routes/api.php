@@ -155,7 +155,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		//sales
 	Route::group(['middleware' => ['salesms']], function() {
 
-		Route::get('/salesms/invoice','SalesController@getSales');
+    Route::get('/salesms/invoice','SalesController@getSales');
+		Route::get('/salesms/invoice/{customerId}','SalesController@getInvoicesForCustomer');
     Route::get('/salesms/customer','SalesController@getCustomers');
     Route::post('/salesms/invoice','SalesController@createSales');
     Route::put('/salesms/invoice/{id}','SalesController@updateSales');

@@ -19,6 +19,7 @@ use App\Exports\SmsSalesExport;
 use App\Exports\SmsSalesSummary;
 use App\Exports\SmsSalesSummaryExternal;
 use App\Exports\SmsSOA;
+use App\Exports\SmsAR;
 
 class SalesController extends Controller
 {
@@ -34,202 +35,24 @@ class SalesController extends Controller
     $year = request()->year;
     $conversion = request()->conversion;
 
-    $sales=  SalesInvoice::whereHas('customer', function($q){
-        $q->where('c_customername','NOT LIKE','%NO CUSTOMER%');
-      })->groupBy('s_customer_id','s_currency')
+    return Excel::download(new SmsAR($month,$year,$conversion), 'salesaR.xlsx');
+  }
+
+  public static function getCollectedAmount($date,$company,$currency)
+  {
+      $sales = SalesInvoice::where('s_customer_id',$company)
+      ->where('s_currency',$currency)
+      ->where('s_datecollected',$date)
       ->get();
-    $customers = array();
-    $amounts = array();
-   
+      
+      $total_amt = 0;
+      foreach($sales as $row)
+      {
+        $percent = (100 - $row->s_withholding) / 100;
+        $total_amt+= $row->items()->sum('sitem_totalamount') * $percent;
+      }
 
-    foreach($sales as $row){
-      array_push($customers,array('customer' => $row->customer->c_customername, 
-          'customer_id' => $row->s_customer_id,
-          'currency' => $row->s_currency,
-          'payment_terms' => $row->customer->c_paymentterms));
-    }
-
-    $_endDate = Carbon::createFromDate($year,$month)->endOfMonth();
-
-    //totals
-    $total_overall_php = 0;
-    $total_overall_usd = 0;
-    $aging_first_php = 0;
-    $aging_first_usd = 0;
-    $aging_second_php = 0;
-    $aging_second_usd = 0;
-    $aging_third_php = 0;
-    $aging_third_usd = 0;
-    $aging_fourth_php = 0;
-    $aging_fourth_usd = 0;
-    $aging_fifth_php = 0;
-    $aging_fifth_usd = 0;
-    $aging_six_php = 0;
-    $aging_six_usd = 0;
-    $receivable_of_month_php = 0;
-    $receivable_of_month_usd = 0;
-    $total_remaining_php = 0;
-    $total_remaining_usd = 0;
-    $total_collected_php = 0;
-    $total_collected_usd = 0;
-    return $customers;
-        foreach($customers as $row){
-
-          $aging_first = 0;
-          $aging_second = 0;
-          $aging_third = 0;
-          $aging_fourth = 0;
-          $aging_fifth = 0;
-          $aging_six = 0;
-
-          $overall_receivable = 0;
-          $total_collectibles_month = 0;
-
-          //
-          $date_collected = 0;
-          $amt_collected = 0;
-
-          $acct_receivable = SalesItems::whereHas('sales',function ($q) use($row){
-              $q->where('currency',$row['currency'])
-              ->where('customer_id',$row['customer_id']);
-          })
-          ->get();
-
-            foreach($acct_receivable as $key => $data)
-            {   
-                //declare object
-                $ar = $data->sales->ar;
-                $sales = $data->sales;
-                //delivered
-                $delivered = new Carbon($sales->delivery_date);
-                $diff = $delivered->diffInDays($_endDate->format('Y-m-d'));
-                $due = $delivered->addDays($row['payment_terms']);
-                // $_date_col = new Carbon($data->date_collected);
-
-                if($ar)
-                    $_date_col = new Carbon($ar->date_collected);
-                else{
-                    $_date_col = Carbon::now();
-                    $_date_col->subDays(365);
-                }
-
-                //check if date collected is this month
-                if($_date_col->format('Y-m') == $_endDate->format('Y-m')){
-                    $overall_receivable+= $data->total_amount;
-
-                    if($ar){
-                        $percent = (100 - $ar->withholdingtax) / 100;
-                        $amt_collected+= $data->total_amount * $percent;
-                    }
-
-                    if($_endDate->format('Y-m-d') >= $due->format('Y-m-d')){
-                        $total_collectibles_month+= $data->total_amount; 
-                    }
-                }else{
-                    if(!$ar){
-                        $overall_receivable+= $data->total_amount;
-
-                        if($_endDate->format('Y-m-d') >= $due->format('Y-m-d')){
-
-                            $total_collectibles_month+= $data->total_amount;
-                        }
-
-                    }else{
-                        continue;
-                    }
-                }
-
-                if($diff > 365){
-                    $aging_six+= $data->total_amount;
-                }
-                else if($diff > 119){
-                    $aging_fifth+= $data->total_amount;
-                }
-                else if($diff > 89){
-                    $aging_fourth+= $data->total_amount; 
-                }
-                else if($diff > 59){
-                    $aging_third+= $data->total_amount; 
-                }
-                else if($diff > 29){
-                    $aging_second+= $data->total_amount; 
-                }
-                else if($diff < 30){
-                    $aging_first+= $data->total_amount;
-                }
-
-            }
-
-            $crcy = $row['currency'] === 'USD' ? '$' : '';
-            $remaining = $total_collectibles_month  - $amt_collected;
-
-            if($amt_collected === 0 || $total_collectibles_month === 0){
-                $perc_collected = 0;
-            }else
-            $perc_collected = ($amt_collected / $total_collectibles_month)  * 100;
-
-
-            if($row['currency'] === 'PHP'){
-                $total_overall_php+=$overall_receivable;
-                $aging_first_php+= $aging_first;
-                $aging_second_php+= $aging_second;
-                $aging_third_php+= $aging_third;
-                $aging_fourth_php+= $aging_fourth;
-                $aging_fifth_php+= $aging_fifth;
-                $aging_six_php+= $aging_six;
-                $receivable_of_month_php+= $total_collectibles_month;
-                $total_remaining_php+= $remaining;   
-                $total_collected_php+= $amt_collected;
-            }else{
-                $total_overall_usd+=$overall_receivable;
-                $aging_first_usd+= $aging_first;
-                $aging_second_usd+= $aging_second;
-                $aging_third_usd+= $aging_third;
-                $aging_fourth_usd+= $aging_fourth;
-                $aging_fifth_usd+= $aging_fifth;
-                $aging_six_usd+= $aging_six;
-                $receivable_of_month_usd+= $total_collectibles_month;
-                $total_remaining_usd+= $remaining;
-                $total_collected_usd+= $amt_collected;
-            }
-
-            
-
-            
-
-
-            array_push($amounts,
-                array(
-                    'c_id' => $row['customer_id'],
-                    'companyname' => $row['customer'] ,
-                    'currency' => $row['currency'] ,
-                    'payment_terms' => $row['payment_terms'],
-                    'overall' => $overall_receivable == 0 ? '' : $crcy.' '.number_format($overall_receivable,2),
-                    'aging_first' => $aging_first == 0 ? '' : $crcy.' '.number_format($aging_first,2),
-                    'aging_second' => $aging_second == 0 ? '' : $crcy.' '.number_format($aging_second,2),
-                    'aging_third' => $aging_third == 0 ? '' : $crcy.' '.number_format($aging_third,2),
-                    'aging_fourth' => $aging_fourth == 0 ? '' : $crcy.' '.number_format($aging_fourth,2),
-                    'aging_fifth' => $aging_fifth == 0 ? '' : $crcy.' '.number_format($aging_fifth,2),
-                    'aging_six' => $aging_six == 0 ? '' : $crcy.' '.number_format($aging_six,2),
-                    'total_collectibles_month' => $total_collectibles_month == 0 
-                    ? '' : $crcy.' '.number_format($total_collectibles_month,2),
-                    'total_remaining_balance' => $remaining <= 0 
-                    ? '' : $crcy.' '.number_format($remaining,2),
-                    'amt_collected'  => $amt_collected == 0 ? '' : $crcy.' '.number_format($amt_collected,2),
-                    'perc_collected' => number_format($perc_collected,2)."%"
-                    // 'tester' => $tester
-                )
-            );
-
-        }//loop on customer by currency
-
-        //get collected dates on selected date
-        $collected_dates = AccountsReceivable::select('date_collected')
-        ->whereRaw('extract(month from date_collected) = ?',array($month))
-        ->whereRaw('extract(year from date_collected) = ?',array($year))
-        ->groupBy('date_collected')
-        ->orderBy('date_collected','asc')
-        ->get();
+      return $total_amt;
 
   }
 
@@ -362,9 +185,8 @@ class SalesController extends Controller
       'customer' => 'integer|required',
       'delivery_date' => 'date|required|before_or_equal:'.date('Y-m-d'),
       'currency' => 'string|max:5|in:PHP,USD|required',
-      'invoiceItems' => 'array|min:1|required',
       'or_num' => 'sometimes|required_if:markAsPaid,true',
-      'date_collected' => 'sometimes|required_if:markAsPaid,true|nullable',
+      'date_collected' => 'sometimes|required_if:markAsPaid,true|nullable|date|before_or_equal:'.date('Y-m-d'),
       'withholdingtax' => 'sometimes|integer|nullable|min:0',
     );
   }
@@ -386,13 +208,70 @@ class SalesController extends Controller
 			]);
 
 	}
+
+  public function selectInvoice()
+  {
+    return [
+      'id',
+      's_customer_id',
+      's_invoicenum as invoice_num',
+      's_deliverydate as delivery_date',
+      's_currency as currency',
+      's_invoicenum as invoice_num',
+      's_withholding as withholdingtax',
+      's_ornumber as or_num',
+      's_datecollected as date_collected',
+      's_isRevised as isRevised',
+      'deleted_at as isCancelled'
+    ];
+  }
+
+  public function invoiceWiths()
+  {
+    return [
+      'customer:c_customername as customer_name,c_paymentterms as payment_terms,id',
+      'items' => function($q){
+        $q->select([
+          'id',
+          'sitem_drnum as dr',
+          'sitem_ponum as po',
+          'sitem_partnum as partnum',
+          'sitem_quantity as quantity',
+          'sitem_unitprice as unitprice',
+          'sitem_remarks as remarks',
+          'sitem_totalamount as totalAmount',
+          'sitem_partnum as partnum',
+          'sitem_sales_id',
+        ]);
+    }];
+  }
+
+  public function getInvoicesForCustomer($customerId)
+  {
+
+    $invoices = SalesInvoice::whereHas('customer', function($q) use ($customerId){
+        return $q->where('s_customer_id',$customerId);
+      })
+      ->where('s_datecollected',NULL)
+      ->where('s_ornumber',NULL)
+      ->where('s_isRevised',0)
+      ->orderBy('s_invoicenum','DESC')
+      ->pluck('s_invoicenum')
+      ->toArray('s_invoicenum');
+
+    return response()->json([
+      'invoicesList' => $invoices
+    ]);
+  }
   
 	public function getSales()
 	{
     $pageSize = request()->pageSize;
 
     $q = SalesInvoice::query();
-    
+    $q->select($this->selectInvoice());
+    $q->with($this->invoiceWiths());
+
     if(request()->has('showRecord')){
       $showRecord = request()->showRecord;
       if($showRecord == 'All'){
@@ -450,16 +329,9 @@ class SalesController extends Controller
 
     $salesRes = $q->paginate($pageSize);
 
-    $sales = $salesRes->map(function($invoice){ 
-         return $this->invoiceGetArray($invoice);
-      })->toArray();
-
-
-  return response()->json(
-  	[
+    return response()->json([
       'salesListLength' => $salesRes->total(),
-  		'salesList' => $sales,
-      
+  		'salesList' => $salesRes->items(),
   	]);
 
 	}
@@ -471,6 +343,11 @@ class SalesController extends Controller
         'string|max:50|required|unique:salesms_invoice,s_invoicenum']
         ,$this->salesRules));
 
+
+    $validator->sometimes('invoiceItems', 'array|min:1|required', function($input){
+      return $input->cancelled == false;
+    });
+
     if($validator->fails()){
       return response()->json(['errors' => $validator->errors()->all()],422);
     }
@@ -479,10 +356,14 @@ class SalesController extends Controller
     $sales->fill($this->invoiceInputArray($request));
     $sales->save();
 
+    if($request->cancelled)
+      $sales->delete();
+
     foreach($request->invoiceItems as $item){
       $sales->items()->create($this->invoiceInputItemArray($item));
     }
 
+    $sales->refresh();
     return response()->json(
       [
         'newSales' => $this->invoiceGetArray($sales),
@@ -594,7 +475,7 @@ class SalesController extends Controller
     $validator = Validator::make($request->all(),[
       'invoiceKeys' => 'array|min:1|required',
       'or_num' => 'required_if:markAsPaid,true',
-      'date_collected' => 'required_if:markAsPaid,true|nullable',
+      'date_collected' => 'required_if:markAsPaid,true|nullable|before_or_equal:'.date('Y-m-d'),
       'withholdingtax' => 'integer|nullable|min:0',
     ],[],
     [
@@ -605,13 +486,13 @@ class SalesController extends Controller
       return response()->json(['errors' => $validator->errors()->all()],422);
     }
 
-    SalesInvoice::whereIn('id',$request->invoiceKeys)->update([
+    SalesInvoice::whereIn('s_invoicenum',$request->invoiceKeys)->update([
       's_ornumber' => $request->or_num,
       's_datecollected' => $request->date_collected,
       's_withholding' => $request->withholdingtax,
     ]);
 
-    $sales = SalesInvoice::whereIn('id',$request->invoiceKeys)
+    $sales = SalesInvoice::whereIn('s_invoicenum',$request->invoiceKeys)
       ->get()
       ->map(function($invoice){  
          return $this->invoiceGetArray($invoice);
@@ -626,37 +507,23 @@ class SalesController extends Controller
   }
 
   public function invoiceGetArray($invoice){
-    $status = 'Not Collected';
-    $wht = $invoice->s_withholding;
-
-    if($invoice->s_ornumber && $invoice->s_datecollected)
-      $status = 'Collected';
-
-    if($invoice->deleted_at)
-      $status = 'Cancelled';
-
-    if($invoice->s_isRevised)
-      $status = 'Revised';
-
-    if($wht)
-      $wht = $wht / 100 .'%';
 
     return array(
       'id' => $invoice->id,
-      'status' => $status,
       'invoice_num' => $invoice->s_invoicenum,
       'delivery_date' => $invoice->s_deliverydate,
       'currency' => $invoice->s_currency,
-      'customer' => $invoice->customer->id,
-      'customer_name' => $invoice->customer->c_customername,
-      'payment_terms' => $invoice->customer->c_paymentterms,
-      'withholdingtax' => $wht,
+      'customer' => array(
+        'id' => $invoice->customer->id,
+        'customer_name' => $invoice->customer->c_customername,
+        'payment_terms' => $invoice->customer->c_paymentterms,
+      ),
+      'withholdingtax' => $invoice->s_withholding,
       'or_num' => $invoice->s_ornumber,
       'date_collected' => $invoice->s_datecollected,
       'isRevised' => $invoice->s_isRevised,
-      'itemCount' => $invoice->items()->count(),
-      'totalAmount' => number_format($invoice->items()->sum('sitem_totalamount'),2,'.',''),
-      'invoiceItems' => $invoice->items->map(function($item) {
+      'isCancelled' => $invoice->deleted_at,
+      'items' => $invoice->items->map(function($item) {
           return $this->invoiceItemGetArray($item);
         })
       );
