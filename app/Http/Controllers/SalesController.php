@@ -28,7 +28,7 @@ class SalesController extends Controller
 
     if(!request()->has('month') || !request()->has('year') || !request()->has('conversion')){
       return response()->json([
-        ['Month, year & conversion parameters are required.']
+        'errors' => ['Month, year & conversion parameters are required.']
       ],422); 
     }
     $month = request()->month;
@@ -40,25 +40,31 @@ class SalesController extends Controller
 
   public static function getCollectedAmount($date,$company,$currency)
   {
-      $sales = SalesInvoice::where('s_customer_id',$company)
-      ->where('s_currency',$currency)
-      ->where('s_datecollected',$date)
-      ->get();
-      
-      $total_amt = 0;
-      foreach($sales as $row)
-      {
-        $percent = (100 - $row->s_withholding) / 100;
-        $total_amt+= $row->items()->sum('sitem_totalamount') * $percent;
-      }
+    $sales = SalesInvoice::where('s_customer_id',$company)
+    ->where('s_currency',$currency)
+    ->where('s_datecollected',$date)
+    ->get();
 
-      return $total_amt;
+    $total_amt = 0;
+    foreach($sales as $row)
+    {
+      $percent = (100 - $row->s_withholding) / 100;
+      $total_amt+= $row->items()->sum('sitem_totalamount') * $percent;
+    }
+
+    return $total_amt;
 
   }
 
   public function exportSales()
   {
-    return Excel::download(new SmsSalesExport, 'sales.xlsx');
+    if(!request()->has('conversion')){
+      return response()->json([
+        'errors' => ['Conversion parameters is required.']
+      ],422); 
+    }
+    $conversion = request()->conversion;
+    return Excel::download(new SmsSalesExport($conversion), 'sales.xlsx');
   }
 
   public function exportSalesSummary()
@@ -66,7 +72,7 @@ class SalesController extends Controller
 
     if(!request()->has('month') || !request()->has('year') || !request()->has('conversion')){
       return response()->json([
-        ['Month, year & conversion parameters are required.']
+        'errors' => ['Month, year & conversion parameters are required.']
       ],422); 
     }
     $month = request()->month;
@@ -81,7 +87,7 @@ class SalesController extends Controller
 
     if(!request()->has('month') || !request()->has('year') || !request()->has('conversion')){
       return response()->json([
-        ['Month, year & conversion parameters are required.']
+        'errors' => ['Month, year & conversion parameters are required.']
       ],422); 
     }
     $month = request()->month;
@@ -93,11 +99,19 @@ class SalesController extends Controller
 
   public function exportSoa()
   {
-
-    if(!request()->has('cid') || !request()->has('currency')){
+    $currency_arr = array('PHP','USD','php','usd');
+    if(!request()->has('cid') || !request()->has('currency')  || !in_array(request()->currency,$currency_arr)){
       return response()->json([
-        ['Customer ID and currency parameters are required.']
+        'errors' => ['Customer ID and currency parameters are required.']
       ],422); 
+    }
+
+    $customer = SalesCustomer::findOrFail(request()->cid)->c_customername;
+
+    if(strtolower($customer) == 'no customer'){
+      return response()->json([
+        'errors' => ['No-customer is not allowed.']
+      ],422);
     }
 
     $cid = request()->cid;
@@ -109,25 +123,25 @@ class SalesController extends Controller
   public function test()
   {
 
-    $items = DB::table('test_table')->get()
-              ->map(function ($item) {
+    // $items = DB::table('test_table')->get()
+    //           ->map(function ($item) {
 
-                $si = SalesInvoice::where('s_invoicenum',$item->si)->first();
-                $i = array(
-                  'sitem_sales_id' => $si->id,
-                  'sitem_drnum' => $item->dr,
-                  'sitem_ponum' => $item->po,
-                  'sitem_partnum' => $item->pn == '' ? 'NA' : $item->pn,
-                  'sitem_quantity' => $item->qty,
-                  'sitem_unitprice' => $item->un,
-                  'sitem_totalamount' => doubleval($item->un) 
-                    * intval($item->qty),
-                );
+    //             $si = SalesInvoice::where('s_invoicenum',$item->si)->first();
+    //             $i = array(
+    //               'sitem_sales_id' => $si->id,
+    //               'sitem_drnum' => $item->dr,
+    //               'sitem_ponum' => $item->po,
+    //               'sitem_partnum' => $item->pn == '' ? 'NA' : $item->pn,
+    //               'sitem_quantity' => $item->qty,
+    //               'sitem_unitprice' => $item->un,
+    //               'sitem_totalamount' => doubleval($item->un) 
+    //                 * intval($item->qty),
+    //             );
 
-                SalesInvoiceItems::create($i);
-                return $i;
-              });
-    return $items;
+    //             SalesInvoiceItems::create($i);
+    //             return $i;
+    //           });
+    // return $items;
 
     // $sales = DB::table('salesms_invoicecopy')
     //           ->groupBy('s_invoicenum')
@@ -191,23 +205,105 @@ class SalesController extends Controller
     );
   }
 
-	public function getCustomers()
-	{
+  public function getCustomers()
+  {
 
-		$customers = SalesCustomer::all()
-    		->map(function($customer) {
-    			return array(
-    				'id' => $customer->id,
-    				'customer_name' => $customer->c_customername,
-    			);
-    		});
+    $customers = SalesCustomer::all()
+    ->map(function($customer) {
+     return array(
+      'id' => $customer->id,
+      'customer_name' => $customer->c_customername,
+      'payment_terms' => $customer->c_paymentterms,
+    );
+   });
 
-		return response()->json(
-			[
-				'customersList' => $customers
-			]);
+    return response()->json(
+     [
+      'customersList' => $customers
+    ]);
 
-	}
+  }
+
+  public function addCustomer(Request $request)
+  {
+
+    $validator = Validator::make($request->all(),[
+      'customer_name' => 'string|max:150|required|unique:salesms_customers,c_customername',
+      'payment_terms' => 'min:1|integer|min:1'
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    $customer = new SalesCustomer();  
+    $customer->fill([
+      'c_customername' => strtoupper($request->customer_name),
+      'c_paymentterms' => $request->payment_terms
+    ]);
+    $customer->save();
+    $newCustomer = array(
+      'id' => $customer->id,
+      'customer_name' => $customer->c_customername,
+      'payment_terms' => $customer->c_paymentterms,
+    );
+
+    return response()->json(
+      [
+        'newCustomer' => $newCustomer,
+        'message' => 'Record added'
+      ]); 
+
+  }
+
+  public function updateCustomer(Request $request,$id)
+  {
+
+    $validator = Validator::make($request->all(),[
+      'customer_name' => 'string|max:150|required|unique:salesms_customers,c_customername,'.$id,
+      'payment_terms' => 'min:1|integer|min:1'
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    $customer = SalesCustomer::findOrFail($id);  
+    if(strtolower($customer->c_customername) == 'no customer'){
+      return response()->json(['errors' => ['No-customer is not allowed.']],422);
+    }
+    $customer->update([
+      'c_customername' => strtoupper($request->customer_name),
+      'c_paymentterms' => $request->payment_terms
+    ]);
+
+    $newCustomer = array(
+      'id' => $customer->id,
+      'customer_name' => $customer->c_customername,
+      'payment_terms' => $customer->c_paymentterms,
+    );
+
+    return response()->json(
+      [
+        'newCustomer' => $newCustomer,
+        'message' => 'Record updated'
+      ]); 
+
+  }
+
+  public function deleteCustomer($id)
+  {
+
+    $customer = SalesCustomer::findOrFail($id);
+    if(strtolower($customer->c_customername) == 'no customer'){
+      return response()->json(['errors' => ['No-customer is not allowed.']],422);
+    }
+    $customer->delete();
+
+    return response()->json([
+      'message' => 'Record deleted'
+    ]);
+  }
 
   public function selectInvoice()
   {
@@ -243,13 +339,21 @@ class SalesController extends Controller
           'sitem_partnum as partnum',
           'sitem_sales_id',
         ]);
-    }];
-  }
+      }];
+    }
 
-  public function getInvoicesForCustomer($customerId)
-  {
+    public function getInvoicesForCustomer($customerId)
+    {
 
-    $invoices = SalesInvoice::whereHas('customer', function($q) use ($customerId){
+      $customer = SalesCustomer::findOrFail($customerId)->c_customername;
+
+      if(strtolower($customer) == 'no customer'){
+        return response()->json([
+          'invoicesList' => []
+        ]);
+      }
+
+      $invoices = SalesInvoice::whereHas('customer', function($q) use ($customerId){
         return $q->where('s_customer_id',$customerId);
       })
       ->where('s_datecollected',NULL)
@@ -259,135 +363,135 @@ class SalesController extends Controller
       ->pluck('s_invoicenum')
       ->toArray('s_invoicenum');
 
-    return response()->json([
-      'invoicesList' => $invoices
-    ]);
-  }
-  
-	public function getSales()
-	{
-    $pageSize = request()->pageSize;
+      return response()->json([
+        'invoicesList' => $invoices
+      ]);
+    }
 
-    $q = SalesInvoice::query();
-    $q->select($this->selectInvoice());
-    $q->with($this->invoiceWiths());
+    public function getSales()
+    {
+      $pageSize = request()->pageSize;
 
-    if(request()->has('showRecord')){
-      $showRecord = request()->showRecord;
-      if($showRecord == 'All'){
-        $q->withTrashed();
-      }else if($showRecord == 'Collected'){
-        $q->where('s_ornumber','!=',NULL)
+      $q = SalesInvoice::query();
+      $q->select($this->selectInvoice());
+      $q->with($this->invoiceWiths());
+
+      if(request()->has('showRecord')){
+        $showRecord = request()->showRecord;
+        if($showRecord == 'All'){
+          $q->withTrashed();
+        }else if($showRecord == 'Collected'){
+          $q->where('s_ornumber','!=',NULL)
           ->where('s_datecollected','!=',NULL);
-      }else if($showRecord == 'NotCollected'){
-        $q->where('s_ornumber',NULL)
+        }else if($showRecord == 'NotCollected'){
+          $q->where('s_ornumber',NULL)
           ->where('s_datecollected',NULL);
-      }else if($showRecord == 'Revised'){
-        $q->where('s_isRevised',1);
-      }else if($showRecord == 'Cancelled'){
-        $q->onlyTrashed();
+        }else if($showRecord == 'Revised'){
+          $q->where('s_isRevised',1);
+        }else if($showRecord == 'Cancelled'){
+          $q->onlyTrashed();
+        }
+
       }
 
-    }
+      if(request()->has('currency')){
+        $currency = request()->currency;
 
-    if(request()->has('currency')){
-      $currency = request()->currency;
+        if($currency !== 'All')
+          $q->where('s_currency',$currency);
+      }
 
-      if($currency !== 'All')
-        $q->where('s_currency',$currency);
-    }
+      if(request()->has('month')){
+        $q->whereMonth('s_deliverydate',request()->month);
+      }
 
-    if(request()->has('month')){
-      $q->whereMonth('s_deliverydate',request()->month);
-    }
+      if(request()->has('year')){
+        $q->whereYear('s_customer_id',request()->year);
+      }
 
-    if(request()->has('year')){
-      $q->whereYear('s_customer_id',request()->year);
-    }
+      if(request()->has('customer')){
+        $q->where('s_customer_id',request()->customer);
+      }
 
-    if(request()->has('customer')){
-      $q->where('s_customer_id',request()->customer);
-    }
+      if(request()->has('search')){
+        $q->where('s_invoicenum','LIKE','%'.request()->search.'%');
+      }
 
-    if(request()->has('search')){
-      $q->where('s_invoicenum','LIKE','%'.request()->search.'%');
-    }
-    
-    if(request()->has('sort')){
-      $sort = request()->sort;
+      if(request()->has('sort')){
+        $sort = request()->sort;
 
-      if($sort == 'invoiceDesc')
-        $q->orderBy('s_invoicenum','DESC');
-      else if($sort == 'invoiceAsc')
-        $q->orderBy('s_invoicenum','ASC');
-      else if($sort == 'dateAsc')
-        $q->orderBy('s_deliverydate','ASC');
-      else if($sort == 'dateDesc')
-        $q->orderBy('s_deliverydate','DESC');
+        if($sort == 'invoiceDesc')
+          $q->orderBy('s_invoicenum','DESC');
+        else if($sort == 'invoiceAsc')
+          $q->orderBy('s_invoicenum','ASC');
+        else if($sort == 'dateAsc')
+          $q->orderBy('s_deliverydate','ASC');
+        else if($sort == 'dateDesc')
+          $q->orderBy('s_deliverydate','DESC');
 
-    }
+      }
 
-    $salesRes = $q->paginate($pageSize);
+      $salesRes = $q->paginate($pageSize);
 
-    return response()->json([
-      'salesListLength' => $salesRes->total(),
-  		'salesList' => $salesRes->items(),
-  	]);
-
-	}
-
-  public function createSales(Request $request){
-
-    $validator = Validator::make($request->all(),
-      array_merge(['invoice_num' => 
-        'string|max:50|required|unique:salesms_invoice,s_invoicenum']
-        ,$this->salesRules));
-
-
-    $validator->sometimes('invoiceItems', 'array|min:1|required', function($input){
-      return $input->cancelled == false;
-    });
-
-    if($validator->fails()){
-      return response()->json(['errors' => $validator->errors()->all()],422);
-    }
-
-    $sales = new SalesInvoice();
-    $sales->fill($this->invoiceInputArray($request));
-    $sales->save();
-
-    if($request->cancelled)
-      $sales->delete();
-
-    foreach($request->invoiceItems as $item){
-      $sales->items()->create($this->invoiceInputItemArray($item));
-    }
-
-    $sales->refresh();
-    return response()->json(
-      [
-        'newSales' => $this->invoiceGetArray($sales),
-        'message' => 'Record created'
+      return response()->json([
+        'salesListLength' => $salesRes->total(),
+        'salesList' => $salesRes->items(),
       ]);
 
-  }
-
-  public function updateSales(Request $request,$id){
-    $validator = Validator::make($request->all(),
-      array_merge(['invoice_num' => 
-        'string|max:50|required|unique:salesms_invoice,s_invoicenum,'.$id]
-        ,$this->salesRules));
-
-    if($validator->fails()){
-      return response()->json(['errors' => $validator->errors()->all()],422);
     }
 
-    $sales = SalesInvoice::findOrFail($id);
-    $sales->fill($this->invoiceInputArray($request));
+    public function createSales(Request $request){
 
-    if($sales->isDirty()){
+      $validator = Validator::make($request->all(),
+        array_merge(['invoice_num' => 
+          'string|max:50|required|unique:salesms_invoice,s_invoicenum']
+          ,$this->salesRules));
+
+
+      $validator->sometimes('invoiceItems', 'array|min:1|required', function($input){
+        return $input->cancelled == false;
+      });
+
+      if($validator->fails()){
+        return response()->json(['errors' => $validator->errors()->all()],422);
+      }
+
+      $sales = new SalesInvoice();
+      $sales->fill($this->invoiceInputArray($request));
       $sales->save();
+
+      if($request->cancelled)
+        $sales->delete();
+
+      foreach($request->invoiceItems as $item){
+        $sales->items()->create($this->invoiceInputItemArray($item));
+      }
+
+      $sales->refresh();
+      return response()->json(
+        [
+          'newSales' => $this->invoiceGetArray($sales),
+          'message' => 'Record created'
+        ]);
+
     }
+
+    public function updateSales(Request $request,$id){
+      $validator = Validator::make($request->all(),
+        array_merge(['invoice_num' => 
+          'string|max:50|required|unique:salesms_invoice,s_invoicenum,'.$id]
+          ,$this->salesRules));
+
+      if($validator->fails()){
+        return response()->json(['errors' => $validator->errors()->all()],422);
+      }
+
+      $sales = SalesInvoice::findOrFail($id);
+      $sales->fill($this->invoiceInputArray($request));
+
+      if($sales->isDirty()){
+        $sales->save();
+      }
 
     $invoiceItemsId = array_column($request->invoiceItems,'id'); //get request items id
 
@@ -432,8 +536,8 @@ class SalesController extends Controller
     if($sales->deleted_at){
       $sales->restore();
     }else
-      $sales->delete();
- 
+    $sales->delete();
+
     $sales->refresh();
 
     return response()->json(
@@ -458,7 +562,7 @@ class SalesController extends Controller
     $sales->update([
       's_isRevised' => $isRev
     ]);
- 
+
     $sales->refresh();
 
     return response()->json(
@@ -493,12 +597,12 @@ class SalesController extends Controller
     ]);
 
     $sales = SalesInvoice::whereIn('s_invoicenum',$request->invoiceKeys)
-      ->get()
-      ->map(function($invoice){  
-         return $this->invoiceGetArray($invoice);
-      })->toArray();
+    ->get()
+    ->map(function($invoice){  
+     return $this->invoiceGetArray($invoice);
+   })->toArray();
 
-      return response()->json(
+    return response()->json(
       [
         'salesList' => $sales,
         'message' => 'Record/s successfully updated as collected'
@@ -524,9 +628,9 @@ class SalesController extends Controller
       'isRevised' => $invoice->s_isRevised,
       'isCancelled' => $invoice->deleted_at,
       'items' => $invoice->items->map(function($item) {
-          return $this->invoiceItemGetArray($item);
-        })
-      );
+        return $this->invoiceItemGetArray($item);
+      })
+    );
   }
 
   public function invoiceItemGetArray($item){

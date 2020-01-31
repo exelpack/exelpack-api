@@ -192,12 +192,12 @@ for($i = 0; $i <= 5; $i++){
   <tbody>
     <tr>
       <td class="bg-col">Amount</td>
-      <td class="bg-col">{{ $aging_0 }}</td>
-      <td class="bg-col">{{ $aging_60 }}</td>
-      <td class="bg-col">{{ $aging_90 }}</td>
-      <td class="bg-col">{{ $aging_120 }}</td>
-      <td class="bg-col">{{ $aging_190 }}</td>
-      <td class="bg-col">{{ $aging_280 }}</td>
+      <td class="bg-col">{{ number_format($aging_0,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_60,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_90,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_120,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_190,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_280,2) }}</td>
       <td class="bg-col">{{ $currency_sign }} {{ number_format($due_total,$decimal) }}</td>
     </tr>
   </tbody>

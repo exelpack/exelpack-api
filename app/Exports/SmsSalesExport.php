@@ -9,17 +9,19 @@ use App\SalesInvoiceItems;
 
 class SmsSalesExport implements FromView
 {
-    /**
-    * @return \Illuminate\Support\Collection
-    */
-    public function view(): View
-    {
-      $sales = SalesInvoiceItems::all();
-      $conversion = 50;
+  private $conversion;
 
-      return view('sales.exportSales', [
-          'sales' => $sales,
-          'conversion' => $conversion
-      ]);
-    }
+  public function __construct($conversion){
+    $this->conversion = $conversion;
+  }
+    
+  public function view(): View
+  {
+    $sales = SalesInvoiceItems::all();
+
+    return view('sales.exportSales', [
+        'sales' => $sales,
+        'conversion' => $this->conversion
+    ]);
+  }
 }

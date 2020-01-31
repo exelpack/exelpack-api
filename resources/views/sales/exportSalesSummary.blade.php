@@ -30,15 +30,15 @@
 
       @foreach($data as $row)
         <tr style="text-align:center">
-          <td>{{ $row->sales->customer->c_customername }}</td>
-          <td>{{ $row->s_deliverydate }}</td>
-          <td>{{ $row->sales->s_invoicenum }}</td>
-          <td>{{ $row->sitem_drnum }}</td>
-          <td>{{ $row['sitem_ponum'] }}</td>
-          <td>{{ $row['sitem_partnum'] }}</td>
-          <td class="a-right">{{ number_format($usd,2) }}</td>
-          <td class="a-right">{{ number_format($php,2) }}</td>
-          <td class="a-right">{{ number_format($total,2) }}</td>
+          <td class="bordered">{{ $row['company'] }}</td>
+          <td class="bordered">{{ $row['delivery_date'] }}</td>
+          <td class="bordered">{{ $row['invoice'] }}</td>
+          <td class="bordered">{{ $row['dr_num'] }}</td>
+          <td class="bordered">{{ $row['po_num'] }}</td>
+          <td class="bordered">{{ $row['part_num'] }}</td>
+          <td class="bordered" style="text-align:right">{{ $row['usd'] }}</td>
+          <td class="bordered" style="text-align:right">{{ $row['php'] }}</td>
+          <td class="bordered" style="text-align:right">{{ $row['totalamount'] }}</td>
         </tr>
       @endforeach
 

@@ -28,13 +28,13 @@ class SmsSOA implements FromView
         ->where('s_datecollected','=',NULL)
         ->where('s_customer_id',$this->cid);
 
-        if(strtolower($this->currency) == 'PHP')
+        if(strtolower($this->currency) == 'php')
            $q->where('s_currency',$this->currency);
 
       })
       ->get();  
 
-      return view($this->currency == 'PHP' ? 'sales.exportSalesSOA' : 'sales.exportSalesSoaWithUsd', [
+      return view(strtolower($this->currency) == 'php' ? 'sales.exportSalesSOA' : 'sales.exportSalesSoaWithUsd', [
         'data' => $data,
         'currency' => $this->currency,
         'customer_id' => $this->cid,

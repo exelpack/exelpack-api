@@ -158,9 +158,21 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/salesms/invoice','SalesController@getSales');
 		Route::get('/salesms/invoice/{customerId}','SalesController@getInvoicesForCustomer');
     Route::get('/salesms/customer','SalesController@getCustomers');
+    Route::get('/salesms/export/soa','SalesController@exportSoa');
+    Route::get('/salesms/export/sales','SalesController@exportSales');
+    Route::get('/salesms/export/summary','SalesController@exportSalesSummary');
+    Route::get('/salesms/export/summaryExt','SalesController@exportSalesSummaryExternal');
+    Route::get('/salesms/export/ar','SalesController@exportAR');
+
     Route::post('/salesms/invoice','SalesController@createSales');
+    Route::post('/salesms/customer','SalesController@addCustomer');
+
     Route::put('/salesms/invoice/{id}','SalesController@updateSales');
+    Route::put('/salesms/customer/{id}','SalesController@updateCustomer');
+
     Route::put('/salesms/invoice','SalesController@markInvoicesCollected');
+
+    Route::delete('/salesms/customer/{id}','SalesController@deleteCustomer');
     Route::delete('/salesms/invoice/{id}/revised','SalesController@reviseSales');
     Route::delete('/salesms/invoice/{id}','SalesController@deleteSales');
 
