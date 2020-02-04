@@ -19,7 +19,6 @@ class CreatePrTable extends Migration
             $table->string('pr_prnum',60)->unique();
             $table->date('pr_date');
             $table->string('pr_remarks',200)->nullable();
-            $table->string('pr_currency',10)->default('PHP')->nullable();
             $table->boolean('pr_forPricing')->default(0);
             $table->timestamps();
         });

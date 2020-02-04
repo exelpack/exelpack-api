@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PurchaseRequestSupplierDetails extends Model
 {
-  protected $table = 'psms_supplierdetails';
+  protected $table = 'psms_prsupplierdetails';
   protected $guarded = ['id'];
   protected $hidden = ['created_at','updated_at'];
 

@@ -21,6 +21,7 @@ class CreateSupplierTable extends Migration
             $table->string('sd_attention',50)->nullable();
             $table->string('sd_paymentterms',50)->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

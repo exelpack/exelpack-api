@@ -17,6 +17,7 @@ class CreatePrSupplierDetails extends Migration
             $table->bigIncrements('id');
             $table->integer('prsd_pr_id')->unsigned();
             $table->integer('prsd_supplier_id')->unsigned();
+            $table->string('prsd_currency',5);
             $table->boolean('prsd_sentForApproval')->default(0);
             $table->string('prsd_approvalType')->default('LAN')->nullable();
             $table->string('prsd_approvalKey',300)->nullable();
