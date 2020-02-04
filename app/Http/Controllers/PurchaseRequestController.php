@@ -154,8 +154,8 @@ class PurchaseRequestController extends LogsController
 			'item_desc' => $item->poi_itemdescription,
 			'remarks' => $pr->pr_remarks,
 			'isForPricing' => $pr->pr_forPricing,
-			'hasPrice' => $pr->pr_hasPrice,
-			'status' => $pr->pr_hasPrice ? 'W/ PRICE' : 'NO PRICE',
+			'hasPrice' => $pr->prpricing()->count() > 0,
+			'status' => $pr->prpricing()->count() > 0 ? 'W/ PRICE' : 'NO PRICE',
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
 				return $this->getPrItems($data);

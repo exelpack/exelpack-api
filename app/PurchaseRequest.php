@@ -21,4 +21,9 @@ class PurchaseRequest extends Model
 		return $this->belongsTo('App\JobOrder','pr_jo_id');
 	}
 
+  public function prpricing()
+  {
+    return $this->hasOne('App\PurchaseRequestSupplierDetails','prsd_pr_id');
+  }
+
 }
