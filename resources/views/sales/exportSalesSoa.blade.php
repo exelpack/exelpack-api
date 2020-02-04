@@ -202,3 +202,47 @@ for($i = 0; $i <= 5; $i++){
     </tr>
   </tbody>
 </table>
+
+<table >
+  <tbody>
+    <tr>
+      <td colspan="3" align="center">Prepare By:__________________</td>
+      <td colspan="3" align="center">Checked By:__________________</td>
+      <td colspan="3" align="center">Approved By:__________________</td>
+    </tr>
+    <tr>
+      <td colspan="3" align="center">INSERTNAME</td>
+      <td colspan="3" align="center">INSERTNAME</td>
+      <td colspan="3" align="center">Jasper A. Cabuntocan</td>
+    </tr>
+    <tr>
+      <td colspan="3" align="center">Acctg. Staff</td>
+      <td colspan="3" align="center">Acctg. Head</td>
+      <td colspan="3" align="center">General Manager</td>
+    </tr>
+    <tr>
+      <td colspan="9" align="center"></td>
+    </tr>
+    <tr>
+      <td colspan="9" class="head">
+      This is your outstanding balance for the month of {{ date('F') }} as per our record. If the amount is correct please sign in the space below. 
+      </td>
+    </tr>
+    <tr>
+      <td colspan="9" class="head">
+      Should there be any discrepancy please state so and send to EXELPACK CORPORATION through our Fax No. 049-502-0295 loc. 103.
+      </td>
+    </tr>
+    <tr>
+      <td colspan="9" align="center"></td>
+    </tr>
+    <tr>
+      <td colspan="3" align="center">Customer's Autorized Representative:</td>
+      <td colspan="2">_____________________</td>
+    </tr>
+    <tr>
+      <td colspan="3" align="center">Date of Acceptance:</td>
+      <td colspan="2">_____________________</td>
+    </tr>
+  </tbody>
+</table>

@@ -6,7 +6,7 @@
 
 <table>
   <tr>
-    <td>SALES REPORT - {{ $m }}</td>
+    <td>BIR REPORT - {{ $m }}</td>
   </tr>
 </table>
 <br/>
@@ -23,7 +23,7 @@
       <th class="bordered">UNIT PRICE</th>
       <th class="bordered">Sum of USD Amount</th>
       <th class="bordered">Sum of PHP Amount</th>
-      <th class="bordered">Sum of Total Amount in PHP</th>
+      <th class="bordered">BIR Amount</th>
     </tr>
   </thead>
   <tbody>
@@ -45,11 +45,12 @@
 
       @endphp
         <tr style="text-align:center">
-          <td>{{ $row->sales->s_deliverydate }} hehehe</td>
+          <td>{{ $row->sales->s_deliverydate }} </td>
           <td>{{ $row->sales->customer->c_customername }}</td>
           <td>{{ $row->sales->s_invoicenum }}</td>
           <td>{{ $row->sitem_drnum }}</td>
           <td>{{ $row['sitem_ponum'] }}</td>
+          <td>{{ $row['sitem_partnum'] }}</td>
           <td>{{ $row['sitem_quantity'] }}</td>
           <td>{{ $row['sitem_unitprice'] }}</td>
           <td  class="bordered" style="text-align:right">{{ number_format($usd,2) }}</td>
