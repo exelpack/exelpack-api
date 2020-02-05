@@ -406,7 +406,11 @@ class SalesController extends Controller
       }
 
       if(request()->has('year')){
-        $q->whereYear('s_customer_id',request()->year);
+        $q->whereYear('s_deliverydate',request()->year);
+      }
+
+      if(request()->has('orNumber')){
+        $q->where('s_ornumber','LIKE','%'.request()->orNumber.'%');
       }
 
       if(request()->has('customer')){
