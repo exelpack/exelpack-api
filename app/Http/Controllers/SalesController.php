@@ -482,6 +482,10 @@ class SalesController extends Controller
           'string|max:50|required|unique:salesms_invoice,s_invoicenum,'.$id]
           ,$this->salesRules));
 
+      $validator->sometimes('invoiceItems', 'array|min:1|required', function($input){
+        return $input->cancelled == false;
+      });
+
       if($validator->fails()){
         return response()->json(['errors' => $validator->errors()->all()],422);
       }
@@ -492,6 +496,9 @@ class SalesController extends Controller
       if($sales->isDirty()){
         $sales->save();
       }
+
+      if($request->cancelled)
+        $sales->delete();
 
     $invoiceItemsId = array_column($request->invoiceItems,'id'); //get request items id
 
