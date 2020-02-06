@@ -29,34 +29,64 @@
   <tbody>
     @if(count($sales) > 0)
 
-      @foreach($sales as $row)
-      @php
-        $usd = 0;
-        $php = 0;
-        $total = 0;
+      @foreach($sales as $sale)
 
-        if($row->sales->s_currency === 'USD'){
-          $usd = $row->sitem_totalamount;
-          $total = $row->sitem_totalamount * $conversion;
-        }else{
-          $php = $row->sitem_totalamount;
-          $total = $row->sitem_totalamount;
-        }
+        @if($sale->items()->count() > 0)
+
+        @foreach($sale->items as $row)
+          @php
+            $usd = 0;
+            $php = 0;
+            $total = 0;
+
+            if($sale->s_currency === 'USD'){
+              $usd = $row->sitem_totalamount;
+              $total = $row->sitem_totalamount * $conversion;
+            }else{
+              $php = $row->sitem_totalamount;
+              $total = $row->sitem_totalamount;
+            }
+
+          @endphp
+          <tr style="text-align:center">
+            <td>{{ $sale->s_deliverydate }} </td>
+            <td>{{ $sale->customer->c_customername }}</td>
+            <td>{{ $sale->s_invoicenum }}</td>
+            <td>{{ $row->sitem_drnum }}</td>
+            <td>{{ $row['sitem_ponum'] }}</td>
+            <td>{{ $row['sitem_partnum'] }}</td>
+            <td>{{ $row['sitem_quantity'] }}</td>
+            <td>{{ $row['sitem_unitprice'] }}</td>
+            <td  class="bordered" style="text-align:right">{{ number_format($usd,2) }}</td>
+            <td  class="bordered" style="text-align:right">{{ number_format($php,2) }}</td>
+            <td  class="bordered" style="text-align:right">{{ number_format($total,2) }}</td>
+          </tr>
+        @endforeach
+        @continue
+      @endif
+
+      @php
+        $status = 'CANCELLED';
+
+        if($sale->s_isRevised)
+          $status = 'REVISED';
 
       @endphp
-        <tr style="text-align:center">
-          <td>{{ $row->sales->s_deliverydate }} </td>
-          <td>{{ $row->sales->customer->c_customername }}</td>
-          <td>{{ $row->sales->s_invoicenum }}</td>
-          <td>{{ $row->sitem_drnum }}</td>
-          <td>{{ $row['sitem_ponum'] }}</td>
-          <td>{{ $row['sitem_partnum'] }}</td>
-          <td>{{ $row['sitem_quantity'] }}</td>
-          <td>{{ $row['sitem_unitprice'] }}</td>
-          <td  class="bordered" style="text-align:right">{{ number_format($usd,2) }}</td>
-          <td  class="bordered" style="text-align:right">{{ number_format($php,2) }}</td>
-          <td  class="bordered" style="text-align:right">{{ number_format($total,2) }}</td>
-        </tr>
+  
+      <tr style="text-align:center">
+        <td></td>
+        <td>{{ $status }}</td>
+        <td>{{ $sale->s_invoicenum }}</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td  class="bordered" style="text-align:right"></td>
+        <td  class="bordered" style="text-align:right"></td>
+        <td  class="bordered" style="text-align:right"></td>
+      </tr>
+
       @endforeach
 
     @else

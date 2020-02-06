@@ -4,7 +4,7 @@ namespace App\Exports;
 
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
-use App\SalesInvoiceItems;
+use App\SalesInvoice;
 
 class SmsSalesSummaryExternal implements FromView
 {
@@ -23,19 +23,24 @@ class SmsSalesSummaryExternal implements FromView
       $month = $this->month;
       $year = $this->year ;
       $conversion = $this->conversion;
-      $invoices = SalesInvoiceItems::join('salesms_invoice as s','s.id','=',                            
-          'salesms_invoiceitems.sitem_sales_id')
-        ->leftJoin('salesms_customers as c','c.id','s.s_customer_id')
-        ->whereMonth('s.s_deliverydate',$month)
-        ->whereYear('s.s_deliverydate',$year)
-        ->whereHas('sales.customer', function($q){
-          $q->where('c_customername','NOT LIKE','%NO CUSTOMER%');
-        })
-        ->where('s.s_isRevised',0)
-        ->orderBy('c.c_customername','ASC')
-        ->orderBy('s.s_invoicenum','ASC')
-        ->select('salesms_invoiceitems.*')
+      $invoices = SalesInvoice::withTrashed()
+        ->whereMonth('s_deliverydate',$month)
+        ->whereYear('s_deliverydate',$year)
+        ->orderBy('s_invoicenum','ASC')
         ->get();
+      // $invoices = SalesInvoiceItems::join('salesms_invoice as s','s.id','=',                            
+      //     'salesms_invoiceitems.sitem_sales_id')
+      //   ->leftJoin('salesms_customers as c','c.id','s.s_customer_id')
+      //   ->whereMonth('s.s_deliverydate',$month)
+      //   ->whereYear('s.s_deliverydate',$year)
+      //   ->whereHas('sales.customer', function($q){
+      //     $q->where('c_customername','NOT LIKE','%NO CUSTOMER%');
+      //   })
+      //   ->where('s.s_isRevised',0)
+      //   ->orderBy('c.c_customername','ASC')
+      //   ->orderBy('s.s_invoicenum','ASC')
+      //   ->select('salesms_invoiceitems.*')
+      //   ->get();
 
       $month_word = array('January','February','March','April','May',
       'June','July','August','September','October','November','December');

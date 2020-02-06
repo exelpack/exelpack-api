@@ -383,9 +383,10 @@ class SalesController extends Controller
         }else if($showRecord == 'Collected'){
           $q->where('s_ornumber','!=',NULL)
           ->where('s_datecollected','!=',NULL);
-        }else if($showRecord == 'NotCollected'){
+        }else if($showRecord == 'NotCollected' || $showRecord == 'Due'){
           $q->where('s_ornumber',NULL)
-          ->where('s_datecollected',NULL);
+          ->where('s_datecollected',NULL)
+          ->where('s_isRevised',0);
         }else if($showRecord == 'Revised'){
           $q->where('s_isRevised',1);
         }else if($showRecord == 'Cancelled'){
@@ -435,11 +436,24 @@ class SalesController extends Controller
 
       }
 
-      $salesRes = $q->paginate($pageSize);
-
+      
+      if(request()->has('showRecord') && request()->showRecord == 'Due'){
+          $salesRes = $q->get();
+          $salesTotal = count($salesRes);          
+          $salesList = $salesRes->filter(function ($value, $key) {
+            return Carbon::parse($value->delivery_date)->diffInDays(Carbon::now()) > $value->customer->payment_terms
+              && $value->customer->customer_name != 'NO CUSTOMER';
+          })->forPage(request()->page,$pageSize)
+            ->values();
+        }else{
+          $salesRes = $q->paginate($pageSize);
+          $salesTotal = $salesRes->total();
+          $salesList = $salesRes->items();
+        }
+      
       return response()->json([
-        'salesListLength' => $salesRes->total(),
-        'salesList' => $salesRes->items(),
+        'salesListLength' => $salesTotal,
+        'salesList' => $salesList,
       ]);
 
     }
@@ -450,7 +464,6 @@ class SalesController extends Controller
         array_merge(['invoice_num' => 
           'string|max:50|required|unique:salesms_invoice,s_invoicenum']
           ,$this->salesRules));
-
 
       $validator->sometimes('invoiceItems', 'array|min:1|required', function($input){
         return $input->cancelled == false;

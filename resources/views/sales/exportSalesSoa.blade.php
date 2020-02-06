@@ -54,8 +54,14 @@ for($i = 0; $i <= 5; $i++){
 
 
 </style>
+<img src="img/logo.png" width="50px" height="50px" />
 
-<table cellpadding="10" cellspacing="10">
+<table cellpadding="10" border="1" cellspacing="10">
+  <tr>
+    <td>&nbsp;</td>
+    <td></td>
+    <td colspan="3"></td>
+  </tr>
   <tr>
     <td>DATE</td>
     <td>:</td>
@@ -99,14 +105,14 @@ for($i = 0; $i <= 5; $i++){
 <table border="1" style="text-align:center">
   <thead>
     <tr>
-      <th style="background: #8E8E8E; color:#ffffff;">Delivery Date</th>
-      <th style="background: #8E8E8E; color:#ffffff;">SI NO.</th>
-      <th style="background: #8E8E8E; color:#ffffff;">DR NO.</th>
-      <th style="background: #8E8E8E; color:#ffffff;">PO NO.</th>
-      <th style="background: #8E8E8E; color:#ffffff;">PART NUMBER</th>
-      <th style="background: #8E8E8E; color:#ffffff;">DUE DATE</th>
-      <th style="background: #8E8E8E; color:#ffffff;">Sum of Amount</th>
-      <th style="background: #8E8E8E; color:#ffffff;">No. of days from date delivered</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">Delivery Date</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">SI NO.</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">DR NO.</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">PO NO.</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">PART NUMBER</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">DUE DATE</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">Sum of Amount</th>
+      <th style="background: #8E8E8E; color:#ffffff;border:1px solid black;">No. of days from date delivered</th>
     </tr>
   </thead>
   <tbody>
@@ -141,15 +147,15 @@ for($i = 0; $i <= 5; $i++){
 
     @endphp
       <tr>
-        <td  style="background: #B0B0B0; color:#ffffff;" class="bg-col">
+        <td  style="background: #B0B0B0; border:1px solid black; color:#ffffff;" class="bg-col">
           {{ $row->sales->s_deliverydate }}</td>
-        <td  style="background: #E5E5E5;" class="bg-col">{{ $row->sales->s_invoicenum }}</td>
-        <td class="bg-col">{{ $row->sitem_drnum }}</td>
-        <td  style="background: #E5E5E5;" class="bg-col">{{ $row->sitem_ponum }}</td>
-        <td class="bg-col"  style="text-align:left" >{{ $row->sitem_partnum }}</td>
-        <td class="bg-col">{{ $due }}</td>
-        <td style="text-align:right" class="bg-col">{{ number_format($row_amount,$decimal) }}</td>
-        <td class="bg-col">{{ $diff }}</td>
+        <td  style="background: #E5E5E5; border:1px solid black;" class="bg-col">{{ $row->sales->s_invoicenum }}</td>
+        <td style=" border:1px solid black;" class="bg-col">{{ $row->sitem_drnum }}</td>
+        <td  style="background: #E5E5E5; border:1px solid black;" class="bg-col">{{ $row->sitem_ponum }}</td>
+        <td style="text-align:left;  border:1px solid black;" >{{ $row->sitem_partnum }}</td>
+        <td style=" border:1px solid black;" class="bg-col">{{ $due }}</td>
+        <td style="text-align:right; border:1px solid black;" class="bg-col">{{ number_format($row_amount,$decimal) }}</td>
+        <td style=" border:1px solid black;" class="bg-col">{{ $diff }}</td>
       </tr>
     @endforeach
     <tr>
@@ -175,30 +181,30 @@ for($i = 0; $i <= 5; $i++){
 <table style="text-align:center">
   <thead>
     <tr>
-      <td class="bg-col" rowspan="2">No. of Days from Date Delivered</td>
-      <td class="bg-col" rowspan="2">0-{{ $terms[0] }}</td>
-      <td class="bg-col" colspan="6" style="text-align: center">PAST DUE</td>
+      <td style="border:1px solid black;" rowspan="2">No. of Days from Date Delivered</td>
+      <td style="border:1px solid black; text-align : center;" colspan="7">PAST DUE</td>
     </tr>   
     <tr>
-      <td class="bg-col">{{ $terms[0] + 1 }}-{{ $terms[1] }}</td>
-      <td class="bg-col">{{ $terms[1] + 1 }}-{{ $terms[2] }}</td>
-      <td class="bg-col">{{ $terms[2] + 1 }}-{{ $terms[3] }}</td>
-      <td class="bg-col">{{ $terms[3] + 1 }}-{{ $terms[4] }}</td>
-      <td class="bg-col">{{ $terms[4] + 1 }}-{{ $terms[5] }} UP</td>
-      <td class="bg-col">TOTAL DUE FOR PAYMENT</td>
+      <td style="border:1px solid black;" >0-{{ $terms[0] }}</td>
+      <td style="border:1px solid black;">{{ $terms[0] + 1 }}-{{ $terms[1] }}</td>
+      <td style="border:1px solid black;">{{ $terms[1] + 1 }}-{{ $terms[2] }}</td>
+      <td style="border:1px solid black;">{{ $terms[2] + 1 }}-{{ $terms[3] }}</td>
+      <td style="border:1px solid black;">{{ $terms[3] + 1 }}-{{ $terms[4] }}</td>
+      <td style="border:1px solid black;">{{ $terms[4] + 1 }}-{{ $terms[5] }} UP</td>
+      <td style="border:1px solid black;">TOTAL DUE FOR PAYMENT</td>
     </tr>
 
   </thead>
   <tbody>
     <tr>
-      <td class="bg-col">Amount</td>
-      <td class="bg-col">{{ number_format($aging_0,2) }}</td>
-      <td class="bg-col">{{ number_format($aging_60,2) }}</td>
-      <td class="bg-col">{{ number_format($aging_90,2) }}</td>
-      <td class="bg-col">{{ number_format($aging_120,2) }}</td>
-      <td class="bg-col">{{ number_format($aging_190,2) }}</td>
-      <td class="bg-col">{{ number_format($aging_280,2) }}</td>
-      <td class="bg-col">{{ $currency_sign }} {{ number_format($due_total,$decimal) }}</td>
+      <td style="border:1px solid black;">Amount</td>
+      <td style="border:1px solid black;">{{ number_format($aging_0,2) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_60,2) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_90,2) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_120,2) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_190,2) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_280,2) }}</td>
+      <td style="border:1px solid black;">{{ $currency_sign }} {{ number_format($due_total,$decimal) }}</td>
     </tr>
   </tbody>
 </table>
