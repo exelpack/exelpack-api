@@ -62,7 +62,24 @@ for($i = 0; $i <= 5; $i++){
 
 </style>
 
-<img src="img/logo.png" width="50px" height="50px" />
+<table cellpadding="10" border="1" cellspacing="10">
+  <tr>
+    <td colspan="5" rowspan="5"><img src="img/logo.png" width="50px" height="50px" /></td>
+    <td>Blk2 Lot2 Filinvest Technology Park</td>
+  </tr>
+  <tr>
+    <td>Ciudad De Calamba</td>
+  </tr>
+  <tr>
+    <td>Calamba City, Laguna</td>
+  </tr>
+  <tr>
+    <td>Email: exelpack@gmail.com</td>
+  </tr>
+  <tr>
+    <td>Telefax No. 049-502-0295</td>
+  </tr>
+</table>
 
 <table cellpadding="10" border="1" cellspacing="10">
   <tr>

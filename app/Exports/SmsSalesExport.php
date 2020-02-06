@@ -5,7 +5,7 @@ namespace App\Exports;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 
-use App\SalesInvoiceItems;
+use App\SalesInvoice;
 
 class SmsSalesExport implements FromView
 {
@@ -17,7 +17,8 @@ class SmsSalesExport implements FromView
     
   public function view(): View
   {
-    $sales = SalesInvoiceItems::all();
+    $sales = SalesInvoice::withTrashed()
+      ->orderBy('s_invoicenum','desc')->get();
 
     return view('sales.exportSales', [
         'sales' => $sales,

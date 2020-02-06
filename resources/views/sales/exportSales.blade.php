@@ -33,60 +33,90 @@
   </thead>
   <tbody>
     @if(count($sales) > 0)
-      
-      @foreach($sales as $row)
+
+      @foreach($sales as $sale)
         @php
           $status = 'Not Collected';
 
-          if($row->sales->s_ornumber && $row->sales->s_datecollected)
+          if($sale->s_ornumber && $sale->s_datecollected)
             $status = 'Collected';
 
-          if($row->sales->deleted_at)
+          if($sale->deleted_at)
             $status = 'Cancelled';
 
-          if($row->sales->s_isRevised)
+          if($sale->s_isRevised)
             $status = 'Revised';
-
-          
-          $usd = 0;
-          $php = 0;
-          $total = 0;
-          $amount_collected = 0;
-  
-          if($row->sales->s_currency === 'USD'){
-            $usd = $row->sitem_totalamount;
-            $total = $row->sitem_totalamount * $conversion;
-          }else{
-            $php = $row->sitem_totalamount;
-            $total = $row->sitem_totalamount;
-          }
-
-
-          if($row->sales->s_withholding != null)
-          {
-            $amount_collected  = $total * ((100 - $row->sales->s_withholding) / 100);
-          }
-
         @endphp
-        <tr style="text-align:center">
-          <td>{{ $status }}</td>
-          <td>{{ $row->sales->s_deliverydate }}</td>
-          <td>{{ $row->sales->customer->c_customername }}</td>
-          <td>{{ $row->sales->s_invoicenum }}</td>
-          <td>{{ $row->sitem_drnum }}</td>
-          <td>{{ $row['sitem_ponum'] }}</td>
-          <td>{{ $row['sitem_partnum'] }}</td>
-          <td>{{ $row['sitem_quantity'] }}</td>
-          <td class="a-right">{{ $row['sitem_unitprice'] }}</td>
-          <td class="a-right">{{ number_format($usd,2) }}</td>
-          <td class="a-right">{{ number_format($php,2) }}</td>
-          <td class="a-right">{{ number_format($total,2) }}</td>
-          <td>{{ $row->sales->customer->c_paymentterms }}</td>
-          <td>{{ $row->sales->s_withholding }}</td>
-          <td>{{ $row->sales->s_ornumber }}</td>
-          <td>{{ $row->sales->s_datecollected }}</td>
-          <td>{{ $amount_collected }}</td>
-        </tr>
+
+        @if($sale->items()->count() > 0)
+
+          @foreach($sale->items as $row)
+        
+          @php
+             
+            $usd = 0;
+            $php = 0;
+            $total = 0;
+            $amount_collected = 0;
+    
+            if($sale->s_currency === 'USD'){
+              $usd = $row->sitem_totalamount;
+              $total = $row->sitem_totalamount * $conversion;
+            }else{
+              $php = $row->sitem_totalamount;
+              $total = $row->sitem_totalamount;
+            }
+
+
+            if($sale->s_withholding != null)
+            {
+              $amount_collected  = $total * ((100 - $sale->s_withholding) / 100);
+            }
+
+          @endphp
+          <tr style="text-align:center">
+            <td>{{ $status }}</td>
+            <td>{{ $sale->s_deliverydate }} </td>
+            <td>{{ $sale->customer->c_customername }}</td>
+            <td>{{ $sale->s_invoicenum }}</td>
+            <td>{{ $row->sitem_drnum }}</td>
+            <td>{{ $row['sitem_ponum'] }}</td>
+            <td>{{ $row['sitem_partnum'] }}</td>
+            <td>{{ $row['sitem_quantity'] }}</td>
+            <td>{{ $row['sitem_unitprice'] }}</td>
+            <td class="a-right">{{ number_format($usd,2) }}</td>
+            <td class="a-right">{{ number_format($php,2) }}</td>
+            <td class="a-right">{{ number_format($total,2) }}</td>
+            <td>{{ $sale->customer->c_paymentterms }}</td>
+            <td>{{ $sale->s_withholding }}</td>
+            <td>{{ $sale->s_ornumber }}</td>
+            <td>{{ $sale->s_datecollected }}</td>
+            <td>{{ $amount_collected }}</td>
+          </tr>
+        @endforeach
+        @continue
+      @endif
+
+      <tr style="text-align:center">
+        <td>{{ $status }}</td>
+        <td></td>
+        <td></td>
+        <td>{{ $sale->s_invoicenum }}</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>
+
       @endforeach
 
     @else
