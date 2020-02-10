@@ -27,6 +27,7 @@ class SmsSOA implements FromView
         $q->where('s_ornumber','=',NULL)
         ->where('s_datecollected','=',NULL)
         ->where('s_isRevised',0)
+        ->whereMonth('s_deliverydate','!=',date('m'))
         ->where('s_customer_id',$this->cid);
 
         if(strtolower($this->currency) == 'php')

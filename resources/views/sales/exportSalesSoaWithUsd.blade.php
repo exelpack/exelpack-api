@@ -328,15 +328,15 @@ for($i = 0; $i <= 5; $i++){
     <tr>
       <td colspan="9" align="center"></td>
     </tr>
-    <tr>
-      <td colspan="9" class="head">
+   <tr>
+      <td style="text-align:center; background-color:#C7F7B6;"  colspan="9">
       This is your outstanding balance for the month of {{ date('F') }} as per our record. If the amount is correct please sign in the space below. 
       </td>
     </tr>
     <tr>
-      <td colspan="9" class="head">
-      Should there be any discrepancy please state so and send to EXELPACK CORPORATION through our Fax No. 049-502-0295 loc. 103.
-      </td>
+      <td style="text-align:center; background-color:#C7F7B6;"  colspan="9">
+         Should there be any discrepancy please state so and send to EXELPACK CORPORATION through our Fax No. 049-502-0295 loc. 103.
+      </td> 
     </tr>
     <tr>
       <td colspan="9" align="center"></td>
