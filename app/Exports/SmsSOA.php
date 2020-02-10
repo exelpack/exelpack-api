@@ -26,6 +26,7 @@ class SmsSOA implements FromView
       $data = SalesInvoiceItems::whereHas('sales', function($q) {
         $q->where('s_ornumber','=',NULL)
         ->where('s_datecollected','=',NULL)
+        ->where('s_isRevised',0)
         ->where('s_customer_id',$this->cid);
 
         if(strtolower($this->currency) == 'php')

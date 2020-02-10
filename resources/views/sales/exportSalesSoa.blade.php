@@ -205,7 +205,7 @@ for($i = 0; $i <= 5; $i++){
     </tr>
     <tr>
       <td class="bg-col"  style="text-align:left" colspan="6">Grand Total</td>
-      <td style="text-align:right" class="bg-col">{{ $currency_sign }} {{ number_format($total,$decimal) }}</td>
+      <td style="text-align:right" class="bg-col">{{ number_format($total,$decimal) }}</td>
       <td class="bg-col"></td>
     </tr>
   </tbody> 
@@ -246,7 +246,7 @@ for($i = 0; $i <= 5; $i++){
       <td style="border:1px solid black;">{{ number_format($aging_120,2) }}</td>
       <td style="border:1px solid black;">{{ number_format($aging_190,2) }}</td>
       <td style="border:1px solid black;">{{ number_format($aging_280,2) }}</td>
-      <td style="border:1px solid black;">{{ $currency_sign }} {{ number_format($due_total,$decimal) }}</td>
+      <td style="border:1px solid black;">{{ number_format($due_total,$decimal) }}</td>
     </tr>
   </tbody>
 </table>

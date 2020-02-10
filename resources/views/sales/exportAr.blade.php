@@ -187,16 +187,16 @@ if($count > 0){
     </tr>
     <tr>
       <td class="bg-head"><b>TOTAL</b> USD</td>
-      <td class="bg-col">$ {{ number_format($total_overall_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($total_overall_usd,2) }}</td>
       <td class="bg-col"></td>
-      <td class="bg-col">$ {{ number_format($aging_first_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($aging_second_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($aging_third_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($aging_fourth_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($aging_fifth_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($aging_six_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($receivable_of_month_usd,2) }}</td>
-      <td class="bg-col">$ {{ number_format($total_remaining_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_first_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_second_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_third_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_fourth_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_fifth_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($aging_six_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($receivable_of_month_usd,2) }}</td>
+      <td class="bg-col">{{ number_format($total_remaining_usd,2) }}</td>
       @foreach($collected_dates as $dates)
         <td class="bg-col">$ {{ 
           isset(${$date."_usd"}) 
