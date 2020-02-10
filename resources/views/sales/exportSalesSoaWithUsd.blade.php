@@ -64,19 +64,43 @@ for($i = 0; $i <= 5; $i++){
 
 <table cellpadding="10" border="1" cellspacing="10">
   <tr>
-    <td colspan="5" rowspan="5"><img src="img/logo.png" width="50px" height="50px" /></td>
+    <td><img src="img/logo.png" width="50px" height="50px" /></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     <td>Blk2 Lot2 Filinvest Technology Park</td>
   </tr>
   <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     <td>Ciudad De Calamba</td>
   </tr>
   <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     <td>Calamba City, Laguna</td>
   </tr>
   <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     <td>Email: exelpack@gmail.com</td>
   </tr>
   <tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
     <td>Telefax No. 049-502-0295</td>
   </tr>
 </table>
@@ -118,10 +142,10 @@ for($i = 0; $i <= 5; $i++){
 <table style="text-align:center">
   <thead>
     <tr>
-      <td class="head" colspan="9">STATEMENT OF ACCOUNT</td> 
+      <td style="text-align:center; background-color:#C7F7B6;" colspan="9">STATEMENT OF ACCOUNT</td> 
     </tr>
     <tr>
-      <td class="head" colspan="9">FOR THE MONTH OF {{ date('F Y') }} </td> 
+      <td style="text-align:center; background-color:#C7F7B6;" colspan="9">FOR THE MONTH OF {{ date('F Y') }} </td> 
     </tr>
   </thead>
 </table>
@@ -247,17 +271,17 @@ for($i = 0; $i <= 5; $i++){
 <table >
   <thead>
     <tr>
-      <td style="border:1px solid black;" rowspan="2">No. of Days from Date Delivered</td>
-      <td style="border:1px solid black; text-align : center;" colspan="7">PAST DUE</td>
-    </tr>
+      <td style="background: #E5E5E5; border:1px solid black;" rowspan="2">No. of Days from Date Delivered</td>
+      <td style="border:1px solid black; text-align:center; background-color:#E5E5E5;" rowspan="2">0-{{ $terms[0] }}</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center; color : #e74c3c;" colspan="5">PAST DUE</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center; color : #e74c3c;" rowspan="2">TOTAL DUE FOR PAYMENT</td>
+    </tr>   
     <tr>
-      <td style="border:1px solid black;" >0-{{ $terms[0] }}</td>
-      <td style="border:1px solid black;">{{ $terms[0] + 1 }}-{{ $terms[1] }}</td>
-      <td style="border:1px solid black;">{{ $terms[1] + 1 }}-{{ $terms[2] }}</td>
-      <td style="border:1px solid black;">{{ $terms[2] + 1 }}-{{ $terms[3] }}</td>
-      <td style="border:1px solid black;">{{ $terms[3] + 1 }}-{{ $terms[4] }}</td>
-      <td style="border:1px solid black;">{{ $terms[4] + 1 }}-{{ $terms[5] }} UP</td>
-      <td style="border:1px solid black;">TOTAL DUE FOR PAYMENT</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[0] + 1 }}-{{ $terms[1] }}</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[1] + 1 }}-{{ $terms[2] }}</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[2] + 1 }}-{{ $terms[3] }}</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[3] + 1 }}-{{ $terms[4] }}</td>
+      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[4] + 1 }}-{{ $terms[5] }} UP</td>
     </tr>
   </thead>
   <tbody>
