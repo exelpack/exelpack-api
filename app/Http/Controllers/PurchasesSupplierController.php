@@ -12,6 +12,7 @@ use Excel;
 use PDF;
 use Carbon\Carbon;
 
+use App\PurchaseRequestSupplierDetails;
 use App\PurchaseRequest;
 use App\PurchaseRequestItems;
 use App\Masterlist;
@@ -53,9 +54,6 @@ class PurchasesSupplierController extends Controller
           ->leftJoinSub($prPrice, 'prprice', function($join){
             $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
           })
-          ->leftJoinSub($supplier, 'supplier', function($join){
-            $join->on('prprice.prsd_supplier_id','=','supplier.id');
-          })
           ->leftJoinSub($itemsTbl, 'items', function($join){
             $join->on('prms_prlist.id','=','items.pri_pr_id');
           })
@@ -71,16 +69,16 @@ class PurchasesSupplierController extends Controller
 
     $q->select([
       'prms_prlist.id as id',
-      DB::raw('IF(prprice.hasSupplier > 0,"W/ PRICE","NO PRICE") as status'),
+      DB::raw('IF(hasSupplier > 0,"W/ PRICE","NO PRICE") as status'),
       'pr_prnum as prNum',
-      'jo.jo_joborder as joNum',
-      'po.po_ponum as poNum',
-      'prms_prlist.pr_date as date',
-      'supplier.sd_supplier_name as supplierName',
-      'supplier.id as supplierId',
-      'prms_prlist.pr_remarks as remarks',
-      'items.itemCount'
+      'jo_joborder as joNum',
+      'po_ponum as poNum',
+      'pr_date as date',
+      'pr_remarks as remarks',
+      'itemCount'
     ]);
+
+    $q->where('pr_forPricing', 1);
     $prList = $q->limit($limit)->get();
     $prListLength = count($prList);
 
@@ -88,6 +86,17 @@ class PurchasesSupplierController extends Controller
       'prListLength' => $prListLength,
       'prList' => $prList,
     ]);
+  }
+
+  public function getSupplier(){
+
+    $supplier = Supplier::select('id', 'sd_supplier_name as supplierName')
+                  ->orderBy('sd_supplier_name','ASC')
+                  ->get();
+    return response()->json([
+      'supplierList' => $supplier,
+    ]);
+
   }
 
   public function getPrInfo($id)
@@ -100,20 +109,27 @@ class PurchasesSupplierController extends Controller
     $poJoDetails = array(
       'po' => $jo->poitems->po->po_ponum,
       'code' => $jo->poitems->poi_code,
-      'item_desc' => $jo->poitems->poi_itemdescription,
-      'part_num' => $jo->poitems->poi_partnum,
-      'po_qty' => $jo->poitems->poi_quantity,
+      'itemDesc' => $jo->poitems->poi_itemdescription,
+      'partNum' => $jo->poitems->poi_partnum,
+      'poQty' => $jo->poitems->poi_quantity,
       'unitprice' => $jo->poitems->poi_unitprice,
       'currency' => $jo->poitems->po->po_currency,
-      'total_amt' => number_format($jo->poitems->poi_quantity * $jo->poitems->poi_unitprice,2),
+      'totalAmt' => number_format($jo->poitems->poi_quantity * $jo->poitems->poi_unitprice,2),
       'jo' => $jo->jo_joborder,
-      'jo_qty' => $jo->jo_quantity,
-      'date_needed' => $jo->jo_dateneeded,
+      'joQty' => $jo->jo_quantity,
+      'dateNeeded' => $jo->jo_dateneeded,
     );
 
     foreach($pr->pritems as $item){
 
       $masterlist = Masterlist::where('m_code',$item->pri_code)->first();
+      $costing = 'No match record';
+      $budgetPrice = 'No match record';
+
+      if($masterlist){
+        $costing = $masterlist->m_supplierprice != null ? $masterlist->m_supplierprice : 'No Input';
+        $budgetPrice = $masterlist->m_budgetprice != null ? $masterlist->m_budgetprice : 0;
+      }
 
        array_push($prItems, array(
         'id' => $item->id,
@@ -121,9 +137,10 @@ class PurchasesSupplierController extends Controller
         'mspecs' => $item->pri_mspecs,
         'unit' => $item->pri_uom,
         'quantity' => $item->pri_quantity,
-        'date_needed' => $item->pr->jo->jo_dateneeded,
-        'costing' => $masterlist ? $masterlist->m_supplierprice : 'No match record',
-        'budgetPrice' => $masterlist ? $masterlist->m_budgetprice : 'No match record'
+        'unitPrice' => 0,
+        'dateNeeded' => $item->pr->jo->jo_dateneeded,
+        'costing' => $costing,
+        'budgetPrice' => $budgetPrice
       ));
 
     }
@@ -150,7 +167,7 @@ class PurchasesSupplierController extends Controller
 
        array_push($prPricing, array(
         'id' => $item->id,
-        'unitprice' => $price ? $price->pri_unitprice : 0     
+        'unitPrice' => $price ? $price->pri_unitprice : 0     
       ));
 
     }
@@ -158,7 +175,55 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'prPricing' => $prPricing
     ]);
+  }
 
+  public function addPriceForItems(Request $request){
+    $validator = Validator::make($request->all(),
+      array(
+        'id' => 'required|int',
+        'prNum' => 'required|string',
+        'supplier' => 'required',
+        'currency' => 'required|string',
+        'prItems' => 'array|min:1|required',
+      ),[],
+    [
+      'prNum' => 'purchase request number',
+      'prItems' => 'purchase request items',
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+    $pr = PurchaseRequest::findOrFail($request->id);
+    if($pr->prpricing){
+      return response()->json(['errors' => ['PR already have supplier & price']],422);
+    }
+    $pr->prpricing()->create([
+      'prsd_supplier_id' => $request->supplier,
+      'prsd_currency' => $request->currency,
+    ]);
+
+    foreach($request->prItems as $item){
+      PurchaseRequestItems::findOrFail($item['id'])->update([
+        'pri_unitprice' => $item['unitPrice'],
+        'pri_deliverydate' => $item['dateNeeded'],
+      ]);
+    }
+    $pr->refresh();
+    $newPr = array(
+      'id' => $pr->id,
+      'status' => $pr->prpricing ? "W/ PRICE" : "NO PRICE",
+      'prNum' => $pr->pr_prnum,
+      'joNum' => $pr->jo->jo_joborder,
+      'poNum' => $pr->jo->poitems->po->po_ponum,
+      'date' => $pr->pr_date,
+      'remarks' => $pr->pr_remarks,
+      'itemCount' => $pr->pritems()->count(),
+    );
+
+    return response()->json([
+      'newPr' => $newPr,
+    ]); 
   }
 
 }

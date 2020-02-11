@@ -180,9 +180,12 @@ Route::group(['middleware' => ['auth:api']], function() {
 
   Route::group(['middleware' => ['psms']], function() {
 
+    Route::get('/psms/supplier','PurchasesSupplierController@getSupplier');
     Route::get('/psms/pr','PurchasesSupplierController@getPrList');
     Route::get('/psms/pr/{id}','PurchasesSupplierController@getPrInfo');
     Route::get('/psms/pr/{prId}/{supplierId}','PurchasesSupplierController@getPriceForItems');
+
+    Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');
 
   });
 

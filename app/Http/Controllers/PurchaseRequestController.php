@@ -46,7 +46,6 @@ class PurchaseRequestController extends LogsController
 		$subProd = JobOrderProduced::select(Db::raw('sum(jop_quantity) as totalProduced'),
 			'jop_jo_id')->groupBy('jop_jo_id');
 
-
 		$q = JobOrder::query();
 
 		$q->has('poitems.po');
