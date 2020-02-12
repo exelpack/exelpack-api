@@ -13,19 +13,14 @@ class CreatePoTable extends Migration
      */
     public function up()
     {
-        Schema::create('psms_spurchaseorder', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->integer('spo_prs_id')->unsigned();
-            $table->date('spo_date');
-            $table->string('spo_status',50)->default('Pending');
-            $table->boolean('spo_sentForApproval')->default(0);
-            $table->string('spo_approvalType')->default('LAN')->nullable();
-            $table->string('spo_approvalKey',300)->nullable();
-            $table->boolean('spo_isRejected')->default(0);
-            $table->boolean('spo_approved')->default(0);
-            $table->softDeletes();
-            $table->timestamps();
-        });
+      Schema::create('psms_spurchaseorder', function (Blueprint $table) {
+          $table->bigIncrements('id');
+          $table->integer('spo_prs_id')->unsigned();
+          $table->date('spo_date');
+          $table->string('spo_status',50)->default('Pending');
+          $table->softDeletes();
+          $table->timestamps();
+      });
     }
 
     /**

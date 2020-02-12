@@ -297,12 +297,64 @@ class PurchaseOrderController extends LogsController
 		$q = PurchaseOrderItems::query();
 		$q->has('po'); //fetch item with po only
 
-		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
-			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
+		$pod = DB::table('cposms_poitemdelivery')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+			as totalDelivered'),'poidel_item_id',DB::raw('count(*) as deliveryCount'))->groupBy('poidel_item_id');
+
+    $pos = DB::table('cposms_podeliveryschedule')->select(DB::raw('count(*) as schedCount'),'pods_item_id')
+        ->groupBy('pods_item_id');
+
+    $po = DB::table('cposms_purchaseorder')->select('id', 'po_ponum', 'po_currency', 'po_customer_id')
+      ->groupBy('id');
+
+    $customer = DB::table('customer_information')->select('id', 'companyname')
+      ->groupBy('id');
+
+    $q = DB::table('cposms_purchaseorderitem as poi')
+      ->leftJoinSub($pod, 'delivery',function ($join){
+        $join->on('poi.id','=','delivery.poidel_item_id');       
+      })
+      ->leftJoinSub($pos, 'sched', function($join){
+        $join->on('sched.pods_item_id', '=', 'poi.id');
+      })
+      ->leftJoinSub($po, 'po', function($join){
+        $join->on('po.id','=','poi.poi_po_id');    
+      })
+      ->leftJoinSub($customer, 'customer', function($join){
+        $join->on('customer.id','=','po.po_customer_id');    
+      });
+
+    $q->select([
+      'poi.id as id',
+      'customer.companyname as customer',
+      'customer.id as customer_id',
+      DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= poi.poi_quantity,"SERVED","OPEN") as status'),
+      'po.po_ponum as po_num',
+      'poi_code as code',
+      'poi_partnum as partnum',
+      'poi_itemdescription as itemdesc',
+      'poi_quantity as quantity',
+      'poi_unit as unit',
+      'po.po_currency as currency',
+      'poi_unitprice as unitprice',
+      'poi_deliverydate as deliverydate',
+      DB::raw('IFNULL(delivery.totalDelivered,0) as delivered_qty'),
+      DB::raw('IF(IFNULL(delivery.deliveryCount,0) > 0,true,false) as hasDelivery'),
+      DB::raw('IF(IFNULL(sched.schedCount,0) > 0,true,false) as hasSchedule'),
+      'poi_kpi as kpi',
+      'poi_remarks as remarks',
+    ]);
+
+    $poItems = $q->get();
+    return response()->json(
+      [
+        'poItems' => $poItems,
+        'poItemsLength' => count($poItems),
+      ]);
+    return $test;
 		// filter
 		if(request()->has('status')){
 			$q->from('cposms_purchaseorderitem')
-			->leftJoinSub($sub,'delivery',function ($join){
+			->leftJoinSub($pod,'delivery',function ($join){
 				$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
 			});
 			if(request()->status === 'OPEN')

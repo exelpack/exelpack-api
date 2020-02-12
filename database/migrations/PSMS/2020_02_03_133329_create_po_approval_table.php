@@ -13,15 +13,17 @@ class CreatePoApprovalTable extends Migration
      */
     public function up()
     {
-        Schema::create('psms_poApprovalDetails', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->string('poa_key',300);
-            $table->string('poa_approver_user',50);
-            $table->string('poa_otherinfo',300);
-            $table->boolean('poa_approved')->default(0);
-            $table->boolean('poa_rejected')->default(0);
-            $table->timestamps();
-        });
+      Schema::create('psms_poApprovalDetails', function (Blueprint $table) {
+        $table->bigIncrements('id');
+        $table->integer('poa_po_id');
+        $table->string('poa_key',300);
+        $table->string('poa_approver_user',50);
+        $table->string('poa_otherinfo',300);
+        $table->string('poa_approvalType')->default('LAN')->nullable();
+        $table->boolean('poa_approved')->default(0);
+        $table->boolean('poa_rejected')->default(0);
+        $table->string('poa_remarks',300);
+      });
     }
 
     /**

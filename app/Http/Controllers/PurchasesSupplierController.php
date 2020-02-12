@@ -27,7 +27,7 @@ class PurchasesSupplierController extends Controller
     $pageSize = request()->pageSize;
     $prPrice = DB::table('psms_prsupplierdetails')
       ->select('prsd_pr_id',DB::raw('count(*) as hasSupplier'),
-      'prsd_supplier_id','prsd_sentForApproval','prsd_approvalType')
+      'prsd_supplier_id')
       ->groupBy('prsd_pr_id');
 
     $supplier = DB::table('psms_supplierdetails')
