@@ -51,21 +51,21 @@ class PurchasesSupplierController extends Controller
       ->groupBy('id');
 
     $q = DB::table('prms_prlist')
-          ->leftJoinSub($prPrice, 'prprice', function($join){
-            $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
-          })
-          ->leftJoinSub($itemsTbl, 'items', function($join){
-            $join->on('prms_prlist.id','=','items.pri_pr_id');
-          })
-          ->leftJoinSub($jo, 'jo', function($join){
-            $join->on('prms_prlist.pr_jo_id','=','jo.id');
-          })
-          ->leftJoinSub($poitem, 'poitem', function($join){
-            $join->on('jo.jo_po_item_id','=','poitem.id');
-          })
-          ->leftJoinSub($po, 'po', function($join){
-            $join->on('poitem.poi_po_id','=','po.id');
-          });
+        ->leftJoinSub($prPrice, 'prprice', function($join){
+          $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
+        })
+        ->leftJoinSub($itemsTbl, 'items', function($join){
+          $join->on('prms_prlist.id','=','items.pri_pr_id');
+        })
+        ->leftJoinSub($jo, 'jo', function($join){
+          $join->on('prms_prlist.pr_jo_id','=','jo.id');
+        })
+        ->leftJoinSub($poitem, 'poitem', function($join){
+          $join->on('jo.jo_po_item_id','=','poitem.id');
+        })
+        ->leftJoinSub($po, 'po', function($join){
+          $join->on('poitem.poi_po_id','=','po.id');
+        });
 
     $q->select([
       'prms_prlist.id as id',

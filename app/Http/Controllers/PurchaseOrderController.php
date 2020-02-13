@@ -230,72 +230,69 @@ class PurchaseOrderController extends LogsController
 
 	public function poIndex()
 	{
-		$pageSize = request()->pageSize;
+    $pod = DB::table('cposms_poitemdelivery')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+      as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
 
-		$sub = PurchaseOrderDelivery::select('poidel_item_id',
-			Db::raw('IFNULL(sum(poidel_quantity + poidel_underrun_qty),0) as totalDelivered'));
+    $poi = DB::table('cposms_purchaseorderitem')->select('id', 'poi_po_id',
+      DB::raw('count(*) as totalItems'), DB::raw('sum(poi_quantity) as totalQuantity'))
+      ->groupBy('poi_po_id');
 
-		$q = PurchaseOrder::query();
-		//filter
-		if(request()->has('status')){
-			if(request()->status === 'NO ITEM'){
-				$q->whereDoesntHave('poitems');
-			}else{
+    $customer = DB::table('customer_information')->select('id', 'companyname')
+      ->groupBy('id');
 
-				$fStatus = request()->status;
-				//check if with items
-				$q->whereHas('poitems' , function($q1) use ($sub,$fStatus){
-					$q1->from('cposms_purchaseorderitem')
-					->leftJoinSub($sub,'delivery', function($join){ //ljoin delivery to get total delivered qty
-						$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');
-					})
-					->select(Db::raw('sum(poi_quantity) as totalItemQty'),
-						DB::raw('IFNULL(delivery.totalDelivered,0) as totalDelivered'));
+    $jo = DB::table('pjoms_joborder')->select('jo_po_item_id', DB::raw('count(*) as joCount'))
+      ->groupBy('jo_po_item_id');
 
-					if($fStatus === 'OPEN')
-						$q1->havingRaw('totalItemQty > totalDelivered');
-					else
-						$q1->havingRaw('totalDelivered >= totalItemQty');
+    $q = PurchaseOrder::leftJoinSub($poi, 'poi', function($join){
+        $join->on('cposms_purchaseorder.id','=','poi.poi_po_id');    
+      })
+      ->leftJoinSub($jo, 'jo', function($join){
+        $join->on('poi.id','=','jo.jo_po_item_id');    
+      })
+      ->leftJoinSub($pod, 'delivery',function ($join){
+        $join->on('poi.id','=','delivery.poidel_item_id');       
+      })
+      ->leftJoinSub($customer, 'customer', function($join){
+        $join->on('customer.id','=','cposms_purchaseorder.po_customer_id');    
+      });
 
-				});
-			}
-		}
+    $q->select([
+      'cposms_purchaseorder.id as id',
+      DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= poi.totalQuantity,"SERVED","OPEN") as status'),
+      'po_ponum as po_num',
+      'customer.companyname as customerLabel',
+      'customer.id as customer',
+      'po_date as date',
+      'po_currency as currency',
+      'isEndorsed',
+      DB::raw('IFNULL(poi.totalItems,0) as totalItems'),
+      DB::raw('IFNULL(poi.totalQuantity,0) as totalQuantity'),
+      DB::raw('IFNULL(delivery.totalDelivered,0) as totalDelivered'),
+      DB::raw('IF(IFNULL(jo.joCount,0) > 0,true,false) as hasJo'),
+    ]);
 
-		if(request()->has('customer')){
-			$q->where('po_customer_id',request()->customer);
-		}
+    $poList = $q->latest('id')
+      ->limit(request()->has('recordCount') ? request()->recordCount : 500)
+      ->get();
 
-		if(request()->has('month')){
-			$q->whereMonth('po_date',request()->month);
-		}
-
-		if(request()->has('year')){
-			$q->whereYear('po_date',request()->year);
-		}
-
-		if(request()->has('po')){
-			$q->where('po_ponum','LIKE','%'.request()->po.'%');
-		}
-
-		if(request()->has('sortDate')){
-			$q->orderBy('po_date',request()->sortDate);
-		}
-		// end filter
-		$po_result = $q->paginate($pageSize);	
-		$po = $this->getPos($po_result);
-		
-		return response()->json(
-			[
-				'po' => $po,
-				'poLength' => $po_result->total(),
-			]);
+    return response()->json(
+      [
+        'poLength' => count($poList),
+        'po' => $poList,
+      ]);
 	}
+
+  public function getPoItems($id)
+  {
+
+    $po = PurchaseOrder::findOrFail($id);
+    return response()->json([
+      'items' => $this->getItems($po->poitems)
+    ]);
+  }
 
 	public function poItemsIndex()
 	{
-		$pageSize = request()->pageSize;
-		$q = PurchaseOrderItems::query();
-		$q->has('po'); //fetch item with po only
 
 		$pod = DB::table('cposms_poitemdelivery')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
 			as totalDelivered'),'poidel_item_id',DB::raw('count(*) as deliveryCount'))->groupBy('poidel_item_id');
@@ -309,25 +306,25 @@ class PurchaseOrderController extends LogsController
     $customer = DB::table('customer_information')->select('id', 'companyname')
       ->groupBy('id');
 
-    $q = DB::table('cposms_purchaseorderitem as poi')
+    $q = PurchaseOrderItems::has('po')
       ->leftJoinSub($pod, 'delivery',function ($join){
-        $join->on('poi.id','=','delivery.poidel_item_id');       
+        $join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');       
       })
       ->leftJoinSub($pos, 'sched', function($join){
-        $join->on('sched.pods_item_id', '=', 'poi.id');
+        $join->on('sched.pods_item_id', '=', 'cposms_purchaseorderitem.id');
       })
       ->leftJoinSub($po, 'po', function($join){
-        $join->on('po.id','=','poi.poi_po_id');    
+        $join->on('po.id','=','cposms_purchaseorderitem.poi_po_id');    
       })
       ->leftJoinSub($customer, 'customer', function($join){
         $join->on('customer.id','=','po.po_customer_id');    
       });
 
     $q->select([
-      'poi.id as id',
+      'cposms_purchaseorderitem.id as id',
       'customer.companyname as customer',
       'customer.id as customer_id',
-      DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= poi.poi_quantity,"SERVED","OPEN") as status'),
+      DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= cposms_purchaseorderitem.poi_quantity,"SERVED","OPEN") as status'),
       'po.po_ponum as po_num',
       'poi_code as code',
       'poi_partnum as partnum',
@@ -344,57 +341,14 @@ class PurchaseOrderController extends LogsController
       'poi_remarks as remarks',
     ]);
 
-    $poItems = $q->get();
+    $poItems = $q->latest('id')
+      ->limit(request()->has('recordCount') ? request()->recordCount : 500)
+      ->get();
     return response()->json(
       [
-        'poItems' => $poItems,
         'poItemsLength' => count($poItems),
+        'poItems' => $poItems,
       ]);
-    return $test;
-		// filter
-		if(request()->has('status')){
-			$q->from('cposms_purchaseorderitem')
-			->leftJoinSub($pod,'delivery',function ($join){
-				$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
-			});
-			if(request()->status === 'OPEN')
-				$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
-			else
-				$q->whereRaw('poi_quantity <= IFNULL(totalDelivered,0)');
-		}
-
-		if(request()->has('customer')){
-			$fCustomer = request()->customer;
-			$q->whereHas('po', function($q1) use ($fCustomer){
-				$q1->where('po_customer_id',$fCustomer);
-			});
-		}
-
-		if(request()->has('deliveryDue')){
-			$date = Carbon::now()->addDays(request()->deliveryDue)->format('Y-m-d');
-			$q->whereDate('poi_deliverydate','<=',$date);
-		}
-
-		if(request()->has('po')){
-			$fPo = request()->po;
-			$q->whereHas('po', function($q1) use ($fPo){
-				$q1->where('po_ponum','LIKE','%'.$fPo.'%');
-			});
-		}
-
-		if(request()->has('sortDate')){
-			$q->orderBy('poi_po_id','desc')->orderBy('poi_deliverydate',request()->sortDate);
-		}
-
-		// end filter
-		$poItems_result = $q->paginate($pageSize);
-		$poItems = $this->getItems($poItems_result);
-
-		return response()->json(
-			[
-				'poItems' => $poItems,
-				'poItemsLength' => $poItems_result->total(),
-			]);
 	}
 
 	public function createPurchaseOrder(Request $request){
@@ -456,7 +410,7 @@ class PurchaseOrderController extends LogsController
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$po = PurchaseOrder::find($request->id);
+		$po = PurchaseOrder::findOrFail($request->id);
 		$po->fill([
 			'po_customer_id' => $request->customer,
 			'po_currency' => $request->currency,
@@ -991,7 +945,6 @@ class PurchaseOrderController extends LogsController
 
 	//for tree data of item po
 	private function getJoProduced($data){
-
 		$produced_arr = array();
 		foreach($data as $row){
 
@@ -1004,8 +957,39 @@ class PurchaseOrderController extends LogsController
 
 		}	
 		return $produced_arr;
-
 	}
+
+  private function getPrTree($data){
+    $pr_arr = array();
+    foreach($data as $row){
+
+      array_push($pr_arr,
+        array(
+          'title' => $row->pr_prnum." - Date(".$row->pr_date.")",
+          'key' => $row->jo->jo_joborder."-pr-".$row->id,
+          'children' => array(
+            array(
+              'title' => 'Items ('.$row->pritems()->count().')',
+              'key' => $row->jo->jo_joborder."-pr-itemlist-".$row->id,
+              'children' => $row->pritems->map(function($item) use ($row){
+                return array(
+                  'title' => $item->pri_code." - ".$item->pri_mspecs." - ".$item->pri_quantity,
+                  'key' => $row->jo->jo_joborder."-pr-item-".$item->id,
+                );
+              }),
+            ),
+            array(
+              'title' => 'Purchase Order (0)',
+              'key' => $row->jo->jo_joborder."-pr-po-".$row->id,
+              'children' => array(),
+            ),
+          )
+        )
+      );
+
+    } 
+    return $pr_arr;
+  }
 
 	public function getItemOverallDetails($itemId)
 	{
@@ -1017,6 +1001,7 @@ class PurchaseOrderController extends LogsController
 
 		foreach($item->jo as $key => $jo){
 			$getProducedQty = $jo->produced()->sum('jop_quantity');
+      $getPrCount = $jo->pr()->count();
 			$status = $jo->jo_quantity > $getProducedQty ? 'OPEN' : 'SERVED';
 
 			array_push($expandedKeys, $jo->jo_joborder);
@@ -1030,9 +1015,9 @@ class PurchaseOrderController extends LogsController
 						'children' => $this->getJoProduced($jo->produced)
 					),
 					array(
-						'title' => 'Purchase Requisition (0)',
+						'title' => 'Purchase Requisition ('.$getPrCount.')',
 						'key' => $jo->jo_joborder."-pr",
-						'children' => []
+						'children' => $this->getPrTree($jo->pr)
 					)
 				)
 			);
@@ -1081,13 +1066,14 @@ class PurchaseOrderController extends LogsController
 				
 				foreach($total['salesSummary'] as $key => $sales){
 					if(!array_key_exists($key, $customer_arr[$customer]))
-						$customer_arr[$customer][$key] = $key;
+						$customer_arr[$customer][$key] = $sales;
 					else
 						$customer_arr[$customer][$key] += $sales;
 				}
 
 			}
 		}
+    
 		$tableCollect = collect($customer_arr);
 		$tableData = array();
 		$tableKeys = array();

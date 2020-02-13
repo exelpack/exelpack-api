@@ -15,57 +15,48 @@ class PurchaseOrderExport implements FromArray, WithHeadings
     */
     public function array(): array
     {
-    	$sub = PurchaseOrderDelivery::select('poidel_item_id',
-    		Db::raw('IFNULL(sum(poidel_quantity + poidel_underrun_qty),0) as totalDelivered'));
+    	$pod = DB::table('cposms_poitemdelivery')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+      as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
 
-    	$q = PurchaseOrder::query();
-		//filter
-    	if(request()->has('status')){
-    		if(request()->status === 'NO ITEM'){
-    			$q->whereDoesntHave('poitems');
-    		}else{
+      $poi = DB::table('cposms_purchaseorderitem')->select('id', 'poi_po_id',
+        DB::raw('count(*) as totalItems'), DB::raw('sum(poi_quantity) as totalQuantity'))
+        ->groupBy('poi_po_id');
 
-    			$fStatus = request()->status;
-				//check if with items
-    			$q->whereHas('poitems' , function($q1) use ($sub,$fStatus){
-    				$q1->from('cposms_purchaseorderitem')
-					->leftJoinSub($sub,'delivery', function($join){ //ljoin delivery to get total delivered qty
-						$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');
-					})
-					->select(Db::raw('sum(poi_quantity) as totalItemQty'),
-						DB::raw('IFNULL(delivery.totalDelivered,0) as totalDelivered'));
+      $customer = DB::table('customer_information')->select('id', 'companyname')
+        ->groupBy('id');
 
-					if($fStatus === 'OPEN')
-						$q1->havingRaw('totalItemQty > totalDelivered');
-					else
-						$q1->havingRaw('totalDelivered >= totalItemQty');
+      $jo = DB::table('pjoms_joborder')->select('jo_po_item_id', DB::raw('count(*) as joCount'))
+        ->groupBy('jo_po_item_id');
 
-				});
-    		}
-    	}
+      $q = PurchaseOrder::leftJoinSub($poi, 'poi', function($join){
+          $join->on('cposms_purchaseorder.id','=','poi.poi_po_id');    
+        })
+        ->leftJoinSub($jo, 'jo', function($join){
+          $join->on('poi.id','=','jo.jo_po_item_id');    
+        })
+        ->leftJoinSub($pod, 'delivery',function ($join){
+          $join->on('poi.id','=','delivery.poidel_item_id');       
+        })
+        ->leftJoinSub($customer, 'customer', function($join){
+          $join->on('customer.id','=','cposms_purchaseorder.po_customer_id');    
+        });
 
-    	if(request()->has('customer')){
-    		$q->where('po_customer_id',request()->customer);
-    	}
+      $q->select([
+        'po_ponum as po_num',
+        'customer.companyname as customerLabel',
+        'po_date as date',
+        'po_currency as currency',
+        DB::raw('IFNULL(poi.totalItems,0) as totalItems'),
+        DB::raw('IFNULL(poi.totalQuantity,0) as totalQuantity'),
+        DB::raw('IFNULL(delivery.totalDelivered,0) as totalDelivered'),
+        DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= poi.totalQuantity,"SERVED","OPEN") as status'),
+        
+      ]);
 
-    	if(request()->has('month')){
-    		$q->whereMonth('po_date',request()->month);
-    	}
-
-    	if(request()->has('year')){
-    		$q->whereYear('po_date',request()->year);
-    	}
-
-    	if(request()->has('po')){
-    		$q->where('po_ponum','LIKE','%'.request()->po.'%');
-    	}
-
-    	if(request()->has('sortDate')){
-    		$q->orderBy('po_date',request()->sortDate);
-    	}
-		// end filter
-    	$po_result = $q->get();	
-    	$po = $this->getPos($po_result);
+      $po = $q->latest()
+        ->limit(request()->has('recordCount') ? request()->recordCount : 500)
+        ->get()
+        ->toArray();
 
     	return $po;
     }
@@ -83,36 +74,4 @@ class PurchaseOrderExport implements FromArray, WithHeadings
     		'STATUS'
     	];
     }
-
-
-    public function getPo($po)
-    {
-    	$totalQuantity = $po->getTotalItemQuantity->totalQuantity;
-    	$totalDelivered = intval($po->getTotalDeliveryQuantity->totalDelivered);
-    	$status = $po->poitems()->count() > 0 ? $totalDelivered >= $totalQuantity 
-    	? 'SERVED' : 'OPEN' : 'NO ITEM';
-    	return array(
-    		'po_num' => $po->po_ponum,
-    		'customer_label' => $po->customer->companyname,
-    		'date' => $po->po_date,
-    		'currency' => $po->po_currency,
-    		'totalItems'=> $po->poitems()->count(),
-    		'totalQuantity'=> $totalQuantity,
-    		'totalDelivered'=> $totalDelivered,
-    		'status' => $status,
-    	);
-
-    }
-
-    public function getPos($pos)
-    {
-    	$po_arr = array();
-
-    	foreach($pos as $row){
-    		array_push($po_arr,$this->getPo($row));
-    	}
-
-    	return $po_arr;
-    }
-
   }
