@@ -22,7 +22,9 @@ class CreatePoApprovalTable extends Migration
         $table->string('poa_approvalType')->default('LAN')->nullable();
         $table->boolean('poa_approved')->default(0);
         $table->boolean('poa_rejected')->default(0);
+        $table->date('poa_date')->nullable();
         $table->string('poa_remarks',300);
+        $table->timestamps();
       });
     }
 

@@ -33,6 +33,10 @@ class UserController extends Controller
       $access = 'psms_access';
     else if($sys === 'salesms')
       $access = 'salesms_access';
+    else if($sys === 'approval_pr')
+      $access = 'pr_approvalaccess';
+    else if($sys === 'approval_po')
+      $access = 'po_approvalaccess';
     else {
       return response()->json(
         [
@@ -110,6 +114,8 @@ class UserController extends Controller
       'wims' => $user->wims_access,
       'psms' => $user->psms_access,
       'salesms' => $user->salesms_access,
+      'prapproval' => $user->approval_pr,
+      'poapproval' => $user->approval_po,
       'fullname' => $user->fullname,
       'position' => $user->position,
     );
@@ -134,6 +140,8 @@ class UserController extends Controller
         'wims' => 'boolean|nullable',
         'psms' => 'boolean|nullable',
         'salesms' => 'boolean|nullable',
+        'prapproval' => 'boolean|nullable',
+        'poapproval' => 'boolean|nullable',
         'fullname' => 'string|max:50|required',
         'position' => 'string|max:50|required',
         'signature' => 'string|nullable',
@@ -158,6 +166,8 @@ class UserController extends Controller
       'wims_access' => $request->wims,
       'psms_access' => $request->psms,
       'salesms_access' => $request->salesms,
+      'approval_pr' => $request->prapproval,
+      'approval_po' => $request->poapproval,
       'fullname' => $request->fullname,
       'position' => $request->position,
     ]);
@@ -192,6 +202,8 @@ class UserController extends Controller
         'wims' => 'boolean|nullable',
         'psms' => 'boolean|nullable',
         'salesms' => 'boolean|nullable',
+        'prapproval' => 'boolean|nullable',
+        'poapproval' => 'boolean|nullable',
         'fullname' => 'string|max:50|required',
         'position' => 'string|max:50|required',
         'signature' => 'string|nullable',
@@ -215,6 +227,8 @@ class UserController extends Controller
       'wims_access' => $request->wims,
       'psms_access' => $request->psms,
       'salesms_access' => $request->salesms,
+      'approval_pr' => $request->prapproval,
+      'approval_po' => $request->poapproval,
       'fullname' => $request->fullname,
       'position' => $request->position,
     ]);

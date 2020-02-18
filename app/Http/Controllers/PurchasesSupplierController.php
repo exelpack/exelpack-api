@@ -12,11 +12,13 @@ use Excel;
 use PDF;
 use Carbon\Carbon;
 
+use App\PurchaseRequestApproval;
 use App\PurchaseRequestSupplierDetails;
 use App\PurchaseRequest;
 use App\PurchaseRequestItems;
 use App\Masterlist;
 use App\Supplier;
+use App\User;
 
 class PurchasesSupplierController extends Controller
 {
@@ -88,6 +90,93 @@ class PurchasesSupplierController extends Controller
     ]);
   }
 
+  public function getPrListWithPrice()
+  {
+    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+
+    $prPrice = DB::table('psms_prsupplierdetails')
+      ->select('prsd_pr_id',DB::raw('count(*) as hasSupplier'),
+      'prsd_supplier_id',
+      'id')
+      ->groupBy('prsd_pr_id');
+
+    $supplier = DB::table('psms_supplierdetails')
+      ->select('id','sd_supplier_name')
+      ->groupBy('id');
+
+    $approval = DB::table('psms_prapprovaldetails')
+      ->select('pra_prs_id',
+        DB::raw('count(*) as approvalRequestCount'),
+        DB::raw('sum(pra_approved = 1) as approveCount'),
+        DB::raw('sum(pra_rejected = 1) as rejectCount'))
+      ->groupBy('pra_prs_id');
+
+    $itemsTbl = DB::table('prms_pritems')
+      ->select('pri_pr_id',DB::raw('count(*) as itemCount'))
+      ->groupBy('pri_pr_id');
+
+    $jo = DB::table('pjoms_joborder')
+      ->select('id','jo_po_item_id','jo_joborder')
+      ->groupBy('id');
+
+    $poitem = DB::table('cposms_purchaseorderitem')
+      ->select('id','poi_po_id')
+      ->groupBy('id');
+
+    $po = DB::table('cposms_purchaseorder')
+      ->select('id','po_ponum')
+      ->groupBy('id');
+
+    $q = PurchaseRequest::has('prpricing')
+          ->leftJoinSub($prPrice, 'prprice', function($join){
+            $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
+          })
+          ->leftJoinSub($approval, 'approval', function($join){
+            $join->on('approval.pra_prs_id','=','prprice.id');
+          })
+          ->leftJoinSub($supplier, 'supplier', function($join){
+            $join->on('supplier.id','=','prprice.prsd_supplier_id');
+          })
+          ->leftJoinSub($itemsTbl, 'items', function($join){
+            $join->on('prms_prlist.id','=','items.pri_pr_id');
+          })
+          ->leftJoinSub($jo, 'jo', function($join){
+            $join->on('prms_prlist.pr_jo_id','=','jo.id');
+          })
+          ->leftJoinSub($poitem, 'poitem', function($join){
+            $join->on('jo.jo_po_item_id','=','poitem.id');
+          })
+          ->leftJoinSub($po, 'po', function($join){
+            $join->on('poitem.poi_po_id','=','po.id');
+          });
+
+    $q->select([
+      'prms_prlist.id as id',
+      'supplier.id as supplier',
+      'supplier.sd_supplier_name as supplierLabel',
+      'pr_prnum as prNum',
+      'jo_joborder as joNum',
+      'po_ponum as poNum',
+      'pr_date as date',
+      'pr_remarks as remarks',
+      'itemCount',
+      DB::raw('IF( IFNULL(approvalRequestCount,0) > 0,
+      IF( IFNULL(approveCount,0) = approvalRequestCount,"APPROVED", IF( IFNULL(rejectCount,0) > 0,"REJECTED","PENDING") ),
+      "NO REQUEST" ) as status'),
+      'approvalRequestCount',
+      'rejectCount',
+      'approveCount',
+
+    ]);
+    $prList = $q->limit($limit)->get();
+    $prListLength = count($prList);
+
+    return response()->json([
+      'prPriceListLength' => $prListLength,
+      'prPriceList' => $prList,
+    ]);
+  }
+
   public function getSupplier(){
 
     $supplier = Supplier::select('id', 'sd_supplier_name as supplierName')
@@ -137,7 +226,7 @@ class PurchasesSupplierController extends Controller
         'mspecs' => $item->pri_mspecs,
         'unit' => $item->pri_uom,
         'quantity' => $item->pri_quantity,
-        'unitPrice' => 0,
+        'unitPrice' => $item->pri_unitprice,
         'dateNeeded' => $item->pr->jo->jo_dateneeded,
         'costing' => $costing,
         'budgetPrice' => $budgetPrice
@@ -223,7 +312,146 @@ class PurchasesSupplierController extends Controller
 
     return response()->json([
       'newPr' => $newPr,
+      'message' => 'Recorda added'
     ]); 
+  }
+
+  public function editPrWithPrice(Request $request,$id){
+    $validator = Validator::make($request->all(),
+      array(
+        'id' => 'required|int',
+        'prNum' => 'required|string',
+        'supplier' => 'required',
+        'currency' => 'required|string',
+        'prItems' => 'array|min:1|required',
+      ),[],
+    [
+      'prNum' => 'purchase request number',
+      'prItems' => 'purchase request items',
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+    $pr = PurchaseRequest::findOrFail($id);
+
+    if($pr->prpricing
+      ->prApproval()
+      ->where('pra_approved',1)
+      ->orWhere('pra_rejected',1)
+      ->count() > 0){
+      return response()->json(['errors' => ['Record not editable']],422);
+    }
+    $pr->prpricing()->update([
+      'prsd_supplier_id' => $request->supplier,
+      'prsd_currency' => $request->currency,
+    ]);
+
+    foreach($request->prItems as $item){
+      PurchaseRequestItems::findOrFail($item['id'])->update([
+        'pri_unitprice' => $item['unitPrice'],
+        'pri_deliverydate' => $item['dateNeeded'],
+      ]);
+    }
+    $pr->refresh();
+
+    $status = 'NO REQUEST';
+    $approvalReqCount = $pr->prpricing->prApproval()->count();
+    $approvedCount = $pr->prpricing->prApproval()->where('pra_approved',1)->count();
+    $rejectedCount = $pr->prpricing->prApproval()->where('pra_rejected',1)->count();
+    if($pr->prpricing->prApproval()->count() > 0){
+      $status = "PENDING";
+      if($approvalReqCount == $approvedCount)
+        $status = "APPROVED";
+      if($rejectedCount > 0)
+        $status = "REJECTED";
+    }
+
+    $newPr = array(
+      'id' => $pr->id,
+      'supplier' => $pr->prpricing->supplier->id,
+      'supplierLabel' => $pr->prpricing->supplier->sd_supplier_name,
+      'prNum' => $pr->pr_prnum,
+      'joNum' => $pr->jo->jo_joborder,
+      'poNum' => $pr->jo->poitems->po->po_ponum,
+      'date' => $pr->pr_date,
+      'remarks' => $pr->pr_remarks,
+      'itemCount' => $pr->pritems()->count(),
+      'status' => $status,
+      'approvalRequestCount' => $approvalReqCount,
+      'approveCount' => $approvedCount,
+      'rejectCount' => $rejectedCount,
+    );
+
+    return response()->json([
+      'newPr' => $newPr,
+      'message' => 'Recorda updated'
+    ]); 
+  }
+
+  public function getApprovalList($id){
+    $prsd = PurchaseRequestSupplierDetails::findOrFail($id);
+    $users = User::select('id','username')
+      ->where('id', '!=', Auth()->user()->id)
+      ->where('approval_pr', 1)
+      ->get();
+
+    $approvalList = $prsd->prApproval
+      ->map(function($list){
+
+        return array(
+          'id' => $list->id,
+          'key' => $list->pra_key,
+          'approver' => $list->pra_approver_user,
+          'otherInfo' => $list->pra_otherinfo,
+          'method' => $list->pra_approvalType,
+          'isApproved' => $list->pra_approved,
+          'isRejected' => $list->pra_rejected,
+          'remarks' => $list->pra_remarks,
+          'date' => $list->pra_date,
+        );
+      });
+    return response()->json([
+      'approvalList' => $approvalList,
+      'approverList' => $users, 
+    ]);
+  }
+
+  private function generateRandomString() {
+    $input = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $input_length = strlen($input);
+    $random_string = '';
+    for($i = 0; $i < 100; $i++) {
+        $random_character = $input[mt_rand(0, $input_length - 1)];
+        $random_string .= $random_character;
+    }
+    return $random_string;
+  }
+
+  public function addApprovalRequest(Request $request){
+    $validator = Validator::make($request->all(),
+      array(
+        'id' => 'required|int',
+        'approver' => 'required|string',
+        'method' => 'required|string',
+      ));
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    $approval = new PurchaseRequestApproval();
+    $user = User::findOrFail($request->approver);
+    $key = $this->generateRandomString();
+
+    $approval->fill([
+      'pra_prs_id' => $request->id,
+      'pra_key' => $key,
+      'pra_approver_userid' => $request->approver,
+      'pra_approver_user' => $user->username,
+      'pra_otherinfo' => '',
+    ]);
+
+    return $approval;
   }
 
 }

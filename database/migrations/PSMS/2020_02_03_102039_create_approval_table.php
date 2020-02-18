@@ -22,7 +22,9 @@ class CreateApprovalTable extends Migration
         $table->string('pra_approvalType')->default('LAN')->nullable();
         $table->boolean('pra_approved')->default(0);
         $table->boolean('pra_rejected')->default(0);
+        $table->date('pra_date')->nullable();
         $table->string('pra_remarks',300);
+        $table->timestamps();
       });
     }
 
