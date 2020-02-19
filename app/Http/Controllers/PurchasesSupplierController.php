@@ -152,6 +152,7 @@ class PurchasesSupplierController extends Controller
 
     $q->select([
       'prms_prlist.id as id',
+      'prprice.id as price_id',
       'supplier.id as supplier',
       'supplier.sd_supplier_name as supplierLabel',
       'pr_prnum as prNum',
@@ -163,9 +164,9 @@ class PurchasesSupplierController extends Controller
       DB::raw('IF( IFNULL(approvalRequestCount,0) > 0,
       IF( IFNULL(approveCount,0) = approvalRequestCount,"APPROVED", IF( IFNULL(rejectCount,0) > 0,"REJECTED","PENDING") ),
       "NO REQUEST" ) as status'),
-      'approvalRequestCount',
-      'rejectCount',
-      'approveCount',
+       DB::raw('IFNULL(approvalRequestCount,0) as approvalRequestCount'),
+       DB::raw('IFNULL(rejectCount,0) as rejectCount'),
+       DB::raw('IFNULL(approveCount,0) as approveCount'),
 
     ]);
     $prList = $q->limit($limit)->get();
@@ -315,6 +316,36 @@ class PurchasesSupplierController extends Controller
       'message' => 'Recorda added'
     ]); 
   }
+  //pr with price
+  public function prWithPriceArray($pr){
+    $status = 'NO REQUEST';
+    $approvalReqCount = $pr->prpricing->prApproval()->count();
+    $approvedCount = $pr->prpricing->prApproval()->where('pra_approved',1)->count();
+    $rejectedCount = $pr->prpricing->prApproval()->where('pra_rejected',1)->count();
+    if($pr->prpricing->prApproval()->count() > 0){
+      $status = "PENDING";
+      if($approvalReqCount == $approvedCount)
+        $status = "APPROVED";
+      if($rejectedCount > 0)
+        $status = "REJECTED";
+    }
+    return array(
+      'id' => $pr->id,
+      'price_id' => $pr->prpricing->id,
+      'supplier' => $pr->prpricing->supplier->id,
+      'supplierLabel' => $pr->prpricing->supplier->sd_supplier_name,
+      'prNum' => $pr->pr_prnum,
+      'joNum' => $pr->jo->jo_joborder,
+      'poNum' => $pr->jo->poitems->po->po_ponum,
+      'date' => $pr->pr_date,
+      'remarks' => $pr->pr_remarks,
+      'itemCount' => $pr->pritems()->count(),
+      'status' => $status,
+      'approvalRequestCount' => $approvalReqCount,
+      'approveCount' => $approvedCount,
+      'rejectCount' => $rejectedCount,
+    );
+  }
 
   public function editPrWithPrice(Request $request,$id){
     $validator = Validator::make($request->all(),
@@ -354,39 +385,37 @@ class PurchasesSupplierController extends Controller
       ]);
     }
     $pr->refresh();
-
-    $status = 'NO REQUEST';
-    $approvalReqCount = $pr->prpricing->prApproval()->count();
-    $approvedCount = $pr->prpricing->prApproval()->where('pra_approved',1)->count();
-    $rejectedCount = $pr->prpricing->prApproval()->where('pra_rejected',1)->count();
-    if($pr->prpricing->prApproval()->count() > 0){
-      $status = "PENDING";
-      if($approvalReqCount == $approvedCount)
-        $status = "APPROVED";
-      if($rejectedCount > 0)
-        $status = "REJECTED";
-    }
-
-    $newPr = array(
-      'id' => $pr->id,
-      'supplier' => $pr->prpricing->supplier->id,
-      'supplierLabel' => $pr->prpricing->supplier->sd_supplier_name,
-      'prNum' => $pr->pr_prnum,
-      'joNum' => $pr->jo->jo_joborder,
-      'poNum' => $pr->jo->poitems->po->po_ponum,
-      'date' => $pr->pr_date,
-      'remarks' => $pr->pr_remarks,
-      'itemCount' => $pr->pritems()->count(),
-      'status' => $status,
-      'approvalRequestCount' => $approvalReqCount,
-      'approveCount' => $approvedCount,
-      'rejectCount' => $rejectedCount,
-    );
-
     return response()->json([
-      'newPr' => $newPr,
-      'message' => 'Recorda updated'
+      'newPr' => $this->prWithPriceArray($pr),
+      'message' => 'Record updated'
     ]); 
+  }
+
+  public function deletePriceOnPr($id){
+    $prsd = PurchaseRequestSupplierDetails::findOrFail($id);
+    $prsd->pr->prItems()->update([
+      'pri_unitprice' => 0,
+      'pri_deliverydate' => null,
+    ]);
+    $prsd->prApproval()->delete();
+    $prsd->delete();
+    return response()->json([
+      'message' => 'Record deleted',
+    ]);
+  }
+
+  public function approvalArray($list){
+    return array(
+      'id' => $list->id,
+      'key' => $list->pra_key,
+      'approver' => $list->pra_approver_user,
+      'otherInfo' => $list->pra_otherinfo,
+      'method' => $list->pra_approvalType,
+      'isApproved' => $list->pra_approved,
+      'isRejected' => $list->pra_rejected,
+      'remarks' => $list->pra_remarks,
+      'date' => $list->pra_date,
+    );
   }
 
   public function getApprovalList($id){
@@ -398,18 +427,7 @@ class PurchasesSupplierController extends Controller
 
     $approvalList = $prsd->prApproval
       ->map(function($list){
-
-        return array(
-          'id' => $list->id,
-          'key' => $list->pra_key,
-          'approver' => $list->pra_approver_user,
-          'otherInfo' => $list->pra_otherinfo,
-          'method' => $list->pra_approvalType,
-          'isApproved' => $list->pra_approved,
-          'isRejected' => $list->pra_rejected,
-          'remarks' => $list->pra_remarks,
-          'date' => $list->pra_date,
-        );
+        return $this->approvalArray($list);
       });
     return response()->json([
       'approvalList' => $approvalList,
@@ -431,27 +449,45 @@ class PurchasesSupplierController extends Controller
   public function addApprovalRequest(Request $request){
     $validator = Validator::make($request->all(),
       array(
-        'id' => 'required|int',
-        'approver' => 'required|string',
-        'method' => 'required|string',
+        'price_id' => 'required|int',
+        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_userid,null,id,pra_prs_id,'.$request->id,
+        'method' => 'required|string|in:LAN,ONLINE',
       ));
     if($validator->fails()){
       return response()->json(['errors' => $validator->errors()->all()],422);
     }
+    $prSupplierDetails = PurchaseRequestSupplierDetails::findOrFail($request->price_id);
 
     $approval = new PurchaseRequestApproval();
     $user = User::findOrFail($request->approver);
     $key = $this->generateRandomString();
 
+    $pr = $prSupplierDetails->pr;
     $approval->fill([
-      'pra_prs_id' => $request->id,
+      'pra_prs_id' => $request->price_id,
       'pra_key' => $key,
       'pra_approver_userid' => $request->approver,
       'pra_approver_user' => $user->username,
-      'pra_otherinfo' => '',
+      'pra_otherinfo' => $pr->jo->jo_joborder." - ". $pr->pr_prnum,
+      'pra_approvalType' => $request->method,
     ]);
+    $approval->save();
+    return response()->json([
+      'message' => 'Record added',
+      'newApprovalRequest' => $this->approvalArray($approval),
+      'newPr' => $this->prWithPriceArray($pr),
+    ]);
+  }
 
-    return $approval;
+  public function deleteApprovalRequest($id){
+    $approval = PurchaseRequestApproval::findOrFail($id);
+    $prsd = PurchaseRequestSupplierDetails::findOrFail($approval->pra_prs_id);
+    $approval->delete();
+    $pr = $this->prWithPriceArray($prsd->pr);
+    return response()->json([
+      'message' => 'Record deleted',
+      'newPr' => $pr,
+    ]);
   }
 
 }
