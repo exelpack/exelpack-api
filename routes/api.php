@@ -198,6 +198,13 @@ Route::group(['middleware' => ['auth:api']], function() {
 
   });
 
+  Route::group(['middleware' => ['approvalpr']], function() {
+
+    Route::get('/psms/prapproval','PurchasesSupplierController@getPendingPrList');
+    Route::get('/psms/prapproval/{id}','PurchasesSupplierController@getPrDetails');
+
+  });
+
 	//user management
 	Route::group(['middleware' => ['checkPrivelege']], function() {
 

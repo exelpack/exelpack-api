@@ -8,7 +8,7 @@ class PurchaseRequestApproval extends Model
 {
   protected $table = 'psms_prapprovaldetails';
   protected $guarded = ['id'];
-  protected $hidden = ['created_at','updated_at'];
+  protected $hidden = ['updated_at'];
 
   public function prprice()
   {

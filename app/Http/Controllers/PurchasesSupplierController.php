@@ -52,7 +52,7 @@ class PurchasesSupplierController extends Controller
       ->select('id','po_ponum')
       ->groupBy('id');
 
-    $q = DB::table('prms_prlist')
+    $q = PurchaseRequest::has('jo.poitems.po')
         ->leftJoinSub($prPrice, 'prprice', function($join){
           $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
         })
@@ -128,6 +128,7 @@ class PurchasesSupplierController extends Controller
       ->groupBy('id');
 
     $q = PurchaseRequest::has('prpricing')
+          ->has('jo.poitems.po')
           ->leftJoinSub($prPrice, 'prprice', function($join){
             $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
           })
@@ -167,7 +168,6 @@ class PurchasesSupplierController extends Controller
        DB::raw('IFNULL(approvalRequestCount,0) as approvalRequestCount'),
        DB::raw('IFNULL(rejectCount,0) as rejectCount'),
        DB::raw('IFNULL(approveCount,0) as approveCount'),
-
     ]);
     $prList = $q->limit($limit)->get();
     $prListLength = count($prList);
@@ -488,6 +488,138 @@ class PurchasesSupplierController extends Controller
       'message' => 'Record deleted',
       'newPr' => $pr,
     ]);
+  }
+
+  //approval on pr
+  public function getPendingPrList(){
+    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+    $userId = Auth()->user()->id;
+    $pr = DB::table('prms_prlist')
+      ->select('id','pr_jo_id','pr_prnum')
+      ->groupBy('id');
+
+    $supplier = DB::table('psms_supplierdetails')
+      ->select('id','sd_supplier_name')
+      ->groupBy('id');
+
+    $itemsTbl = DB::table('prms_pritems')
+      ->select('pri_pr_id',DB::raw('count(*) as itemCount'))
+      ->groupBy('pri_pr_id');
+
+    $jo = DB::table('pjoms_joborder')
+      ->select('id','jo_po_item_id','jo_joborder')
+      ->groupBy('id');
+
+    $poitem = DB::table('cposms_purchaseorderitem')
+      ->select('id','poi_po_id')
+      ->groupBy('id');
+
+    $po = DB::table('cposms_purchaseorder')
+      ->select('id','po_ponum')
+      ->groupBy('id');
+
+    $prPrice = DB::table('psms_prsupplierdetails')
+      ->select('id','prsd_supplier_id','prsd_pr_id')
+      ->groupBy('id');
+
+    $q = PurchaseRequestApproval::where('pra_approver_userid',$userId)
+      ->leftJoinSub($prPrice, 'prprice', function($join){
+        $join->on('psms_prapprovaldetails.pra_prs_id','=','prprice.id');
+      })
+      ->leftJoinSub($pr, 'pr', function($join){
+        $join->on('pr.id','=','prprice.prsd_pr_id');
+      })
+      ->leftJoinSub($supplier, 'supplier', function($join){
+        $join->on('supplier.id','=','prprice.prsd_supplier_id');
+      })
+      ->leftJoinSub($itemsTbl, 'items', function($join){
+        $join->on('pr.id','=','items.pri_pr_id');
+      })
+      ->leftJoinSub($jo, 'jo', function($join){
+        $join->on('pr.pr_jo_id','=','jo.id');
+      })
+      ->leftJoinSub($poitem, 'poitem', function($join){
+        $join->on('jo.jo_po_item_id','=','poitem.id');
+      })
+      ->leftJoinSub($po, 'po', function($join){
+        $join->on('poitem.poi_po_id','=','po.id');
+      });
+
+      $q->select([
+        DB::raw('IF(psms_prapprovaldetails.pra_approved > 0,"APPROVED",
+        IF(psms_prapprovaldetails.pra_rejected > 0,"REJECTED", "PENDING")) as status'),
+        'psms_prapprovaldetails.id',
+        'prprice.id as priceId',
+        'supplier.sd_supplier_name as supplier',
+        'jo_joborder as joNum',
+        'pr_prnum as prNum',
+        'po_ponum as poNum',
+        'psms_prapprovaldetails.created_at as created_at',
+      ]);
+      $prList = $q->latest('created_at')->limit($limit)->get();
+
+      return response()->json([
+        'prList' => $prList,
+      ]);
+  }
+
+  public function getPrDetails($id){
+
+    $prsd = PurchaseRequestSupplierDetails::findOrFail($id);
+    $pr = $prsd->pr;
+    $po = $pr->jo->poitems->po;
+    $poitemId = $pr->jo->poitems->id;
+    $prItems = array();
+    $poItems = array();
+    $poDetails = array(
+      'poNumber' => $po->po_ponum,
+      'customerName' => $po->customer->companyname,
+      'poDate' => $po->po_date,
+    );
+    foreach($pr->pritems as $item){
+      $masterlist = Masterlist::where('m_code',$item->pri_code)->first();
+      $costing = 'No match record';
+      $budgetPrice = 'No match record';
+
+      if($masterlist){
+        $costing = $masterlist->m_supplierprice != null ? $masterlist->m_supplierprice : 'No Input';
+        $budgetPrice = $masterlist->m_budgetprice != null ? $masterlist->m_budgetprice : 0;
+      }
+
+       array_push($prItems, array(
+        'id' => $item->id,
+        'code' => $item->pri_code,
+        'mspecs' => $item->pri_mspecs,
+        'unit' => $item->pri_uom,
+        'quantity' => $item->pri_quantity,
+        'unitPrice' => $item->pri_unitprice,
+        'amount' => $item->pri_quantity * $item->pri_unitprice,
+        'dateNeeded' => $item->pr->jo->jo_dateneeded,
+        'costing' => $costing,
+        'budgetPrice' => $budgetPrice."(".number_format((((
+          $budgetPrice - $item->pri_unitprice) / $budgetPrice) * 100),2,'.','')."%)" ,
+      ));
+    }
+
+    foreach($po->poitems as $row){
+      $totalAmt = $row->poi_unitprice * $row->poi_quantity;
+      array_push($poItems, array(
+        'code' => $row->poi_code,
+        'itemDescription' => $row->poi_itemdescription,
+        'quantity' => $row->poi_quantity,
+        'currency' => $row->po->po_currency,
+        'unitPrice' => $row->poi_unitprice,
+        'totalAmount' => strtoupper($po->po_currency) == 'USD' ? $totalAmt * 50 : $totalAmt,
+        'isMatchItem' => $poitemId == $row->id ? true : false,
+      ));
+    }
+
+    return response()->json([
+      'prItems' => $prItems,
+      'poDetails' => $poDetails,
+      'poItems' => $poItems,
+    ]);
+
   }
 
 }

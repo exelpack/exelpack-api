@@ -33,18 +33,16 @@ class UserController extends Controller
       $access = 'psms_access';
     else if($sys === 'salesms')
       $access = 'salesms_access';
-    else if($sys === 'approval_pr')
-      $access = 'pr_approvalaccess';
-    else if($sys === 'approval_po')
-      $access = 'po_approvalaccess';
+    else if($sys === 'approvalpr')
+      $access = 'approval_pr';
+    else if($sys === 'approvapo')
+      $access = 'approval_po';
     else {
       return response()->json(
         [
           'error' => ['Invalid access']
         ],422);
     }
-
-
     $user = User::where([ [$access,1] , ['username', $username] ])->first();
 		// return $user;
     if ($user && Hash::check($request->password, $user->password)){ // The passwords match...
