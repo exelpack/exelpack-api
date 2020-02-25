@@ -555,6 +555,7 @@ class PurchasesSupplierController extends Controller
         'pr_prnum as prNum',
         'po_ponum as poNum',
         'psms_prapprovaldetails.created_at as created_at',
+        'psms_prapprovaldetails.pra_remarks as remarks',
       ]);
       $prList = $q->latest('created_at')->limit($limit)->get();
 
@@ -604,6 +605,7 @@ class PurchasesSupplierController extends Controller
     foreach($po->poitems as $row){
       $totalAmt = $row->poi_unitprice * $row->poi_quantity;
       array_push($poItems, array(
+        'id' => $row->id,
         'code' => $row->poi_code,
         'itemDescription' => $row->poi_itemdescription,
         'quantity' => $row->poi_quantity,
@@ -620,6 +622,84 @@ class PurchasesSupplierController extends Controller
       'poItems' => $poItems,
     ]);
 
+  }
+
+  public function approvedRejectRequest(Request $data, $id)
+  {
+    $request = PurchaseRequestApproval::findOrFail($id);
+
+    if(Auth()->user()->id !== $request->pra_approver_userid)
+      return response()->json(['errors' => ['Permission denied']], 422);
+
+    if($request->pra_approved > 0 || $request->pra_rejected > 0)
+      return response()->json(['errors' => ['Request already approved or rejected'] ], 422); 
+
+    if(strtolower($data->type) != 'approved' && strtolower($data->type) != 'reject')
+      return response()->json(['errors' => ['Type not valid']], 422); 
+
+    $request->fill([
+      'pra_approved' => strtolower($data->type) == 'approved' ? 1 : 0,
+      'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
+      'pra_date' => date('Y-m-d'),
+    ]);
+    $request->save();
+    $request->refresh();
+    $status = "PENDING";
+    if($request->pra_approved > 0)
+      $status = "APPROVED";
+
+    if($request->pra_rejected > 0)
+        $status = "REJECTED";
+
+    $updatedRequest = array(
+      'status' => $status,
+      'id' => $request->id,
+      'priceId' => $request->prprice->id,
+      'supplier' => $request->prprice->supplier->sd_supplier_name,
+      'joNum' => $request->prprice->pr->jo->jo_joborder,
+      'prNum' => $request->prprice->pr->pr_prnum,
+      'poNum' => $request->prprice->pr->jo->poitems->po->po_ponum,
+      'created_at' => $request->created_at,
+      'remarks' => $request->pra_remarks,
+    );
+    
+    return response()->json([
+      'updatedRequest' => $updatedRequest,
+      'message' => 'Record '.strtoupper($data->type)
+    ]);
+  }
+
+  public function addRemarks(Request $data, $id)
+  {
+    $request = PurchaseRequestApproval::findOrFail($id);
+
+    $request->update([
+      'pra_remarks' => $data->remarks,
+    ]);
+    $request->refresh();
+    $status = "PENDING";
+    if($request->pra_approved > 0)
+      $status = "APPROVED";
+
+    if($request->pra_rejected > 0)
+        $status = "REJECTED";
+
+    $updatedRequest = array(
+      'status' => $status,
+      'id' => $request->id,
+      'priceId' => $request->prprice->id,
+      'supplier' => $request->prprice->supplier->sd_supplier_name,
+      'joNum' => $request->prprice->pr->jo->jo_joborder,
+      'prNum' => $request->prprice->pr->pr_prnum,
+      'poNum' => $request->prprice->pr->jo->poitems->po->po_ponum,
+      'created_at' => $request->created_at,
+      'remarks' => $request->pra_remarks,
+    );
+    
+    return response()->json([
+      'updatedRequest' => $updatedRequest,
+      'message' => 'Record updated',
+    ]);
   }
 
 }

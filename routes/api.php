@@ -202,6 +202,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 
     Route::get('/psms/prapproval','PurchasesSupplierController@getPendingPrList');
     Route::get('/psms/prapproval/{id}','PurchasesSupplierController@getPrDetails');
+    Route::put('/psms/prapproval/{id}','PurchasesSupplierController@addRemarks');
+    Route::put('/psms/prapproval/action/{id}','PurchasesSupplierController@approvedRejectRequest');
 
   });
 
