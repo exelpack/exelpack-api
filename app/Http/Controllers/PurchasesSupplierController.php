@@ -202,9 +202,7 @@ class PurchasesSupplierController extends Controller
       'itemDesc' => $jo->poitems->poi_itemdescription,
       'partNum' => $jo->poitems->poi_partnum,
       'poQty' => $jo->poitems->poi_quantity,
-      'unitprice' => $jo->poitems->poi_unitprice,
       'currency' => $jo->poitems->po->po_currency,
-      'totalAmt' => number_format($jo->poitems->poi_quantity * $jo->poitems->poi_unitprice,2),
       'jo' => $jo->jo_joborder,
       'joQty' => $jo->jo_quantity,
       'dateNeeded' => $jo->jo_dateneeded,
@@ -232,7 +230,6 @@ class PurchasesSupplierController extends Controller
         'costing' => $costing,
         'budgetPrice' => $budgetPrice
       ));
-
     }
 
     return response()->json([
@@ -450,13 +447,21 @@ class PurchasesSupplierController extends Controller
     $validator = Validator::make($request->all(),
       array(
         'price_id' => 'required|int',
-        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_userid,null,id,pra_prs_id,'.$request->id,
+        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_userid,null,id,pra_prs_id,'.$request->price_id,
         'method' => 'required|string|in:LAN,ONLINE',
       ));
     if($validator->fails()){
       return response()->json(['errors' => $validator->errors()->all()],422);
     }
     $prSupplierDetails = PurchaseRequestSupplierDetails::findOrFail($request->price_id);
+    $approvalReqCount = $prSupplierDetails->prApproval()->count();
+    $approvedCount = $prSupplierDetails->prApproval()->where('pra_approved',1)->count();
+    $rejectedCount = $prSupplierDetails->prApproval()->where('pra_rejected',1)->count();
+
+    if(($approvalReqCount > 0) &&
+      ( ($approvalReqCount == $approvedCount) || ($rejectedCount > 0)) ){
+      return response()->json(['errors' => ['Cannot add more requests']],422);
+    }
 
     $approval = new PurchaseRequestApproval();
     $user = User::findOrFail($request->approver);
@@ -682,7 +687,7 @@ class PurchasesSupplierController extends Controller
       $status = "APPROVED";
 
     if($request->pra_rejected > 0)
-        $status = "REJECTED";
+      $status = "REJECTED";
 
     $updatedRequest = array(
       'status' => $status,
@@ -700,6 +705,16 @@ class PurchasesSupplierController extends Controller
       'updatedRequest' => $updatedRequest,
       'message' => 'Record updated',
     ]);
+  }
+
+  public function getAllDetailsForPr(Request $request){
+
+    $pr = PurchaseRequestItems::whereHas('pr.prpricing', function($q) use ($request){
+      $q->whereIn('id', $request->prsID);
+    })
+    ->get();
+
+    return $pr;
   }
 
 }

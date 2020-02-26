@@ -16,6 +16,7 @@ class CreatePoTable extends Migration
       Schema::create('psms_spurchaseorder', function (Blueprint $table) {
           $table->bigIncrements('id');
           $table->integer('spo_prs_id')->unsigned();
+          $table->string('spo_ponum',50);
           $table->date('spo_date');
           $table->string('spo_status',50)->default('Pending');
           $table->softDeletes();

@@ -196,6 +196,9 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::delete('/psms/approval/{id}','PurchasesSupplierController@deleteApprovalRequest');
     Route::delete('/psms/pr/{id}','PurchasesSupplierController@deletePriceOnPr');
 
+    Route::post('/psms/po','PurchasesSupplierController@getAllDetailsForPr');
+    
+
   });
 
   Route::group(['middleware' => ['approvalpr']], function() {

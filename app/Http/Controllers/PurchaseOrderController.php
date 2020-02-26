@@ -135,7 +135,6 @@ class PurchaseOrderController extends LogsController
 
 	public function getPo($po)
 	{
-		$items = $this->getItems($po->poitems);
 		$hasJo = $po->poitems()->has('jo')->count() > 0 ? true : false;
 		$totalQuantity = $po->getTotalItemQuantity->totalQuantity;
 		$totalDelivered = intval($po->getTotalDeliveryQuantity->totalDelivered);
@@ -144,17 +143,16 @@ class PurchaseOrderController extends LogsController
 		return array(
 			'id' => $po->id,
 			'po_num' => $po->po_ponum,
-			'customer_label' => $po->customer->companyname,
+			'customerLabel' => $po->customer->companyname,
 			'customer' => $po->po_customer_id,
 			'date' => $po->po_date,
 			'currency' => $po->po_currency,
+      'isEndorsed' => $po->isEndorsed,
 			'totalItems'=> $po->poitems()->count(),
 			'totalQuantity'=> $totalQuantity,
 			'totalDelivered'=> $totalDelivered,
-			'isEndorsed' => $po->isEndorsed,
 			'status' => $status,
 			'hasJo' => $hasJo,
-			'items' => $items,
 		);
 
 	}

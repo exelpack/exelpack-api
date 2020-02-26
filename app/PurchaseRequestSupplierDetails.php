@@ -24,4 +24,9 @@ class PurchaseRequestSupplierDetails extends Model
     return $this->belongsTo('App\Supplier','prsd_supplier_id');
   }
 
+  public function po()
+  {
+    return $this->hasMany('App\PurchaseOrderSupplier','prsd_spo_id');
+  }
+
 }

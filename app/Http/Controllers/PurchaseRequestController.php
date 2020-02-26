@@ -74,7 +74,6 @@ class PurchaseRequestController extends LogsController
 				$q->whereRaw('jo_quantity > IFNULL(totalProduced,0)');
 			else 
 				$q->whereRaw('jo_quantity <= IFNULL(totalProduced,0)');
-
 		}
 
 		$q->where('jo_forwardToWarehouse',1);
@@ -434,8 +433,6 @@ class PurchaseRequestController extends LogsController
 
 	public function deletePr($id)
 	{
-
-
 		$pr = PurchaseRequest::findOrFail($id);
 		$jonum = $pr->jo->jo_joborder;
 		$prnum = $pr->pr_prnum;
@@ -460,6 +457,5 @@ class PurchaseRequestController extends LogsController
 				'message' => 'Record deleted',
 				'deletedId' => $id
 			]);
-
 	}
 }
