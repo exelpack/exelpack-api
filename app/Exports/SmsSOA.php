@@ -9,6 +9,8 @@ use App\SalesCustomer;
 use App\SalesInvoice;
 use App\SalesInvoiceItems;
 
+use Carbon\Carbon;
+
 class SmsSOA implements FromView
 {
     private $cid = '';
@@ -27,14 +29,14 @@ class SmsSOA implements FromView
         $q->where('s_ornumber','=',NULL)
         ->where('s_datecollected','=',NULL)
         ->where('s_isRevised',0)
-        ->whereMonth('s_deliverydate','!=',date('m'))
-        ->whereYear('s_deliverydate','!=',date('Y'))
+        ->whereNotBetween('s_deliverydate',
+          [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
         ->where('s_customer_id',$this->cid);
-
         if(strtolower($this->currency) == 'php')
            $q->where('s_currency',$this->currency);
-
       })
+      ->join('salesms_invoice as si','si.id','=','salesms_invoiceitems.sitem_sales_id')
+      ->orderBy('si.s_deliverydate','ASC')
       ->get();  
 
       return view(strtolower($this->currency) == 'php' ? 'sales.exportSalesSOA' : 'sales.exportSalesSoaWithUsd', [
