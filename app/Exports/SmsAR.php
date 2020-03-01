@@ -84,9 +84,11 @@ class SmsAR implements FromView
         $acct_receivable = SalesInvoiceItems::whereHas('sales',function ($q) use($row){
             $q->where('s_currency',$row['currency'])
             ->where('s_customer_id',$row['customer_id'])
+            ->whereNotBetween('s_deliverydate',
+            [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
             ->where('s_isRevised',0);
-        })
-        ->get();
+          })
+          ->get();
           foreach($acct_receivable as $key => $data)
           {   
             $sales = $data->sales;

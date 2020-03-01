@@ -433,10 +433,8 @@ class SalesController extends Controller
           $q->orderBy('s_deliverydate','ASC');
         else if($sort == 'dateDesc')
           $q->orderBy('s_deliverydate','DESC');
-
       }
 
-      
       if(request()->has('showRecord') && request()->showRecord == 'Due'){
           $salesRes = $q->get();
           $salesTotal = count($salesRes);          
@@ -695,5 +693,27 @@ class SalesController extends Controller
     );
   }
 
+  public function searchOR(){
 
+    $search = request()->has('search') ? request()->search : '';
+
+    $or = SalesInvoice::where('s_ornumber', $search)
+      ->get()
+      ->map(function($sales) {
+        return array(
+          'id' => $sales->id,
+          'customer' => $sales->customer->c_customername,
+          'invoice' => $sales->s_invoicenum,
+          'deliveryDate' => $sales->s_deliverydate,
+          'currency' => $sales->s_currency,
+          'invoiceTotal' => $sales->items->sum('sitem_totalamount'),
+          'orNumber' => $sales->s_ornumber,
+        );
+      })
+      ->values();
+
+    return response()->json([
+      'orList' => $or
+    ]);
+  }
 }
