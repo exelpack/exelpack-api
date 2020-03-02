@@ -20,9 +20,22 @@ use App\Exports\SmsSalesSummary;
 use App\Exports\SmsSalesSummaryExternal;
 use App\Exports\SmsSOA;
 use App\Exports\SmsAR;
+use App\Exports\SmsCbr;
 
 class SalesController extends Controller
 {
+  public function exportCRB(){
+
+    if(!request()->has('month') || !request()->has('year')){
+      return response()->json([
+        'errors' => ['Month & year parameters are required.']
+      ],422);
+    }
+    $month = request()->month;
+    $year = request()->year;
+
+    return Excel::download(new SmsCbr($month,$year), 'salescrb.xlsx');
+  }
 
   public function exportAR(){
 

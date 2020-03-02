@@ -163,6 +163,7 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/salesms/export/summary','SalesController@exportSalesSummary');
     Route::get('/salesms/export/summaryExt','SalesController@exportSalesSummaryExternal');
     Route::get('/salesms/export/ar','SalesController@exportAR');
+    Route::get('/salesms/export/crb','SalesController@exportCRB');
     Route::get('/salesms/or','SalesController@searchOR');
 
     Route::post('/salesms/invoice','SalesController@createSales');
