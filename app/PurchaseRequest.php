@@ -26,4 +26,9 @@ class PurchaseRequest extends Model
     return $this->hasOne('App\PurchaseRequestSupplierDetails','prsd_pr_id');
   }
 
+  public function user()
+  {
+    return $this->belongsTo('App\User','pr_user_id')->withTrashed();
+  }
+
 }

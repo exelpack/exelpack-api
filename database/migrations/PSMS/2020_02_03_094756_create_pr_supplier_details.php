@@ -19,6 +19,7 @@ class CreatePrSupplierDetails extends Migration
         $table->integer('prsd_supplier_id')->unsigned();
         $table->string('prsd_currency',5);
         $table->integer('prsd_spo_id')->unsigned();
+        $table->integer('prsd_user_id')->unsigned();
         $table->timestamps();
       });
     }

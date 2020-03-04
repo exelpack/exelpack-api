@@ -17,7 +17,7 @@ class PurchaseRequestSupplierDetails extends Model
 
   public function prApproval()
   {
-    return $this->hasMany('App\PurchaseRequestApproval','pra_prs_id');
+    return $this->hasOne('App\PurchaseRequestApproval','pra_prs_id');
   }
 
   public function supplier(){
@@ -26,7 +26,12 @@ class PurchaseRequestSupplierDetails extends Model
 
   public function po()
   {
-    return $this->hasMany('App\PurchaseOrderSupplier','prsd_spo_id');
+    return $this->belongsTo('App\PurchaseOrderSupplier','prsd_spo_id');
+  }
+
+  public function user()
+  {
+    return $this->belongsTo('App\User','prsd_user_id')->withTrashed();
   }
 
 }

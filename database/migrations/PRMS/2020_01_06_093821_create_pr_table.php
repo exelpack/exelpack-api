@@ -20,6 +20,7 @@ class CreatePrTable extends Migration
             $table->date('pr_date');
             $table->string('pr_remarks',200)->nullable();
             $table->boolean('pr_forPricing')->default(0);
+            $table->integer('pr_user_id')->unsigned();
             $table->timestamps();
         });
     }

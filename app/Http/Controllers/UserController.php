@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\User;
 use App\UserLogs;
 use JWTAuth;
+use Storage;
 use Validator;
 use Hash;
 use Tymon\JWTAuth\Exceptions\JWTException;
@@ -18,8 +19,7 @@ class UserController extends Controller
 		
 		$username = $request->username;
 		$password = $request->password;
-
-		if($sys === 'cposms')
+    if($sys === 'cposms')
 			$access = 'cposms_access';
     else if($sys === 'pjoms')
       $access = 'pjoms_access';
@@ -116,6 +116,7 @@ class UserController extends Controller
       'poapproval' => $user->approval_po,
       'fullname' => $user->fullname,
       'position' => $user->position,
+      'signature' => $user->signature,
     );
 
   }
@@ -142,7 +143,7 @@ class UserController extends Controller
         'poapproval' => 'boolean|nullable',
         'fullname' => 'string|max:50|required',
         'position' => 'string|max:50|required',
-        'signature' => 'string|nullable',
+        'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]
     );
 
@@ -170,6 +171,18 @@ class UserController extends Controller
       'position' => $request->position,
     ]);
     $user->save();
+
+    if($request->signature){
+      $name = pathinfo($request->signature->getClientOriginalName(),PATHINFO_FILENAME);
+      $ext = $request->signature->getClientOriginalExtension();
+      $filename =  "sig_".$user->id.".".$ext;
+      Storage::disk('local')->putFileAs('/users/signature/'.$user->id.'/',$request->signature, $filename);
+      $user->fill([
+        'signature' => $filename,
+      ]);
+      $user->save();
+    }
+
     $user->refresh();
     $newUser = $this->getUser($user);
 
@@ -183,7 +196,6 @@ class UserController extends Controller
 
   public function editUser(Request $request,$id)
   {
-
     $validator = Validator::make(
       $request->all(),
       [
@@ -204,7 +216,7 @@ class UserController extends Controller
         'poapproval' => 'boolean|nullable',
         'fullname' => 'string|max:50|required',
         'position' => 'string|max:50|required',
-        'signature' => 'string|nullable',
+        'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]
     );
 
@@ -230,6 +242,16 @@ class UserController extends Controller
       'fullname' => $request->fullname,
       'position' => $request->position,
     ]);
+
+    if($request->signature){
+      $name = pathinfo($request->signature->getClientOriginalName(),PATHINFO_FILENAME);
+      $ext = $request->signature->getClientOriginalExtension();
+      $filename =  "sig_".$user->id.".".$ext;
+      Storage::disk('local')->putFileAs('/users/signature/'.$id.'/',$request->signature, $filename);
+      $user->fill([
+        'signature' => $filename,
+      ]);
+    }
 
     if(!Hash::check($request->password, $user->password)){
       $user->password = Hash::make($request->password);

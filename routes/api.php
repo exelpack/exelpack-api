@@ -28,6 +28,9 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/me','UserController@me');
 	Route::get('/test', 'SalesController@exportAR');
 
+  Route::get('testprint/{id}','PurchasesSupplierController@testPrPrint');
+  Route::get('storage/signature','PurchasesSupplierController@getFileSignature');
+
 	Route::group(['middleware' => ['cposms']], function() {
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
 		Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
@@ -139,8 +142,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/inventory/locations', 'InventoryController@getLocation');
 		Route::post('/inventory/locations', 'InventoryController@addLocation');
 		Route::delete('/inventory/locations/{id}', 'InventoryController@removeLocation');
-
-
 		//prms(wh)
 		Route::get('/prms/jolist', 'PurchaseRequestController@getJobOrders');
 		Route::get('/prms/pr/{id}', 'PurchaseRequestController@getPrItemDetails');
@@ -196,9 +197,10 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::delete('/psms/approval/{id}','PurchasesSupplierController@deleteApprovalRequest');
     Route::delete('/psms/pr/{id}','PurchasesSupplierController@deletePriceOnPr');
 
-    Route::post('/psms/po','PurchasesSupplierController@getAllDetailsForPr');
-    
+    Route::post('/psms/po/preview','PurchasesSupplierController@getAllDetailsForPr');
+    Route::post('/psms/po','PurchasesSupplierController@addPurchaseOrder');
 
+    Route::delete('/psms/po/{id}','PurchasesSupplierController@cancelPurchaseOrder');
   });
 
   Route::group(['middleware' => ['approvalpr']], function() {
@@ -215,7 +217,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 		Route::get('/users', 'UserController@getAllUser');
 		Route::post('/users', 'UserController@createUser');
-		Route::put('/users/{id}', 'UserController@editUser');
+		Route::post('/users/{id}', 'UserController@editUser');
 		Route::delete('/users/{id}','UserController@deleteUser');
 
 	});
