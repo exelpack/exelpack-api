@@ -31,37 +31,37 @@
 
       @foreach($sales as $sale)
 
-        @if($sale->items()->count() > 0)
+        @if( ($sale->items()->count() > 0) && ($sale->s_isRevised != 1) && (!$sale->deleted_at) )
 
-        @foreach($sale->items as $row)
-          @php
-            $usd = 0;
-            $php = 0;
-            $total = 0;
+          @foreach($sale->items as $row)
+            @php
+              $usd = 0;
+              $php = 0;
+              $total = 0;
 
-            if($sale->s_currency === 'USD'){
-              $usd = $row->sitem_totalamount;
-              $total = $row->sitem_totalamount * $conversion;
-            }else{
-              $php = $row->sitem_totalamount;
-              $total = $row->sitem_totalamount;
-            }
+              if($sale->s_currency === 'USD'){
+                $usd = $row->sitem_totalamount;
+                $total = $row->sitem_totalamount * $conversion;
+              }else{
+                $php = $row->sitem_totalamount;
+                $total = $row->sitem_totalamount;
+              }
 
-          @endphp
-          <tr style="text-align:center">
-            <td>{{ $sale->s_deliverydate }} </td>
-            <td>{{ $sale->customer->c_customername }}</td>
-            <td>{{ $sale->s_invoicenum }}</td>
-            <td>{{ $row->sitem_drnum }}</td>
-            <td>{{ $row['sitem_ponum'] }}</td>
-            <td>{{ $row['sitem_partnum'] }}</td>
-            <td>{{ $row['sitem_quantity'] }}</td>
-            <td>{{ $row['sitem_unitprice'] }}</td>
-            <td  class="bordered" style="text-align:right">{{ number_format($usd,2) }}</td>
-            <td  class="bordered" style="text-align:right">{{ number_format($php,2) }}</td>
-            <td  class="bordered" style="text-align:right">{{ number_format($total,2) }}</td>
-          </tr>
-        @endforeach
+            @endphp
+            <tr style="text-align:center">
+              <td>{{ $sale->s_deliverydate }} </td>
+              <td>{{ $sale->customer->c_customername }}</td>
+              <td>{{ $sale->s_invoicenum }}</td>
+              <td>{{ $row->sitem_drnum }}</td>
+              <td>{{ $row['sitem_ponum'] }}</td>
+              <td>{{ $row['sitem_partnum'] }}</td>
+              <td>{{ $row['sitem_quantity'] }}</td>
+              <td>{{ $row['sitem_unitprice'] }}</td>
+              <td  class="bordered" style="text-align:right">{{ number_format($usd,2) }}</td>
+              <td  class="bordered" style="text-align:right">{{ number_format($php,2) }}</td>
+              <td  class="bordered" style="text-align:right">{{ number_format($total,2) }}</td>
+            </tr>
+          @endforeach
         @continue
       @endif
 

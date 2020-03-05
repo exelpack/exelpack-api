@@ -23,8 +23,8 @@ class SmsCbr implements FromView
       ->where('s_ornumber','!=',NULL)
       ->where('s_datecollected','!=',NULL)
       ->where('s_isRevised',0)
-      ->whereMonth('s_deliverydate',$this->month)
-      ->whereYear('s_deliverydate',$this->year)
+      ->whereMonth('s_datecollected',$this->month)
+      ->whereYear('s_datecollected',$this->year)
       ->orderBy('s_datecollected','ASC')
       ->get()
       ->map(function ($sales){
