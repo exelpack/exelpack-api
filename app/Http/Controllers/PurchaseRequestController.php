@@ -335,7 +335,12 @@ class PurchaseRequestController extends LogsController
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$pr = $jobOrder->pr()->create($this->prArray($request->all()));
+		$pr = $jobOrder->pr()->create(
+      array_merge($this->prArray($request->all()),
+        array(
+          'pr_user_id' => Auth()->user()->id,
+        )
+    ));
 
 		PurchaseRequestSeries::first()
 			->update(['series_number' => DB::raw('series_number + 1')]); //update series

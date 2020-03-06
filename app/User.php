@@ -81,7 +81,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function pra()
     {
-      return $this->hasMany('App\PurchaseRequestApproval','pra_approver_userid');
+      return $this->hasMany('App\PurchaseRequestApproval','pra_approver_id');
     }
 
     public function cposmsLogs()

@@ -17,6 +17,7 @@ class CreateApprovalTable extends Migration
         $table->bigIncrements('id');
         $table->integer('pra_prs_id');
         $table->string('pra_key',300);
+        $table->integer('pra_approver_id')->unsigned();
         $table->string('pra_approver_user',50);
         $table->string('pra_otherinfo',300);
         $table->string('pra_approvalType')->default('LAN')->nullable();

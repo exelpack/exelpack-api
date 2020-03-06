@@ -28,9 +28,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/me','UserController@me');
 	Route::get('/test', 'SalesController@exportAR');
 
-  Route::get('testprint/{id}','PurchasesSupplierController@testPrPrint');
-  Route::get('storage/signature','PurchasesSupplierController@getFileSignature');
-
 	Route::group(['middleware' => ['cposms']], function() {
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
 		Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
@@ -188,6 +185,10 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/psms/prprice','PurchasesSupplierController@getPrListWithPrice');
     Route::get('/psms/pr/{id}','PurchasesSupplierController@getPrInfo');
     Route::get('/psms/pr/{prId}/{supplierId}','PurchasesSupplierController@getPriceForItems');
+    Route::get('/psms/print/{id}','PurchasesSupplierController@printPR');
+    Route::get('/storage/signature','PurchasesSupplierController@getFileSignature');
+    Route::get('/psms/po','PurchasesSupplierController@getPurchaseOrder');
+    Route::get('/psms/po/print/{id}','PurchasesSupplierController@printPurchaseOrder');
 
     Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');
     Route::post('/psms/approval','PurchasesSupplierController@addApprovalRequest');

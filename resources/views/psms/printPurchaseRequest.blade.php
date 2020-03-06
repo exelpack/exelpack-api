@@ -26,11 +26,40 @@
   font-size: 12px;
 }
 
+.sigTable tr td{
+  max-width: 25%;
+  width: 25%;
+}
+
+.signature {
+  width: 70px;
+  display: block;
+  margin: 0 auto;
+}
+
+.signature img{
+  width: 100%;
+  height: 40px;
+}
+
+.signature-text{
+  text-align: center;
+  margin: 0;
+  text-decoration: overline;
+}
+
 @page {
   margin: 30px 30px 10px 30px;
 }
 
 </style>
+@php
+  
+  $url = asset('api/storage/signature').'?filepath=';
+  $defaultImg = asset('storage/img/defaultsign.jpg');
+
+@endphp
+<!-- {{ $token }} -->
 
 <table style="width: 100%;">
   <tr>
@@ -103,7 +132,7 @@
     @if(count($items) > 0)
       <tr>
         <td colspan="5"></td>
-        <td>{{ $details['currency'] }} 
+        <td>{{ $details['currency'] == 'USD' ? '$' : 'PHP' }}
           @php echo number_format(array_sum(array_column($items, 'amount')), 2) @endphp</td>
         <td colspan="2"></td>
       </tr>
@@ -112,38 +141,92 @@
 </table>
 
 <br/>
-<table border="1" style="width: 100%;" class="sigTable">
+<table border="1" style="width: 100%;" cellspacing="0" class="sigTable">
   <tr>
-    <td>Requested by:
+    <td >Requested by:
       <br/>
-      <img 
-        src="{{ asset('storage/img/defaultsign.jpg') }}"
-        style="width: 100px;"
-      />
+      <div class="signature">
+        @if($prSignature)
+          <img 
+            src="{{ $url.$prFileName.'&token='.$token }}"
+            alt="Cannot load signature"
+          />
+        @else
+          <img 
+            src="{{ asset('storage/img/defaultsign.jpg') }}"
+            alt="Cannot load signature"
+          />
+        @endif
+      </div>
+      <p class="signature-text">
+        Signature Over Printed Name
+      </p>
     </td>
-    <td>Requested by:
+    <td>Checked by:
       <br/>
-      <img 
-        src="{{ asset('storage/img/defaultsign.jpg') }}"
-        style="width: 100px;"
-      />
+      <div class="signature">
+        @if($prpriceSignature)
+          <img 
+            src="{{ $url.$prsFileName.'&token='.$token }}"
+            alt="Cannot load signature"
+          />
+        @else
+          <img 
+            src="{{ asset('storage/img/defaultsign.jpg') }}"
+            alt="Cannot load signature"
+          />
+        @endif
+      </div>
+      <p class="signature-text">
+        Purchasing Officer
+      </p>
     </td>
-    <td>Requested by:
+    <td>Recommending Approval by:
       <br/>
-      <img 
-        src="{{ asset('storage/img/defaultsign.jpg') }}"
-        style="width: 100px;"
-      />
+      <div class="signature">
+      @if($isApproved)
+        @if($approvalSig && $approvalFileName != '')
+        <img 
+          src="{{ $url.$approvalFileName.'&token='.$token }}"
+          alt="Cannot load signature"
+        />
+        @else
+          <img 
+            src="{{ asset('storage/img/defaultsign.jpg') }}"
+            alt="Cannot load signature"
+          />
+        @endif
+      @else
+        <div style="padding: 12.8px 0;">&nbsp;</div>
+      @endif
+      </div>
+      <p class="signature-text">
+        Department Head
+      </p>
     </td>
-    <td>Requested by:
+    <td>Approved by:
       <br/>
-      <img 
-        src="{{ asset('storage/img/defaultsign.jpg') }}"
-        style="width: 100px;"
-      />
+      <div class="signature">
+        <img 
+          src="{{ asset('storage/img/defaultsign.jpg') }}"
+          alt="Cannot load signature"
+        />
+      </div>
+      <p class="signature-text">
+        MR. JA CABUNTOCAN
+      </p>
     </td>
   </tr>
 </table>
+<p
+  style="
+    float: right;
+    margin: 0;
+    color: indianred;
+  "
+>
+  {{ $details['pr'] }}
+</p>
 <!-- <table border="1" cellspacing="0" cellpadding="0" width="101%">
 <tr >
 <td  width="25%" > Requested by:<br><font align="center"><img align="center"  src="../signature/cocoi.png" width="30px"/></font><br>

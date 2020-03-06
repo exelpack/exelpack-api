@@ -28,7 +28,6 @@ use App\User;
 class PurchasesSupplierController extends Controller
 {
 
-  // Route::get('storage/{filename}', function ($filename)
   public function getFileSignature(){
     $filepath = request()->has('filepath') ? request()->filepath : 'empty';
     $path = storage_path('app/users/signature/' . $filepath);
@@ -44,7 +43,7 @@ class PurchasesSupplierController extends Controller
     return $response;
   }
 
-  public function testPrPrint(Request $request,$id)
+  public function printPR(Request $request,$id)
   {
     $token = $request->bearerToken();
     $prs = PurchaseRequestSupplierDetails::findOrFail($id);
@@ -52,6 +51,7 @@ class PurchasesSupplierController extends Controller
       'jo' => $prs->pr->jo->jo_joborder,
       'po' => $prs->pr->jo->poitems->po->po_ponum,
       'currency' => $prs->prsd_currency,
+      'pr' => $prs->pr->pr_prnum,
       'date' => $prs->created_at->toFormattedDateString(),
     );
     $items = $prs->pr->pritems->map(function($item) use ($prs) {
@@ -67,7 +67,6 @@ class PurchasesSupplierController extends Controller
         'supplier' => $prs->supplier->sd_supplier_name,
       );
     })->toArray();
-
     $prFileName = $prs->pr->pr_user_id.'/'.$prs->pr->user->signature;
     $prsFileName = $prs->prsd_user_id.'/'.$prs->user->signature;
     
@@ -84,24 +83,13 @@ class PurchasesSupplierController extends Controller
     if($approvalReq){
       if($approvalReq->pra_approved > 0){
         $isApproved = true;
-        $approvalFileName = $approvalReq->pra_approver_userid.'/'.
+        $approvalFileName = $approvalReq->pra_approver_id.'/'.
             $approvalReq->user->signature;
         $approvalSig = Storage::disk('local')
           ->exists('/users/signature/'.$approvalFileName);
       }
     }
 
-    return view('psms.printPurchaseRequest', compact(
-      'items',
-      'details',
-      'prSignature',
-      'prpriceSignature',
-      'isApproved',
-      'approvalSig',
-      'prFileName',
-      'prsFileName',
-      'approvalFileName'
-    ));
     $pdf =  PDF::loadView('psms.printPurchaseRequest', compact(
       'items',
       'details',
@@ -120,7 +108,6 @@ class PurchasesSupplierController extends Controller
   public function getPrList()
   {
     $limit = request()->has('recordCount') ? request()->recordCount : 1000;
-    $pageSize = request()->pageSize;
     $prPrice = DB::table('psms_prsupplierdetails')
       ->select('prsd_pr_id',DB::raw('count(*) as hasSupplier'),
       'prsd_supplier_id')
@@ -175,7 +162,9 @@ class PurchasesSupplierController extends Controller
     ]);
 
     $q->where('pr_forPricing', 1);
-    $prList = $q->limit($limit)->get();
+    $prList = $q->orderBy('id','DESC')
+      ->limit($limit)
+      ->get();
     $prListLength = count($prList);
 
     return response()->json([
@@ -192,6 +181,7 @@ class PurchasesSupplierController extends Controller
       ->select('prsd_pr_id',DB::raw('count(*) as hasSupplier'),
       'prsd_supplier_id',
       'prsd_spo_id',
+      'prsd_currency',
       'id')
       ->groupBy('prsd_pr_id');
 
@@ -227,35 +217,36 @@ class PurchasesSupplierController extends Controller
       ->groupBy('id');
 
     $q = PurchaseRequest::has('prpricing')
-          ->has('jo.poitems.po')
-          ->leftJoinSub($prPrice, 'prprice', function($join){
-            $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
-          })
-          ->leftJoinSub($suppPo, 'spo', function($join){
-            $join->on('spo.id','=','prprice.prsd_spo_id');
-          })
-          ->leftJoinSub($approval, 'approval', function($join){
-            $join->on('approval.pra_prs_id','=','prprice.id');
-          })
-          ->leftJoinSub($supplier, 'supplier', function($join){
-            $join->on('supplier.id','=','prprice.prsd_supplier_id');
-          })
-          ->leftJoinSub($itemsTbl, 'items', function($join){
-            $join->on('prms_prlist.id','=','items.pri_pr_id');
-          })
-          ->leftJoinSub($jo, 'jo', function($join){
-            $join->on('prms_prlist.pr_jo_id','=','jo.id');
-          })
-          ->leftJoinSub($poitem, 'poitem', function($join){
-            $join->on('jo.jo_po_item_id','=','poitem.id');
-          })
-          ->leftJoinSub($po, 'po', function($join){
-            $join->on('poitem.poi_po_id','=','po.id');
-          });
+      ->has('jo.poitems.po')
+      ->leftJoinSub($prPrice, 'prprice', function($join){
+        $join->on('prms_prlist.id','=','prprice.prsd_pr_id');
+      })
+      ->leftJoinSub($suppPo, 'spo', function($join){
+        $join->on('spo.id','=','prprice.prsd_spo_id');
+      })
+      ->leftJoinSub($approval, 'approval', function($join){
+        $join->on('approval.pra_prs_id','=','prprice.id');
+      })
+      ->leftJoinSub($supplier, 'supplier', function($join){
+        $join->on('supplier.id','=','prprice.prsd_supplier_id');
+      })
+      ->leftJoinSub($itemsTbl, 'items', function($join){
+        $join->on('prms_prlist.id','=','items.pri_pr_id');
+      })
+      ->leftJoinSub($jo, 'jo', function($join){
+        $join->on('prms_prlist.pr_jo_id','=','jo.id');
+      })
+      ->leftJoinSub($poitem, 'poitem', function($join){
+        $join->on('jo.jo_po_item_id','=','poitem.id');
+      })
+      ->leftJoinSub($po, 'po', function($join){
+        $join->on('poitem.poi_po_id','=','po.id');
+      });
 
     $q->select([
       'prms_prlist.id as id',
       'prprice.id as price_id',
+      'prprice.prsd_currency as currency',
       'supplier.id as supplier',
       'supplier.sd_supplier_name as supplierLabel',
       'pr_prnum as prNum',
@@ -271,7 +262,9 @@ class PurchasesSupplierController extends Controller
         ) as status'),
        DB::raw('IF(approvalRequestCount,true, false) as hasRequest'),
     ]);
-    $prList = $q->limit($limit)->get();
+    $prList = $q->orderBy('price_id','DESC')
+      ->limit($limit)
+      ->get();
     $prListLength = count($prList);
 
     return response()->json([
@@ -328,7 +321,9 @@ class PurchasesSupplierController extends Controller
         'unit' => $item->pri_uom,
         'quantity' => $item->pri_quantity,
         'unitPrice' => $item->pri_unitprice,
-        'dateNeeded' => $item->pr->jo->jo_dateneeded,
+        'dateNeeded' => $item->pri_deliverydate != null
+          ? $item->pri_deliverydate
+          : $item->pr->jo->jo_dateneeded,
         'costing' => $costing,
         'budgetPrice' => $budgetPrice
       ));
@@ -358,7 +353,6 @@ class PurchasesSupplierController extends Controller
         'id' => $item->id,
         'unitPrice' => $price ? $price->pri_unitprice : 0     
       ));
-
     }
 
     return response()->json([
@@ -390,6 +384,7 @@ class PurchasesSupplierController extends Controller
     $pr->prpricing()->create([
       'prsd_supplier_id' => $request->supplier,
       'prsd_currency' => $request->currency,
+      'prsd_user_id' => Auth()->user()->id,
     ]);
 
     foreach($request->prItems as $item){
@@ -431,6 +426,7 @@ class PurchasesSupplierController extends Controller
     return array(
       'id' => $pr->id,
       'price_id' => $pr->prpricing->id,
+      'currency' => $pr->prpricing->prsd_currency,
       'supplier' => $pr->prpricing->supplier->id,
       'supplierLabel' => $pr->prpricing->supplier->sd_supplier_name,
       'prNum' => $pr->pr_prnum,
@@ -463,11 +459,9 @@ class PurchasesSupplierController extends Controller
     }
     $pr = PurchaseRequest::findOrFail($id);
 
-    if($pr->prpricing
-      ->prApproval()
-      ->where('pra_approved',1)
-      ->orWhere('pra_rejected',1)
-      ->count() > 0){
+    if($pr->prpricing->prApproval &&
+      ($pr->prpricing->prApproval->pra_approved == 1 ||
+      $pr->prpricing->prApproval->pra_rejected == 1)){
       return response()->json(['errors' => ['Record not editable']],422);
     }
     $pr->prpricing()->update([
@@ -485,7 +479,7 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'newPr' => $this->prWithPriceArray($pr),
       'message' => 'Record updated'
-    ]); 
+    ]);
   }
 
   public function deletePriceOnPr($id){
@@ -551,18 +545,15 @@ class PurchasesSupplierController extends Controller
     $validator = Validator::make($request->all(),
       array(
         'price_id' => 'required|int',
-        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_userid,null,id,pra_prs_id,'.$request->price_id,
+        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_id,null,id,pra_prs_id,'.$request->price_id,
         'method' => 'required|string|in:LAN,ONLINE',
       ));
     if($validator->fails()){
       return response()->json(['errors' => $validator->errors()->all()],422);
     }
     $prSupplierDetails = PurchaseRequestSupplierDetails::findOrFail($request->price_id);
-    $approval = $prSupplierDetails->prApproval;
 
-
-    if(($approval) &&
-      ( ($approval->pra_approved > 0) || ($approval->pra_rejected > 0)) ){
+    if($prSupplierDetails->prApproval){
       return response()->json(['errors' => ['Cannot add more requests']],422);
     }
 
@@ -574,7 +565,7 @@ class PurchasesSupplierController extends Controller
     $approval->fill([
       'pra_prs_id' => $request->price_id,
       'pra_key' => $key,
-      'pra_approver_userid' => $request->approver,
+      'pra_approver_id' => $request->approver,
       'pra_approver_user' => $user->username,
       'pra_otherinfo' => $pr->jo->jo_joborder." - ". $pr->pr_prnum,
       'pra_approvalType' => $request->method,
@@ -630,7 +621,7 @@ class PurchasesSupplierController extends Controller
       ->select('id','prsd_supplier_id','prsd_pr_id')
       ->groupBy('id');
 
-    $q = PurchaseRequestApproval::where('pra_approver_userid',$userId)
+    $q = PurchaseRequestApproval::where('pra_approver_id',$userId)
       ->leftJoinSub($prPrice, 'prprice', function($join){
         $join->on('psms_prapprovaldetails.pra_prs_id','=','prprice.id');
       })
@@ -665,7 +656,7 @@ class PurchasesSupplierController extends Controller
         'psms_prapprovaldetails.created_at as created_at',
         'psms_prapprovaldetails.pra_remarks as remarks',
       ]);
-      $prList = $q->latest('created_at')->limit($limit)->get();
+      $prList = $q->latest('id')->limit($limit)->get();
 
       return response()->json([
         'prList' => $prList,
@@ -736,7 +727,7 @@ class PurchasesSupplierController extends Controller
   {
     $request = PurchaseRequestApproval::findOrFail($id);
 
-    if(Auth()->user()->id !== $request->pra_approver_userid)
+    if(Auth()->user()->id !== $request->pra_approver_id)
       return response()->json(['errors' => ['Permission denied']], 422);
 
     if($request->pra_approved > 0 || $request->pra_rejected > 0)
@@ -829,11 +820,12 @@ class PurchasesSupplierController extends Controller
     ->get();
 
     $checkIfSameSupplier = $pritems->every(function($item) use ($pritems){
-      return $item->pr->prpricing->prsd_supplier_id == $pritems[0]->pr->prpricing->prsd_supplier_id;
+      return $item->pr->prpricing->prsd_supplier_id == $pritems[0]->pr->prpricing->prsd_supplier_id &&
+        $item->pr->prpricing->prsd_currency == $pritems[0]->pr->prpricing->prsd_currency ;
     });
 
     if(!$checkIfSameSupplier)
-      return response()-json(['errors' => ['You can only create purchase order with same supplier'] ], 422);
+      return response()-json(['errors' => ['You can only create purchase order with same supplier & currency'] ], 422);
 
     $sd = PurchaseRequestSupplierDetails::whereIn('id', $request->prsID)
       ->first()
@@ -872,6 +864,59 @@ class PurchasesSupplierController extends Controller
       'prNumbers' => implode(",",$prList),
       'supplierDetails' => $supplierDetails,
       'poItems' => $items,
+    ]);
+  }
+
+  public function getPurchaseOrder()
+  {
+    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+
+    $joinQry = "SELECT
+      prms_prlist.id,
+      prsd.prsd_supplier_id as supplier_id,
+      prsd.prsd_spo_id,
+      prsd.prsd_currency as currency,
+      GROUP_CONCAT(pr_prnum) as prnumbers,
+      CAST(sum(itemCount) as int) as itemCount
+      FROM prms_prlist
+      LEFT JOIN psms_prsupplierdetails prsd 
+      ON prsd.prsd_pr_id = prms_prlist.id
+      LEFT JOIN (SELECT count(*) as itemCount,pri_pr_id
+      FROM prms_pritems
+      GROUP BY pri_pr_id) pri
+      ON pri.pri_pr_id = prms_prlist.id
+      GROUP BY prsd_spo_id";
+
+    $supplier = DB::table('psms_supplierdetails')
+      ->select('id','sd_supplier_name')
+      ->groupBy('id');
+
+    $itemsTbl = DB::table('prms_pritems')
+      ->select('pri_pr_id',DB::raw('count(*) as itemCount'))
+      ->groupBy('pri_pr_id');
+
+    $poList = PurchaseOrderSupplier::has('prs.pr.jo.poitems.po')
+      ->leftJoinSub($joinQry,'pr', function($join){
+        $join->on('pr.prsd_spo_id','=','psms_spurchaseorder.id');
+      })
+      ->leftJoinSub($supplier,'supplier', function($join){
+        $join->on('supplier.id','=','pr.supplier_id');
+      })
+      ->select(
+        'psms_spurchaseorder.id',
+        'sd_supplier_name as supplier',
+        'spo_ponum as poNum',
+        'prnumbers',
+        'currency',
+        'itemCount',
+        'spo_status as status'
+      )
+      ->orderBy('id','DESC')
+      ->limit($limit)
+      ->get();
+
+    return response()->json([
+      'poList' => $poList,
     ]);
   }
 
@@ -922,6 +967,68 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'message' => 'Record deleted',
     ]);
+  }
+
+  public function printPurchaseOrder($id){
+
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $getPr = PurchaseRequest::whereHas('prpricing.po', function($q) use ($id){
+        return $q->where('id', $id);
+      })
+      ->pluck('pr_prnum')
+      ->toArray();
+
+    $prNumber = implode(",", $getPr);
+    $pri = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
+        return $q->where('id', $id);
+      })
+      ->select(
+        'id',
+        'pri_code',
+        'pri_mspecs',
+        'pri_uom',
+        'pri_unitprice',
+        'pri_deliverydate'
+      )
+      // ->groupBy('pri_mspecs', 'pri_uom', 'pri_unitprice')
+      // ->orderBy('id','DESC')
+      ->get()
+      ->map(function($item) {
+        return array(
+          'id' => $item->id,
+          'code' => $item->pri_code,
+          'materialSpecification' => $item->pri_mspecs,
+          'unit' => $item->pri_uom,
+          // 'quantity' => $item->quantity,
+          'unitprice' => $item->pri_unitprice,
+          'deliveryDate' => $item->pri_deliverydate,
+        );
+      })
+      ->toArray();
+    return response()->json([
+      'prNumber' => $prNumber,
+      'prItems' => $pri,
+    ]);
+
+    $items = $pritems->map(function($item) {
+      return array(
+        'id' => $item->id,
+        'code' => $item->pri_code,
+        'materialSpecification' => $item->pri_mspecs,
+        'unit' => $item->pri_uom,
+        'quantity' => $item->pri_quantity,
+        'unitprice' => $item->pri_unitprice,
+        'deliveryDate' => $item->pri_deliverydate,
+      );
+    })->values();
+    $supplierDetails = array(
+      'supplierName' => $sd->sd_supplier_name,
+      'address' => $sd->sd_address,
+      'tin' => $sd->sd_tin,
+      'attention' => $sd->sd_attention,
+      'paymentTerms' => $sd->sd_paymentterms,
+    );
+
   }
 
 }
