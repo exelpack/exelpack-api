@@ -11,7 +11,7 @@ class JobOrder extends Model
     //
 	protected $table = 'pjoms_joborder';
 	protected $guarded = ['jo_po_item_id'];
-	protected $hidden = ['created_at','deleted_at'];
+	protected $hidden = ['created_at','deleted_at','updated_at'];
 
 	public function poitems()
 	{

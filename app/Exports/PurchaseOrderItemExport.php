@@ -16,108 +16,77 @@ class PurchaseOrderItemExport implements FromArray, WithHeadings
   public function array(): array
   {
 
-  	$q = PurchaseOrderItems::query();
-		$q->has('po'); //fetch item with po only
+  	$pod = DB::table('cposms_poitemdelivery')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+      as totalDelivered'),'poidel_item_id',DB::raw('count(*) as deliveryCount'))->groupBy('poidel_item_id');
 
-		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
-			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
-		// filter
-		if(request()->has('status')){
-			$q->from('cposms_purchaseorderitem')
-			->leftJoinSub($sub,'delivery',function ($join){
-				$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
-			});
-			if(request()->status === 'OPEN')
-				$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
-			else
-				$q->whereRaw('poi_quantity <= IFNULL(totalDelivered,0)');
-		}
+    $pos = DB::table('cposms_podeliveryschedule')->select(DB::raw('count(*) as schedCount'),'pods_item_id')
+        ->groupBy('pods_item_id');
 
-		if(request()->has('customer')){
-			$fCustomer = request()->customer;
-			$q->whereHas('po', function($q1) use ($fCustomer){
-				$q1->where('po_customer_id',$fCustomer);
-			});
-		}
+    $po = DB::table('cposms_purchaseorder')->select('id', 'po_ponum', 'po_currency', 'po_customer_id')
+      ->groupBy('id');
 
-		if(request()->has('deliveryDue')){
-			$date = Carbon::now()->addDays(request()->deliveryDue)->format('Y-m-d');
-			$q->whereDate('poi_deliverydate','<=',$date);
-		}
+    $customer = DB::table('customer_information')->select('id', 'companyname')
+      ->groupBy('id');
 
-		if(request()->has('po')){
-			$fPo = request()->po;
-			$q->whereHas('po', function($q1) use ($fPo){
-				$q1->where('po_ponum','LIKE','%'.$fPo.'%');
-			});
-		}
+    $q = PurchaseOrderItems::has('po')
+      ->leftJoinSub($pod, 'delivery',function ($join){
+        $join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');       
+      })
+      ->leftJoinSub($pos, 'sched', function($join){
+        $join->on('sched.pods_item_id', '=', 'cposms_purchaseorderitem.id');
+      })
+      ->leftJoinSub($po, 'po', function($join){
+        $join->on('po.id','=','cposms_purchaseorderitem.poi_po_id');    
+      })
+      ->leftJoinSub($customer, 'customer', function($join){
+        $join->on('customer.id','=','po.po_customer_id');    
+      });
 
-		if(request()->has('sortDate')){
-			$q->orderBy('poi_po_id','desc')->orderBy('poi_deliverydate',request()->sortDate);
-		}
+    $q->select([
+      'customer.companyname as customer',
+      'po.po_ponum as po_num',
+      'poi_code as code',
+      'poi_partnum as partnum',
+      'poi_itemdescription as itemdesc',
+      'poi_quantity as quantity',
+      'poi_unit as unit',
+      'po.po_currency as currency',
+      'poi_unitprice as unitprice',
+      'poi_deliverydate as deliverydate',
+      'poi_kpi as kpi',
+      DB::raw('IFNULL(delivery.totalDelivered,0) as delivered_qty'),
+      'poi_remarks as remarks',
+      'poi_others as others',
+      DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= cposms_purchaseorderitem.poi_quantity,"SERVED","OPEN") as status'),
 
-		// end filter
-		$poItems_result = $q->get();
-		$poItems = $this->getItems($poItems_result);
+    ]);
+
+    $poItems = $q->latest()
+      ->limit(request()->has('recordCount') ? request()->recordCount : 500)
+      ->get()
+      ->toArray();
 
 		return $poItems;
 	}	
 
 	public function headings(): array
-    {
-    	return [
-    		'CUSTOMER',
-    		'PURCHASE ORDER NO.',
-    		'CODE',
-    		'PART NUMBER',
-    		'ITEM DESC',
-    		'QUANTITY',
-    		'UNIT',
-    		'CURRENCY',
-    		'UNIT PRICE',
-    		'DELIVERY DATE',
-    		'KPI',
-    		'OTHERS',
-    		'DELIVERY QTY',
-    		'REMARKS',
-    		'STATUS',
-    	];
-    }
-
-
-	public function getItems($items)
-	{
-		$items_arr = array();
-
-		foreach($items as $row){
-			array_push($items_arr,$this->getItem($row));
-		}
-
-		return $items_arr;
-	}
-
-	public function getItem($item)
-	{
-		$delivered = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
-		$status = $delivered >= $item->poi_quantity ? 'SERVED' : 'OPEN';
-
-		return array(
-			'customer' => $item->po->customer->companyname,
-			'po_num' => $item->po->po_ponum,
-			'code' => $item->poi_code,
-			'partnum' => $item->poi_partnum,
-			'itemdesc' => $item->poi_itemdescription,
-			'quantity' => $item->poi_quantity,
-			'unit' => $item->poi_unit,
-			'currency' => $item->po->po_currency,
-			'unitprice' => $item->poi_unitprice,
-			'deliverydate' => $item->poi_deliverydate,
-			'kpi' => $item->poi_kpi,
-			'others' => $item->poi_others,
-			'delivered_qty' => $delivered,
-			'remarks' => $item->poi_remarks,
-			'status' => $status
-		);
-
-	}
+  {
+  	return [
+  		'CUSTOMER',
+  		'PURCHASE ORDER NO.',
+  		'CODE',
+  		'PART NUMBER',
+  		'ITEM DESC',
+  		'QUANTITY',
+  		'UNIT',
+  		'CURRENCY',
+  		'UNIT PRICE',
+  		'DELIVERY DATE',
+  		'KPI',
+  		'DELIVERED QTY',
+  		'REMARKS',
+      'OTHERS',
+  		'STATUS',
+  	];
+  }
 }

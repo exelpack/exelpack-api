@@ -38,7 +38,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/option/scheduledates', 'PurchaseOrderController@getScheduleDates'); //fetch all open items
 
 		Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
-		Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
+    Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
+		Route::get('/cposms/po/{id}','PurchaseOrderController@getPoItems'); //edit po
 		Route::get('/cposms/po','PurchaseOrderController@poIndex'); //fetch po
 		Route::delete('/cposms/po/{id}','PurchaseOrderController@cancelPo'); //cancel po
 		Route::get('/cposms/poitems','PurchaseOrderController@poItemsIndex'); //fetch po items
@@ -58,8 +59,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::delete('/cposms/poitems/schedules/{ids}', 'PurchaseOrderController@deleteItemSchedule');
 
 		//exports
-		Route::get('/cposms/po/export-csv','PurchaseOrderController@exportPoCsv');
-		Route::get('/cposms/poitems/export-csv','PurchaseOrderController@exportPoItemsCsv');
+		Route::get('/cposms/po/export-csv/dl','PurchaseOrderController@exportPoCsv');
+		Route::get('/cposms/poitems/export-csv/dl','PurchaseOrderController@exportPoItemsCsv');
 		Route::get('/cposms/poitems/schedules/export-csv/dl','PurchaseOrderController@exportPoDailySchedule');
 		Route::get('/cposms/poitems/delivery/export-csv/dl','PurchaseOrderController@exportPoDelivered');
 		Route::get('/cposms/poitems/schedules/export-pdf/dl','PurchaseOrderController@exportPoDailyScheduleToPDF');
@@ -138,8 +139,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/inventory/locations', 'InventoryController@getLocation');
 		Route::post('/inventory/locations', 'InventoryController@addLocation');
 		Route::delete('/inventory/locations/{id}', 'InventoryController@removeLocation');
-
-
 		//prms(wh)
 		Route::get('/prms/jolist', 'PurchaseRequestController@getJobOrders');
 		Route::get('/prms/pr/{id}', 'PurchaseRequestController@getPrItemDetails');
@@ -180,12 +179,48 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	});
 
+  Route::group(['middleware' => ['psms']], function() {
+
+    Route::get('/psms/approval/{id}','PurchasesSupplierController@getApprovalList');
+    Route::get('/psms/supplier','PurchasesSupplierController@getSupplier');
+    Route::get('/psms/pr','PurchasesSupplierController@getPrList');
+    Route::get('/psms/prprice','PurchasesSupplierController@getPrListWithPrice');
+    Route::get('/psms/pr/{id}','PurchasesSupplierController@getPrInfo');
+    Route::get('/psms/pr/{prId}/{supplierId}','PurchasesSupplierController@getPriceForItems');
+    Route::get('/psms/print/{id}','PurchasesSupplierController@printPR');
+    Route::get('/storage/signature','PurchasesSupplierController@getFileSignature');
+    Route::get('/psms/po','PurchasesSupplierController@getPurchaseOrder');
+    Route::get('/psms/po/print/{id}','PurchasesSupplierController@printPurchaseOrder');
+
+    Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');
+    Route::post('/psms/approval','PurchasesSupplierController@addApprovalRequest');
+    
+    Route::put('/psms/pr/{id}','PurchasesSupplierController@editPrWithPrice');
+
+    Route::delete('/psms/approval/{id}','PurchasesSupplierController@deleteApprovalRequest');
+    Route::delete('/psms/pr/{id}','PurchasesSupplierController@deletePriceOnPr');
+
+    Route::post('/psms/po/preview','PurchasesSupplierController@getAllDetailsForPr');
+    Route::post('/psms/po','PurchasesSupplierController@addPurchaseOrder');
+
+    Route::delete('/psms/po/{id}','PurchasesSupplierController@cancelPurchaseOrder');
+  });
+
+  Route::group(['middleware' => ['approvalpr']], function() {
+
+    Route::get('/psms/prapproval','PurchasesSupplierController@getPendingPrList');
+    Route::get('/psms/prapproval/{id}','PurchasesSupplierController@getPrDetails');
+    Route::put('/psms/prapproval/{id}','PurchasesSupplierController@addRemarks');
+    Route::put('/psms/prapproval/action/{id}','PurchasesSupplierController@approvedRejectRequest');
+
+  });
+
 	//user management
 	Route::group(['middleware' => ['checkPrivelege']], function() {
 
 		Route::get('/users', 'UserController@getAllUser');
 		Route::post('/users', 'UserController@createUser');
-		Route::put('/users/{id}', 'UserController@editUser');
+		Route::post('/users/{id}', 'UserController@editUser');
 		Route::delete('/users/{id}','UserController@deleteUser');
 
 	});

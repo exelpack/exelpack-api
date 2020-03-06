@@ -25,6 +25,8 @@ class CreateUsersAccount extends Migration
             $table->unsignedTinyInteger('wims_access');
             $table->unsignedTinyInteger('psms_access');
             $table->unsignedTinyInteger('salesms_access');
+            $table->unsignedTinyInteger('approval_pr');
+            $table->unsignedTinyInteger('approval_po');
             $table->string('type',20);
             $table->string('department',20);
             $table->string('fullname',50);

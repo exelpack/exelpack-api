@@ -46,7 +46,7 @@ class SalesExport implements FromArray, WithHeadings
 
     			foreach($total['salesSummary'] as $key => $sales){
     				if(!array_key_exists($key, $customer_arr[$customer]))
-    					$customer_arr[$customer][$key] = $key;
+    					$customer_arr[$customer][$key] = $sales;
     				else
     					$customer_arr[$customer][$key] += $sales;
     			}

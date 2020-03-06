@@ -128,7 +128,7 @@ class MasterlistController extends LogsController
 
 		$q = Masterlist::query();
 
-		$list = $q->get();
+		$list = $q->orderBy('id','desc')->get();
 		$itemList = $this->getItems($list);
 
 		$responseArray = array(

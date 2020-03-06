@@ -46,7 +46,6 @@ class PurchaseRequestController extends LogsController
 		$subProd = JobOrderProduced::select(Db::raw('sum(jop_quantity) as totalProduced'),
 			'jop_jo_id')->groupBy('jop_jo_id');
 
-
 		$q = JobOrder::query();
 
 		$q->has('poitems.po');
@@ -75,7 +74,6 @@ class PurchaseRequestController extends LogsController
 				$q->whereRaw('jo_quantity > IFNULL(totalProduced,0)');
 			else 
 				$q->whereRaw('jo_quantity <= IFNULL(totalProduced,0)');
-
 		}
 
 		$q->where('jo_forwardToWarehouse',1);
@@ -154,8 +152,8 @@ class PurchaseRequestController extends LogsController
 			'item_desc' => $item->poi_itemdescription,
 			'remarks' => $pr->pr_remarks,
 			'isForPricing' => $pr->pr_forPricing,
-			'hasPrice' => $pr->pr_hasPrice,
-			'status' => $pr->pr_hasPrice ? 'W/ PRICE' : 'NO PRICE',
+			'hasPrice' => $pr->prpricing()->count() > 0,
+			'status' => $pr->prpricing()->count() > 0 ? 'W/ PRICE' : 'NO PRICE',
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
 				return $this->getPrItems($data);
@@ -337,7 +335,12 @@ class PurchaseRequestController extends LogsController
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$pr = $jobOrder->pr()->create($this->prArray($request->all()));
+		$pr = $jobOrder->pr()->create(
+      array_merge($this->prArray($request->all()),
+        array(
+          'pr_user_id' => Auth()->user()->id,
+        )
+    ));
 
 		PurchaseRequestSeries::first()
 			->update(['series_number' => DB::raw('series_number + 1')]); //update series
@@ -435,8 +438,6 @@ class PurchaseRequestController extends LogsController
 
 	public function deletePr($id)
 	{
-
-
 		$pr = PurchaseRequest::findOrFail($id);
 		$jonum = $pr->jo->jo_joborder;
 		$prnum = $pr->pr_prnum;
@@ -461,6 +462,5 @@ class PurchaseRequestController extends LogsController
 				'message' => 'Record deleted',
 				'deletedId' => $id
 			]);
-
 	}
 }

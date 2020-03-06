@@ -69,6 +69,21 @@ class User extends Authenticatable implements JWTSubject
         return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
     }
 
+    public function pr()
+    {
+      return $this->hasMany('App\PurchaseRequest','pr_user_id');
+    }
+
+    public function prsd()
+    {
+      return $this->hasMany('App\PurchaseRequest','prsd_user_id');
+    }
+
+    public function pra()
+    {
+      return $this->hasMany('App\PurchaseRequestApproval','pra_approver_id');
+    }
+
     public function cposmsLogs()
     {
         return $this->hasMany('App\CposmsLogs','user_id');
