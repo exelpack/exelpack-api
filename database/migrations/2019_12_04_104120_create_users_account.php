@@ -28,11 +28,16 @@ class CreateUsersAccount extends Migration
             $table->unsignedTinyInteger('approval_pr');
             $table->unsignedTinyInteger('approval_po');
             $table->string('type',20);
+            $table->string('firstname',50);
+            $table->string('middleinitial',5);
+            $table->string('lastname',50);
+            $table->string('extensionname',5)->nullable();
+            $table->string('gender',6);
             $table->string('department',20);
-            $table->string('fullname',50);
             $table->string('position',50);
+            $table->string('email',50)->nullable();
             $table->string('signature',150)->nullable();
-            $table->softdeletes();
+            $table->softDeletes();
         });
     }
 

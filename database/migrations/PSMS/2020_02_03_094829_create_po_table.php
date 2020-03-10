@@ -17,7 +17,7 @@ class CreatePoTable extends Migration
           $table->bigIncrements('id');
           $table->string('spo_ponum',50);
           $table->date('spo_date');
-          $table->string('spo_status',50)->default('PENDING');
+          $table->integer('spo_sentToSupplier')->default(0);
           $table->integer('spo_user_id')->unsigned();
           $table->softDeletes();
           $table->timestamps();

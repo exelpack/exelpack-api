@@ -103,7 +103,6 @@ class UserController extends Controller
       'id' => $user->id,
       'username' => $user->username,
       'type' => $user->type,
-      'department' => $user->department,
       'npd' => $user->npd_access,
       'pmms' => $user->pmms_access,
       'cposms' => $user->cposms_access,
@@ -114,7 +113,12 @@ class UserController extends Controller
       'salesms' => $user->salesms_access,
       'prapproval' => $user->approval_pr,
       'poapproval' => $user->approval_po,
-      'fullname' => $user->fullname,
+      'firstname' => $user->fullname,
+      'middleinitial' => $user->middleinitial,
+      'lastname' => $user->lastname,
+      'gender' => $user->gender,
+      'email' => $user->email,
+      'department' => $user->department,
       'position' => $user->position,
       'signature' => $user->signature,
     );
@@ -130,6 +134,7 @@ class UserController extends Controller
         'password' => 'min:3|max:12|required',
         'type' => 'min:4|max:20|required|in:default,admin,management',
         'department' => 'min:2|max:20|required',
+        'gender' => 'string|max:6|in:male,female|required',
         'password' => 'min:3|max:12|required',
         'npd' => 'boolean|nullable',
         'pmms' => 'boolean|nullable',
@@ -141,7 +146,10 @@ class UserController extends Controller
         'salesms' => 'boolean|nullable',
         'prapproval' => 'boolean|nullable',
         'poapproval' => 'boolean|nullable',
-        'fullname' => 'string|max:50|required',
+        'firstname' => 'string|max:50|required',
+        'middleinitial' => 'string|max:5|required',
+        'lastname' => 'string|max:50|required',
+        'extensionname' => 'string|max:5|required',
         'position' => 'string|max:50|required',
         'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]
@@ -155,8 +163,9 @@ class UserController extends Controller
     $user->fill([
       'username' => $request->username,
       'password' => Hash::make($request->password),
-      'type' => $request->type,
-      'department' => $request->department,
+      'type' => strtolower($request->type),
+      'gender' => strtolower($request->gender),
+      'department' => strtolower($request->department),
       'npd_access' => $request->npd,
       'pmms_access' => $request->pmms,
       'cposms_access' => $request->cposms,
@@ -167,8 +176,11 @@ class UserController extends Controller
       'salesms_access' => $request->salesms,
       'approval_pr' => $request->prapproval,
       'approval_po' => $request->poapproval,
-      'fullname' => $request->fullname,
-      'position' => $request->position,
+      'firstname' => ucwords($request->firstname),
+      'middleinitial' => strtoupper($request->middleinitial),
+      'lastname' => ucwords($request->lastname),
+      'extensionname' => ucwords($request->extensionname),
+      'position' => ucwords($request->position),
     ]);
     $user->save();
 
@@ -203,6 +215,7 @@ class UserController extends Controller
         'password' => 'min:3|max:12|required',
         'type' => 'min:4|max:20|required|in:default,admin,management',
         'department' => 'min:2|max:20|required',
+        'gender' => 'string|max:6|in:male,female|required',
         'password' => 'min:3|max:12|required',
         'npd' => 'boolean|nullable',
         'pmms' => 'boolean|nullable',
@@ -214,7 +227,10 @@ class UserController extends Controller
         'salesms' => 'boolean|nullable',
         'prapproval' => 'boolean|nullable',
         'poapproval' => 'boolean|nullable',
-        'fullname' => 'string|max:50|required',
+        'firstname' => 'string|max:50|required',
+        'middleinitial' => 'string|max:5|required',
+        'lastname' => 'string|max:50|required',
+        'extensionname' => 'string|max:5|required',
         'position' => 'string|max:50|required',
         'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]
@@ -227,8 +243,9 @@ class UserController extends Controller
     $user = User::findOrFail($id);
     $user->fill([
       'username' => $request->username,
-      'type' => $request->type,
-      'department' => $request->department,
+      'type' => strtolower($request->type),
+      'gender' => strtolower($request->gender),
+      'department' => strtolower($request->department),
       'npd_access' => $request->npd,
       'pmms_access' => $request->pmms,
       'cposms_access' => $request->cposms,
@@ -239,8 +256,11 @@ class UserController extends Controller
       'salesms_access' => $request->salesms,
       'approval_pr' => $request->prapproval,
       'approval_po' => $request->poapproval,
-      'fullname' => $request->fullname,
-      'position' => $request->position,
+      'firstname' => ucwords($request->firstname),
+      'middleinitial' => strtoupper($request->middleinitial),
+      'lastname' => ucwords($request->lastname),
+      'extensionname' => ucwords($request->extensionname),
+      'position' => ucwords($request->position),
     ]);
 
     if($request->signature){
@@ -270,7 +290,6 @@ class UserController extends Controller
 
   public function deleteUser($id)
   {
-
     $user = User::findOrFail($id)->delete();
 
     return response()->json(

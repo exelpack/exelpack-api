@@ -17,16 +17,11 @@ Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
 Route::get('/options/units','LogsController@getUnits');
 Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
 
-
-Route::get('/error', function(){
-	return response()->json(['error' => 'Unauthorized'],401);
-})->name('unauthenticated');
-
-
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout/{sys}','UserController@logout');
 	Route::post('/me','UserController@me');
-	Route::get('/test', 'SalesController@exportAR');
+  // PurchasesSupplierController@printPurchaseOrder
+	// ['error' => 'Unauthorized'],
 
 	Route::group(['middleware' => ['cposms']], function() {
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');

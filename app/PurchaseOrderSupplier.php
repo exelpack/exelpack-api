@@ -13,8 +13,13 @@ class PurchaseOrderSupplier extends Model
   protected $guarded = ['id','created_at','updated_at'];
   protected $hidden = ['deleted_at','updated_at'];
 
-  public function prs()
+  public function prprice()
   {
     return $this->hasMany('App\PurchaseRequestSupplierDetails','prsd_spo_id');
+  }
+
+  public function user()
+  {
+    return $this->belongsTo('App\User','spo_user_id')->withTrashed();
   }
 }

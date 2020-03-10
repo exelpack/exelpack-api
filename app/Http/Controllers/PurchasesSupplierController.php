@@ -28,6 +28,90 @@ use App\User;
 class PurchasesSupplierController extends Controller
 {
 
+  public function getTitle($gender){
+    if(strtolower($gender) == 'male')
+      return 'mr.';
+    else if(strtolower($gender) == 'female')
+      return 'ms.';
+    else return '';
+  }
+
+  public function printPurchaseOrder(Request $request,$id){
+    $token = $request->bearerToken();
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $user = $po->user;
+    $sd = $po->prprice()->first()->supplier;
+    $getPr = PurchaseRequest::whereHas('prpricing.po', function($q) use ($id){
+        return $q->where('id', $id);
+      })
+      ->pluck('pr_prnum')
+      ->toArray();
+
+    $prNumber = implode(",", $getPr);
+    $prItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
+        return $q->where('id', $id);
+      })
+      ->select(
+        'id',
+        DB::raw('IF(count(*) > 1,NULL,pri_code) as code'),
+        'pri_mspecs as materialSpecification',
+        'pri_uom as unit',
+        'pri_unitprice as unitprice',
+        'pri_deliverydate as deliveryDate',
+        DB::raw('CAST(sum(pri_quantity) as int) as quantity')
+      )
+      ->groupBy('pri_mspecs', 'pri_uom', 'pri_unitprice')
+      ->get();
+
+    $poDetails = (object) array(
+      'poNumber' => $po->spo_ponum,
+      'currency' => $po->prprice()->first()->prsd_currency,
+      'date' => $po->created_at->format('F d, Y'),
+      'prNumber' => $prNumber,
+      'supplierName' => $sd->sd_supplier_name,
+      'address' => $sd->sd_address,
+      'tin' => $sd->sd_tin,
+      'attention' => $sd->sd_attention,
+      'paymentTerms' => $sd->sd_paymentterms,
+    );
+    $preparedByName = NULL;
+    $checkByName = NULL;
+    $approvedByName = NULL;
+    $preparedBySig = false;
+    $prepareBySigFile = '';
+    if($user){
+      $preparedByName = strtoupper($this->getTitle($user->gender)." ".
+        SUBSTR($user->firstname,0,1).$user->middleinitial." ".$user->lastname);
+      $prepareBySigFile = $user->id.'/'.$user->signature;
+      $preparedBySig = Storage::disk('local')
+      ->exists('/users/signature/'.$prepareBySigFile);
+    }
+    $getOm = User::where('department','om')->where('position','Manager')->first();
+    $getGm = User::where('department','gm')->where('position','Manager')->first();
+
+    if($getOm){
+      $checkByName = strtoupper($this->getTitle($getOm->gender)." ".
+        SUBSTR($getOm->firstname,0,1).$getOm->middleinitial." ".$getOm->lastname);
+    }
+
+    if($getGm){
+      $approvedByName = strtoupper($this->getTitle($getGm->gender)." ".
+        SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
+    }
+
+    $pdf =  PDF::loadView('psms.printPurchaseOrder', compact(
+      'poDetails',
+      'prItems',
+      'preparedByName',
+      'checkByName',
+      'approvedByName',
+      'preparedBySig',
+      'prepareBySigFile',
+      'token'
+    ))->setPaper('a4','portrait');
+    return $pdf->stream($po->spo_ponum);
+  }
+
   public function getFileSignature(){
     $filepath = request()->has('filepath') ? request()->filepath : 'empty';
     $path = storage_path('app/users/signature/' . $filepath);
@@ -79,7 +163,22 @@ class PurchasesSupplierController extends Controller
     $isApproved = false;
     $approvalSig = false;
     $approvalFileName = '';
+    $gmName = NULL;
+    $gmSig = NULL;
+    $gmSigExist = false;
+
     $approvalReq = $prs->prApproval;
+
+    $getGm = User::where('department','gm')->where('position','Manager')->first();
+    if($getGm){
+      $gmName = strtoupper($this->getTitle($getGm->gender)." ".
+        SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
+
+      $gmSig = $user->id.'/'.$user->signature;
+      $gmSigExist = Storage::disk('local')
+        ->exists('/users/signature/'.$prepareBySigFile);
+    }
+
     if($approvalReq){
       if($approvalReq->pra_approved > 0){
         $isApproved = true;
@@ -100,6 +199,9 @@ class PurchasesSupplierController extends Controller
       'prFileName',
       'prsFileName',
       'approvalFileName',
+      'gmName',
+      'gmSig',
+      'gmSigExist',
       'token'
     ))->setPaper('a4','portrait');
     return $pdf->stream($prs->pr->pr_prnum);
@@ -877,14 +979,22 @@ class PurchasesSupplierController extends Controller
       prsd.prsd_spo_id,
       prsd.prsd_currency as currency,
       GROUP_CONCAT(pr_prnum) as prnumbers,
-      CAST(sum(itemCount) as int) as itemCount
+      CAST(sum(itemCount) as int) as itemCount,
+      CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
+      IFNULL(CAST(sum(invoiceDelivered) as int),0) as invoiceDelivered
       FROM prms_prlist
       LEFT JOIN psms_prsupplierdetails prsd 
       ON prsd.prsd_pr_id = prms_prlist.id
-      LEFT JOIN (SELECT count(*) as itemCount,pri_pr_id
+      LEFT JOIN (SELECT count(*) as itemCount,
+      SUM(pri_quantity) as totalPrQuantity,pri_pr_id,id
       FROM prms_pritems
       GROUP BY pri_pr_id) pri
       ON pri.pri_pr_id = prms_prlist.id
+      LEFT JOIN (SELECT SUM(ssi_receivedquantity) as invoiceDelivered,ssi_pritem_id 
+      FROM psms_supplierinvoice
+      WHERE ssi_receivedquantity > 0
+      GROUP BY ssi_pritem_id) prsi
+      ON prsi.ssi_pritem_id = pri.id
       GROUP BY prsd_spo_id";
 
     $supplier = DB::table('psms_supplierdetails')
@@ -895,7 +1005,7 @@ class PurchasesSupplierController extends Controller
       ->select('pri_pr_id',DB::raw('count(*) as itemCount'))
       ->groupBy('pri_pr_id');
 
-    $poList = PurchaseOrderSupplier::has('prs.pr.jo.poitems.po')
+    $poList = PurchaseOrderSupplier::has('prprice.pr.jo.poitems.po')
       ->leftJoinSub($joinQry,'pr', function($join){
         $join->on('pr.prsd_spo_id','=','psms_spurchaseorder.id');
       })
@@ -909,7 +1019,16 @@ class PurchasesSupplierController extends Controller
         'prnumbers',
         'currency',
         'itemCount',
-        'spo_status as status'
+        Db::raw('IF(spo_sentToSupplier = 0 && invoiceDelivered < 1,
+          "PENDING",
+          IF(invoiceDelivered > 0,
+            IF(invoiceDelivered >= totalPoQuantity,
+              "DELIVERED",
+              "PARTIAL"
+            ),
+            "SENT"
+          )
+        ) as status')
       )
       ->orderBy('id','DESC')
       ->limit($limit)
@@ -933,6 +1052,7 @@ class PurchasesSupplierController extends Controller
     $purchaseOrder = new PurchaseOrderSupplier();
     $purchaseOrder->fill([
       'spo_ponum' => $request->poSeries,
+      'spo_user_id' => Auth()->user()->id,
       'spo_date' => date('Y-m-d'),
     ]);
     $purchaseOrder->save();
@@ -959,7 +1079,7 @@ class PurchasesSupplierController extends Controller
   public function cancelPurchaseOrder($id)
   {
     $po = PurchaseOrderSupplier::findOrFail($id); 
-    $po->prs()->update([
+    $po->prprice()->update([
       'prsd_spo_id' => 0,
     ]);
     $po->delete();
@@ -968,67 +1088,4 @@ class PurchasesSupplierController extends Controller
       'message' => 'Record deleted',
     ]);
   }
-
-  public function printPurchaseOrder($id){
-
-    $po = PurchaseOrderSupplier::findOrFail($id);
-    $getPr = PurchaseRequest::whereHas('prpricing.po', function($q) use ($id){
-        return $q->where('id', $id);
-      })
-      ->pluck('pr_prnum')
-      ->toArray();
-
-    $prNumber = implode(",", $getPr);
-    $pri = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
-        return $q->where('id', $id);
-      })
-      ->select(
-        'id',
-        'pri_code',
-        'pri_mspecs',
-        'pri_uom',
-        'pri_unitprice',
-        'pri_deliverydate'
-      )
-      // ->groupBy('pri_mspecs', 'pri_uom', 'pri_unitprice')
-      // ->orderBy('id','DESC')
-      ->get()
-      ->map(function($item) {
-        return array(
-          'id' => $item->id,
-          'code' => $item->pri_code,
-          'materialSpecification' => $item->pri_mspecs,
-          'unit' => $item->pri_uom,
-          // 'quantity' => $item->quantity,
-          'unitprice' => $item->pri_unitprice,
-          'deliveryDate' => $item->pri_deliverydate,
-        );
-      })
-      ->toArray();
-    return response()->json([
-      'prNumber' => $prNumber,
-      'prItems' => $pri,
-    ]);
-
-    $items = $pritems->map(function($item) {
-      return array(
-        'id' => $item->id,
-        'code' => $item->pri_code,
-        'materialSpecification' => $item->pri_mspecs,
-        'unit' => $item->pri_uom,
-        'quantity' => $item->pri_quantity,
-        'unitprice' => $item->pri_unitprice,
-        'deliveryDate' => $item->pri_deliverydate,
-      );
-    })->values();
-    $supplierDetails = array(
-      'supplierName' => $sd->sd_supplier_name,
-      'address' => $sd->sd_address,
-      'tin' => $sd->sd_tin,
-      'attention' => $sd->sd_attention,
-      'paymentTerms' => $sd->sd_paymentterms,
-    );
-
-  }
-
 }

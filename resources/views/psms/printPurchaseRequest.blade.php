@@ -127,16 +127,16 @@
         <td>{{ $item['supplier'] }}</td>
         <td>{{ $item['code'] }}</td>
       </tr> 
-    @endforeach
 
-    @if(count($items) > 0)
-      <tr>
-        <td colspan="5"></td>
-        <td>{{ $details['currency'] == 'USD' ? '$' : 'PHP' }}
-          @php echo number_format(array_sum(array_column($items, 'amount')), 2) @endphp</td>
-        <td colspan="2"></td>
-      </tr>
-    @endif
+      @if($loop->last)
+        <tr>
+          <td colspan="5"></td>
+          <td>{{ $details['currency'] == 'USD' ? '$' : 'PHP' }}
+            @php echo number_format(array_sum(array_column($items, 'amount')), 2) @endphp</td>
+          <td colspan="2"></td>
+        </tr>
+      @endif
+    @endforeach
   </tbody>
 </table>
 
@@ -207,13 +207,24 @@
     <td>Approved by:
       <br/>
       <div class="signature">
-        <img 
-          src="{{ asset('storage/img/defaultsign.jpg') }}"
-          alt="Cannot load signature"
-        />
+        @if($isApproved)
+          @if($gmSigExist && $gmSig)
+          <img 
+            src="{{ $url.$gmSig.'&token='.$token }}"
+            alt="Cannot load signature"
+          />
+          @else
+            <img 
+              src="{{ asset('storage/img/defaultsign.jpg') }}"
+              alt="Cannot load signature"
+            />
+          @endif
+        @else
+          <div style="padding: 12.8px 0;">&nbsp;</div>
+        @endif
       </div>
       <p class="signature-text">
-        MR. JA CABUNTOCAN
+        {{ $gmName ?? 'General Manager' }}
       </p>
     </td>
   </tr>
