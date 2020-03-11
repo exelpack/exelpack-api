@@ -116,6 +116,7 @@ class UserController extends Controller
       'firstname' => $user->fullname,
       'middleinitial' => $user->middleinitial,
       'lastname' => $user->lastname,
+      'extensionname' => $user->extensionname,
       'gender' => $user->gender,
       'email' => $user->email,
       'department' => $user->department,
@@ -149,7 +150,7 @@ class UserController extends Controller
         'firstname' => 'string|max:50|required',
         'middleinitial' => 'string|max:5|required',
         'lastname' => 'string|max:50|required',
-        'extensionname' => 'string|max:5|required',
+        'extensionname' => 'string|max:5|nullable',
         'position' => 'string|max:50|required',
         'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]
@@ -230,7 +231,7 @@ class UserController extends Controller
         'firstname' => 'string|max:50|required',
         'middleinitial' => 'string|max:5|required',
         'lastname' => 'string|max:50|required',
-        'extensionname' => 'string|max:5|required',
+        'extensionname' => 'string|max:5|nullable',
         'position' => 'string|max:50|required',
         'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]

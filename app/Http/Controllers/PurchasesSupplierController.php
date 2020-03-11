@@ -21,13 +21,13 @@ use App\PurchaseRequestSupplierDetails;
 use App\PurchaseOrderSeries;
 use App\PurchaseRequest;
 use App\PurchaseRequestItems;
+use App\SupplierInvoice;
 use App\Masterlist;
 use App\Supplier;
 use App\User;
 
 class PurchasesSupplierController extends Controller
 {
-
   public function getTitle($gender){
     if(strtolower($gender) == 'male')
       return 'mr.';
@@ -36,10 +36,7 @@ class PurchasesSupplierController extends Controller
     else return '';
   }
 
-  public function printPurchaseOrder(Request $request,$id){
-    $token = $request->bearerToken();
-    $po = PurchaseOrderSupplier::findOrFail($id);
-    $user = $po->user;
+  public function getPurchaseOrderDetails($po,$id){
     $sd = $po->prprice()->first()->supplier;
     $getPr = PurchaseRequest::whereHas('prpricing.po', function($q) use ($id){
         return $q->where('id', $id);
@@ -74,6 +71,20 @@ class PurchasesSupplierController extends Controller
       'attention' => $sd->sd_attention,
       'paymentTerms' => $sd->sd_paymentterms,
     );
+
+    return (object) array(
+      'poDetails' => $poDetails,
+      'prItems' => $prItems,
+    );
+  }
+
+  public function printPurchaseOrder(Request $request,$id){
+    $token = $request->bearerToken();
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $user = $po->user;
+    $getDetails = $this->getPurchaseOrderDetails($po,$id);
+    $prItems = $getDetails->prItems;
+    $poDetails = $getDetails->poDetails;
     $preparedByName = NULL;
     $checkByName = NULL;
     $approvedByName = NULL;
@@ -84,7 +95,7 @@ class PurchasesSupplierController extends Controller
         SUBSTR($user->firstname,0,1).$user->middleinitial." ".$user->lastname);
       $prepareBySigFile = $user->id.'/'.$user->signature;
       $preparedBySig = Storage::disk('local')
-      ->exists('/users/signature/'.$prepareBySigFile);
+        ->exists('/users/signature/'.$prepareBySigFile);
     }
     $getOm = User::where('department','om')->where('position','Manager')->first();
     $getGm = User::where('department','gm')->where('position','Manager')->first();
@@ -166,9 +177,7 @@ class PurchasesSupplierController extends Controller
     $gmName = NULL;
     $gmSig = NULL;
     $gmSigExist = false;
-
     $approvalReq = $prs->prApproval;
-
     $getGm = User::where('department','gm')->where('position','Manager')->first();
     if($getGm){
       $gmName = strtoupper($this->getTitle($getGm->gender)." ".
@@ -372,18 +381,15 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'prPriceListLength' => $prListLength,
       'prPriceList' => $prList,
+      'supplierList' => $this->getSupplier(),
     ]);
   }
 
   public function getSupplier(){
-
     $supplier = Supplier::select('id', 'sd_supplier_name as supplierName')
                   ->orderBy('sd_supplier_name','ASC')
                   ->get();
-    return response()->json([
-      'supplierList' => $supplier,
-    ]);
-
+    return $supplier;
   }
 
   public function getPrInfo($id)
@@ -434,6 +440,7 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'poJoDetails' => $poJoDetails,
       'prItems' => $prItems,
+      'supplierList' => $this->getSupplier(),
     ]);
 
   }
@@ -969,6 +976,12 @@ class PurchasesSupplierController extends Controller
     ]);
   }
 
+  public function purchaseOrderInfo($id)
+  {
+    $po = PurchseOrderSupplier::findOrFail($id);
+    $poDetails = $this->getPurchaseOrderDetails($po,$id);
+  }
+
   public function getPurchaseOrder()
   {
     $limit = request()->has('recordCount') ? request()->recordCount : 1000;
@@ -981,7 +994,7 @@ class PurchasesSupplierController extends Controller
       GROUP_CONCAT(pr_prnum) as prnumbers,
       CAST(sum(itemCount) as int) as itemCount,
       CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
-      IFNULL(CAST(sum(invoiceDelivered) as int),0) as invoiceDelivered
+      IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered
       FROM prms_prlist
       LEFT JOIN psms_prsupplierdetails prsd 
       ON prsd.prsd_pr_id = prms_prlist.id
@@ -990,7 +1003,7 @@ class PurchasesSupplierController extends Controller
       FROM prms_pritems
       GROUP BY pri_pr_id) pri
       ON pri.pri_pr_id = prms_prlist.id
-      LEFT JOIN (SELECT SUM(ssi_receivedquantity) as invoiceDelivered,ssi_pritem_id 
+      LEFT JOIN (SELECT SUM(ssi_receivedquantity) as quantityDelivered,ssi_pritem_id 
       FROM psms_supplierinvoice
       WHERE ssi_receivedquantity > 0
       GROUP BY ssi_pritem_id) prsi
@@ -1019,14 +1032,16 @@ class PurchasesSupplierController extends Controller
         'prnumbers',
         'currency',
         'itemCount',
-        Db::raw('IF(spo_sentToSupplier = 0 && invoiceDelivered < 1,
+        'quantityDelivered',
+        'totalPoQuantity',
+        Db::raw('IF(spo_sentToSupplier = 0 && quantityDelivered < 1,
           "PENDING",
-          IF(invoiceDelivered > 0,
-            IF(invoiceDelivered >= totalPoQuantity,
+          IF(quantityDelivered > 0,
+            IF(quantityDelivered >= totalPoQuantity,
               "DELIVERED",
               "PARTIAL"
             ),
-            "SENT"
+            "OPEN"
           )
         ) as status')
       )
@@ -1036,6 +1051,7 @@ class PurchasesSupplierController extends Controller
 
     return response()->json([
       'poList' => $poList,
+      'supplierList' => $this->getSupplier(),
     ]);
   }
 
@@ -1076,9 +1092,75 @@ class PurchasesSupplierController extends Controller
     ]);
   }
 
+  public function markAsSentToSupplier($id){
+    $po = PurchaseOrderSupplier::findOrFail($id);
+
+    if($po->spo_sentToSupplier)
+      return response()->json(['errors' =>
+          ['Purchase order already mark as OPEN'] ],422);
+
+    $po->update([
+      'spo_sentToSupplier' => 1,
+    ]);
+
+    $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q)
+      use ($id){
+        return $q->where('id', $id);
+      })
+      ->pluck('pr_prnum')
+      ->toArray();
+    $prNumber = implode(",", $prNumbers);
+    $item = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q)
+      use ($id){
+        return $q->where('id', $id);
+      })
+      ->get();
+
+    $itemCount = $item->count();
+    $totalPoQuantity = $item->sum('pri_quantity');
+    $quantityDelivered = SupplierInvoice::whereHas('pritem.pr.prpricing.po', function($q) 
+      use ($id){
+        return $q->where('id', $id);
+      })
+      ->sum('ssi_receivedquantity');
+    $status = 'OPEN';
+    if($po->spo_sentToSupplier != 0 || $quantityDelivered > 0){
+      if($quantityDelivered > 0)
+        $status = "PARTIAL";
+      else if($quantityDelivered >= $totalPoQuantity)
+        $status = "DELIVERED";
+    }else 
+      $status = "PENDING";
+      
+    $newPo = array(
+      'id' => $po->id,
+      'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
+      'poNum' => $po->spo_ponum,
+      'prNumbers' => $prNumber,
+      'currency' => $po->prprice()->first()->prsd_currency,
+      'itemCount' => $itemCount,
+      'quantityDelivered' => $quantityDelivered,
+      'totalPoQuantity' => $totalPoQuantity,
+      'status' => $status,
+    );
+    return response()->json([
+      'message' => 'Record updated',
+      'newPo' => $newPo,
+    ]);
+  }
+
   public function cancelPurchaseOrder($id)
   {
-    $po = PurchaseOrderSupplier::findOrFail($id); 
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $hasDelivery = PurchaseRequestItems::has('invoice')
+      ->whereHas('pr.prpricing', function($q) use ($id){
+        return $q->where('prsd_spo_id', $id);
+      })
+      ->count();
+    if($hasDelivery > 0)
+      return response()->json(['errors' =>
+          ['Cannot cancel purchase order with delivery'] ],422);
+
     $po->prprice()->update([
       'prsd_spo_id' => 0,
     ]);
@@ -1088,4 +1170,5 @@ class PurchasesSupplierController extends Controller
       'message' => 'Record deleted',
     ]);
   }
+
 }

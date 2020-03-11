@@ -132,8 +132,8 @@ if($count > 0){
                 ${$date."_usd"}+=$collected_amt;
               }
 
-              $crcy = '$';
-
+              // $crcy = '';
+    
             }
 
             
@@ -198,7 +198,7 @@ if($count > 0){
       <td class="bg-col">{{ number_format($receivable_of_month_usd,2) }}</td>
       <td class="bg-col">{{ number_format($total_remaining_usd,2) }}</td>
       @foreach($collected_dates as $dates)
-        <td class="bg-col">$ {{ 
+        <td class="bg-col">{{ 
           isset(${$date."_usd"}) 
           ? number_format(${$date."_usd"},2) 
           : 0
