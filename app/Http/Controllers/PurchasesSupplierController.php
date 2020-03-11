@@ -44,9 +44,16 @@ class PurchasesSupplierController extends Controller
       ->pluck('pr_prnum')
       ->toArray();
 
+    $deliveredSub = SupplierInvoice::select(
+      Db::raw('SUM(ssi_receivedquantity) as delivered'),
+      'ssi_pritem_id')
+      ->groupBy('ssi_pritem_id');
     $prNumber = implode(",", $getPr);
-    $prItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
+    $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
         return $q->where('id', $id);
+      })
+      ->leftJoinSub($deliveredSub,'supplierInvoice', function($join){
+        return $join->on('supplierInvoice.ssi_pritem_id','=','prms_pritems.id');
       })
       ->select(
         'id',
@@ -55,7 +62,8 @@ class PurchasesSupplierController extends Controller
         'pri_uom as unit',
         'pri_unitprice as unitprice',
         'pri_deliverydate as deliveryDate',
-        DB::raw('CAST(sum(pri_quantity) as int) as quantity')
+        DB::raw('CAST(sum(pri_quantity) as int) as quantity'),
+        DB::raw('CAST(delivered as int) as delivered')
       )
       ->groupBy('pri_mspecs', 'pri_uom', 'pri_unitprice')
       ->get();
@@ -74,7 +82,7 @@ class PurchasesSupplierController extends Controller
 
     return (object) array(
       'poDetails' => $poDetails,
-      'prItems' => $prItems,
+      'poItems' => $poItems,
     );
   }
 
@@ -83,8 +91,9 @@ class PurchasesSupplierController extends Controller
     $po = PurchaseOrderSupplier::findOrFail($id);
     $user = $po->user;
     $getDetails = $this->getPurchaseOrderDetails($po,$id);
-    $prItems = $getDetails->prItems;
+    $poItems = $getDetails->poItems;
     $poDetails = $getDetails->poDetails;
+    return $poItems;
     $preparedByName = NULL;
     $checkByName = NULL;
     $approvedByName = NULL;
@@ -112,7 +121,7 @@ class PurchasesSupplierController extends Controller
 
     $pdf =  PDF::loadView('psms.printPurchaseOrder', compact(
       'poDetails',
-      'prItems',
+      'poItems',
       'preparedByName',
       'checkByName',
       'approvedByName',
@@ -978,8 +987,29 @@ class PurchasesSupplierController extends Controller
 
   public function purchaseOrderInfo($id)
   {
-    $po = PurchseOrderSupplier::findOrFail($id);
-    $poDetails = $this->getPurchaseOrderDetails($po,$id);
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $getPoDetails = $this->getPurchaseOrderDetails($po,$id);
+    $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
+        return $q->where('id', $id);
+      })
+      ->get()
+      ->map(function($item) {
+        return array(
+          'id' => $item->id,
+          'code' => $item->pri_code,
+          'materialSpecification' => $item->pri_mspecs,
+          'unit' => $item->pri_uom,
+          'unitprice' => $item->pri_unitprice,
+          'quantity' => $item->pri_quantity,
+          'deliveryDate' => $item->pri_deliverydate,
+          'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
+        );
+      })
+      ->toArray();
+
+    return response()->json([
+      'poItems' => $poItems,
+    ]);
   }
 
   public function getPurchaseOrder()

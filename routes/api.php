@@ -185,6 +185,7 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/psms/print/{id}','PurchasesSupplierController@printPR');
     Route::get('/storage/signature','PurchasesSupplierController@getFileSignature');
     Route::get('/psms/po','PurchasesSupplierController@getPurchaseOrder');
+    Route::get('/psms/po/{id}','PurchasesSupplierController@purchaseOrderInfo');
     Route::get('/psms/po/print/{id}','PurchasesSupplierController@printPurchaseOrder');
 
     Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');

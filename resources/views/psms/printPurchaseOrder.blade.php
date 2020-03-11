@@ -60,7 +60,7 @@
 </style>
 
 @php
-  $total = $prItems->sum(function($item) {
+  $total = $poItems->sum(function($item) {
     return $item->unitprice * $item->quantity;
   });
 
@@ -152,7 +152,7 @@
       <td style="width: 15%">DELIVERY DATE</td>
     </tr>
     
-    @foreach($prItems as $key => $item)
+    @foreach($poItems as $key => $item)
       <tr>
         <td style="text-align: center;">{{ intval($key + 1) }}</td>
         <td style="text-align: center;">{{ $item->code }}</td>
