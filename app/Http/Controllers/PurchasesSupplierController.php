@@ -93,7 +93,6 @@ class PurchasesSupplierController extends Controller
     $getDetails = $this->getPurchaseOrderDetails($po,$id);
     $poItems = $getDetails->poItems;
     $poDetails = $getDetails->poDetails;
-    return $poItems;
     $preparedByName = NULL;
     $checkByName = NULL;
     $approvedByName = NULL;
