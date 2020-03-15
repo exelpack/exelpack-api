@@ -186,10 +186,13 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/storage/signature','PurchasesSupplierController@getFileSignature');
     Route::get('/psms/po','PurchasesSupplierController@getPurchaseOrder');
     Route::get('/psms/po/{id}','PurchasesSupplierController@purchaseOrderInfo');
+    Route::get('/psms/poitem','PurchasesSupplierController@getPoItems');
     Route::get('/psms/po/print/{id}','PurchasesSupplierController@printPurchaseOrder');
+    Route::get('/psms/po/invoice/{id}','PurchasesSupplierController@getPurchaseOrderDeliveries');
 
     Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');
     Route::post('/psms/approval','PurchasesSupplierController@addApprovalRequest');
+    Route::post('/psms/po/invoice','PurchasesSupplierController@addDeliveryToPO');
     
     Route::put('/psms/pr/{id}','PurchasesSupplierController@editPrWithPrice');
     Route::put('/psms/po/{id}','PurchasesSupplierController@markAsSentToSupplier');
@@ -223,3 +226,4 @@ Route::group(['middleware' => ['auth:api']], function() {
 	});
 
 });
+

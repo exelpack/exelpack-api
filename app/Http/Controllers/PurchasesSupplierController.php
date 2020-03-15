@@ -942,7 +942,8 @@ class PurchasesSupplierController extends Controller
     });
 
     if(!$checkIfSameSupplier)
-      return response()-json(['errors' => ['You can only create purchase order with same supplier & currency'] ], 422);
+      return response()-json(['errors' =>
+        ['You can only create purchase order with same supplier & currency'] ], 422);
 
     $sd = PurchaseRequestSupplierDetails::whereIn('id', $request->prsID)
       ->first()
@@ -995,6 +996,7 @@ class PurchasesSupplierController extends Controller
       ->map(function($item) {
         return array(
           'id' => $item->id,
+          'prnumber' => $item->pr->pr_prnum,
           'code' => $item->pri_code,
           'materialSpecification' => $item->pri_mspecs,
           'unit' => $item->pri_uom,
@@ -1032,7 +1034,7 @@ class PurchasesSupplierController extends Controller
       FROM prms_pritems
       GROUP BY pri_pr_id) pri
       ON pri.pri_pr_id = prms_prlist.id
-      LEFT JOIN (SELECT SUM(ssi_receivedquantity) as quantityDelivered,ssi_pritem_id 
+      LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_pritem_id 
       FROM psms_supplierinvoice
       WHERE ssi_receivedquantity > 0
       GROUP BY ssi_pritem_id) prsi
@@ -1200,4 +1202,204 @@ class PurchasesSupplierController extends Controller
     ]);
   }
 
+  public function getPoItems()
+  {
+    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+
+    $pr = Db::table('prms_prlist')
+      ->select(
+        'id',
+        'pr_prnum as prNum'
+      );
+
+    $prPrice = Db::table('psms_prsupplierdetails')
+      ->select(
+        'prsd_pr_id',
+        'prsd_spo_id',
+        'prsd_supplier_id',
+        'prsd_currency as currency'
+      );
+
+    $supplier = Db::table('psms_supplierdetails')
+      ->select(
+        'id',
+        'sd_supplier_name as supplier'
+      );
+
+    $po = Db::table('psms_spurchaseorder')
+      ->select(
+        'id',
+        'spo_ponum as poNum'
+      );
+
+    $invoice = Db::table('psms_supplierinvoice')
+      ->select(
+        'ssi_pritem_id',
+        DB::raw('count(*) as invoiceCount'),
+        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as int) as totalDelivered')
+      )
+      ->groupBy('ssi_pritem_id');
+
+    $poItems = PurchaseRequestItems::has('pr.prpricing.po')
+      ->leftJoinSub($pr, 'pr', function($join){
+        $join->on('prms_pritems.pri_pr_id','=','pr.id');
+      })
+      ->leftJoinSub($prPrice, 'prprice', function($join){
+        $join->on('pr.id','=','prprice.prsd_pr_id');
+      })
+      ->leftJoinSub($po, 'po', function($join){
+        $join->on('po.id','=','prprice.prsd_spo_id');
+      })
+      ->leftJoinSub($invoice, 'invoice', function($join){
+        $join->on('prms_pritems.id','=','invoice.ssi_pritem_id');
+      })
+      ->leftJoinSub($supplier, 'supplier', function($join){
+        $join->on('prprice.prsd_supplier_id','=','supplier.id');
+      })
+      ->select(
+        'prms_pritems.id',
+        DB::raw('
+          IF(IFNULL(totalDelivered,0) >= pri_quantity,
+            "DELIVERED",
+            "OPEN") as status
+        '),
+        'poNum',
+        'prNum',
+        'supplier',
+        'pri_code as code',
+        'pri_mspecs as materialSpecification',
+        'pri_unitprice as unitPrice',
+        'pri_quantity as quantity',
+        'currency',
+        DB::raw('(pri_unitprice * pri_quantity) as totalAmount'),
+        DB::raw('IFNULL(totalDelivered,0) as totalDelivered'),
+        DB::raw('IFNULL(invoiceCount,0) as invoiceCount'),
+        Db::raw('(pri_quantity - IFNULL(totalDelivered,0)) as remaining')
+      )
+      ->latest('id')
+      ->limit($limit)
+      ->get();
+
+      return response()->json([
+        'poItems' => $poItems,
+        'supplierList' => $this->getSupplier(),
+      ]);
+  }
+
+  public function purchaseOrderItemGetArray($item){
+    $totalDelivered = $item->invoice()
+      ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity'));
+    $status = "OPEN";
+
+    if($totalDelivered >= $item->pri_quantity)
+      $status = "DELIVERED";
+
+    return (object) array(
+      'id' => $item->id,
+      'status' => $status,
+      'poNum' => $item->pr->prpricing->po->spo_ponum,
+      'prNum' => $item->pr->pr_prnum,
+      'supplier' => $item->pr->prpricing->supplier->sd_supplier_name,
+      'code' => $item->pri_code,
+      'materialSpecification' => $item->pri_mspecs,
+      'unitPrice' => $item->pri_unitprice,
+      'quantity' => $item->pri_quantity,
+      'currency' => $item->pr->prpricing->prsd_currency,
+      'totalAmount' => $item->pri_unitprice * $item->pri_quantity,
+      'totalDelivered' => $totalDelivered,
+      'invoiceCount' => $item->invoice()->count(),
+      'remaining' => $item->pri_quantity - $totalDelivered,
+    );
+  }
+
+  public function purchaseOrderDeliveryGetArray($invoice){
+    return (object) array(
+      'id' => $invoice->id,
+      'invoiceNumber' => $invoice->ssi_invoice,
+      'drNumber' => $invoice->ssi_dr,
+      'date' => $invoice->ssi_date,
+      'drquantity' => $invoice->ssi_drquantity ?? 0,
+      'rrNumber' => $invoice->ssi_rrnum,
+      'inspectedQty' => $invoice->ssi_inspectedquantity ?? 0,
+      'receivedQty' => $invoice->ssi_receivedquantity ?? 0,
+      'underrunQty' => $invoice->ssi_underrunquantity ?? 0,
+      'remarks' => $invoice->ssi_remarks,
+    );
+  }
+
+  public function purchaseOrderDeliveryInputArray($invoice){
+    return array(
+      'ssi_invoice' => $invoice->invoice,
+      'ssi_dr' => $invoice->dr,
+      'ssi_date' => $invoice->date,
+      'ssi_drquantity' => $invoice->quantity ?? 0,
+      'ssi_underrunquantity' => $invoice->underrun ?? 0
+    );
+  }
+
+  public function getPurchaseOrderDeliveries($id){
+    $supplierDeliveries = SupplierInvoice::whereHas('pritem', function($q) use ($id){
+        $q->where('ssi_pritem_id', $id);
+      })
+      ->get()
+      ->map(function($invoice){
+        return $this->purchaseOrderDeliveryGetArray($invoice);
+      })
+      ->toArray();
+
+    return response()->json([
+      'supplierDeliveries' => $supplierDeliveries
+    ]); 
+  }
+
+  public function purchaseOrderValidationArray($totalRemaining){
+    return array(
+      'totalQty' => 'integer|min:1|required|max:'.$totalRemaining,
+      'quantity' => 'integer|nullable|required_if:underrun,null,0',
+      'underrun' => 'integer|nullable|required_if:quantity,null,0',
+      'date' => 'required|before_or_equal:'.date('Y-m-d'),
+      'dr' => 'string|max:70|required|regex:/^[a-zA-Z0-9_ -]*$/',
+      'invoice' => 'string|max:70|required|regex:/^[a-zA-Z0-9_ -]*$/'
+    );
+  }
+
+  public function addDeliveryToPO(Request $request){
+
+    $poItem = PurchaseRequestItems::findOrFail($request->item_id);
+    $totalRemaining = $poItem->pri_quantity - $poItem->invoice()
+      ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity'));
+
+    $validator = Validator::make($request->all(),
+      $this->purchaseOrderValidationArray($totalRemaining),
+      [],
+      [
+        'dr' => 'delivery receipt',
+        'invoice' => 'invoice number',
+        'totalQty' => 'Total sum of quantity and underrun',
+      ]);
+
+    $validator->sometimes('dr', 'unique:psms_supplierinvoice,ssi_dr,
+      null,id,ssi_pritem_id,'.$request->item_id, function($input) {
+        return $input->dr != 'NA';
+      })->sometimes('invoice', 'unique:psms_supplierinvoice,ssi_invoice,
+      null,id,ssi_pritem_id,'.$request->item_id, function($input) {
+        return $input->invoice != 'NA';
+      });
+
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()], 422);
+
+    $newDelivery = $poItem->invoice()
+      ->create($this->purchaseOrderDeliveryInputArray($request));
+
+    $poItem->refresh();
+    $newItem = $this->purchaseOrderItemGetArray($poItem);
+    $newDelivery = $this->purchaseOrderDeliveryGetArray($newDelivery);
+
+    return response()->json([
+      'newItem' => $newItem,
+      'newDelivery' => $newDelivery,
+    ]);
+
+  }
 }

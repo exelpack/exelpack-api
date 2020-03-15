@@ -19,6 +19,7 @@ class CreateSupplierInvoice extends Migration
             $table->string('ssi_invoice',50)->nullable();
             $table->string('ssi_dr',50);
             $table->date('ssi_date');
+            $table->integer('ssi_underrunquantity')->unsigned();
             $table->integer('ssi_drquantity')->unsigned();
             $table->string('ssi_rrnum',100)->nullable();
             $table->integer('ssi_inspectedquantity')->unsigned();
