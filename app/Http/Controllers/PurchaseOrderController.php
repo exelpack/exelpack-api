@@ -1037,72 +1037,116 @@ class PurchaseOrderController extends LogsController
 		$pos = PurchaseOrder::latest()->get();
 		$from = Carbon::parse(request()->from);
 		$to = Carbon::parse(request()->to);
-		$summaryFormat = request()->summary;
+		$summaryFormat = request()->summary ?? 'none';
 		$conversion = intval(request()->conversion);
 		$customer_arr = [];
 
-		foreach($pos as $po){
-			$customer = $po->customer->companyname;
-			$total = $this->getPoTotal($po->poitems,$from,$to,$conversion,$summaryFormat);
-			if(!array_key_exists($customer, $customer_arr)){
+		
 
-				$customer_arr[$customer] = array_merge(array(
-					'company_name' => strtoupper($customer),
-					'open_amount' => $total['openAmt'],
-					'sales_amount' => $total['salesAmt'],
-					'retention_amount' => $total['retentionAmt'],
-					'new_customer_amount' => $total['newCustomerAmt'],
-					'increase_amount' => $total['increaseAmt'],
-				),$total['salesSummary']);
+    $itemDeliveries = PurchaseOrderDelivery::has('item.po')
+      ->whereBetween('poidel_deliverydate',[$from,$to])
+      ->orderBy('poidel_deliverydate', 'ASC')
+      ->get();
+    $summaryKeys = array();
+    $salesSummary = array();
+    if($summaryFormat !== 'none'){
+      foreach($itemDeliveries as $delivery){
+        $cus = strtoupper($delivery->item->po->customer->companyname);
+        $date = Carbon::parse($delivery->poidel_deliverydate);
+        $key = $date->format('Y-m-d');
 
-			}else{
-				$customer_arr[$customer]['open_amount'] += $total['openAmt'];
-				$customer_arr[$customer]['sales_amount'] += $total['salesAmt'];
-				$customer_arr[$customer]['retention_amount'] += $total['retentionAmt'];
-				$customer_arr[$customer]['new_customer_amount'] += $total['newCustomerAmt'];
-				$customer_arr[$customer]['increase_amount'] += $total['increaseAmt'];
-				
-				foreach($total['salesSummary'] as $key => $sales){
-					if(!array_key_exists($key, $customer_arr[$customer]))
-						$customer_arr[$customer][$key] = $sales;
-					else
-						$customer_arr[$customer][$key] += $sales;
-				}
+        if($summaryFormat == 'weekly')
+          $key = "Week_".$date->weekOfYear."_".$date->format('Y');
+        else if($summaryFormat == 'monthly')
+          $key = $date->format('M')."_".$date->format('Y');
 
-			}
-		}
+        if(!in_array($key, $summaryKeys))
+          array_push($summaryKeys, $key);
+
+        if(!array_key_exists($cus, $salesSummary))
+          $salesSummary[$cus] = array();
+
+        if(!array_key_exists($key, $salesSummary[$cus]))
+          $salesSummary[$cus][$key] = $delivery->poidel_quantity * $delivery->item->poi_unitprice;
+        else
+          $salesSummary[$cus][$key] += $delivery->poidel_quantity * $delivery->item->poi_unitprice;
+      }
+    }
+
+    foreach($pos as $po){
+      $customer = $po->customer->companyname;
+      $total = $this->getPoTotal($po->poitems,$from,$to,$conversion);
+
+      if(!array_key_exists($customer, $customer_arr)){
+
+        $customer_arr[$customer] = array(
+          'company_name' => strtoupper($customer),
+          'open_amount' => $total['openAmt'],
+          'sales_amount' => $total['salesAmt'],
+          'retention_amount' => $total['retentionAmt'],
+          'new_customer_amount' => $total['newCustomerAmt'],
+          'increase_amount' => $total['increaseAmt'],
+        );
+      }else{
+        $customer_arr[$customer]['open_amount'] += $total['openAmt'];
+        $customer_arr[$customer]['sales_amount'] += $total['salesAmt'];
+        $customer_arr[$customer]['retention_amount'] += $total['retentionAmt'];
+        $customer_arr[$customer]['new_customer_amount'] += $total['newCustomerAmt'];
+        $customer_arr[$customer]['increase_amount'] += $total['increaseAmt'];        
+        // foreach($total['salesSummary'] as $key => $sales){
+        //  if(!array_key_exists($key, $customer_arr[$customer]))
+        //    $customer_arr[$customer][$key] = $sales;
+        //  else
+        //    $customer_arr[$customer][$key] += $sales;
+        // }
+
+      }
+    }
+    $collectCustomerArr = collect($customer_arr);
+    $tableData = array();
+    foreach($collectCustomerArr->values() as $customer){
+      if(array_key_exists($customer['company_name'], $salesSummary))
+        array_push($tableData, array_merge(
+          $customer,
+          $salesSummary[$customer['company_name']]
+        ));
+
+
+      // if($customer->company_name === )
+    }
+
+    return $tableData;
     
-		$tableCollect = collect($customer_arr);
-		$tableData = array();
-		$tableKeys = array();
+		// $tableCollect = collect($customer_arr);
+		// $tableData = array();
+		// $tableKeys = array("company_name");
 
-		$tableDataTotal = array();
-		$tableDataTotal['company_name'] = 'Total';
+		// $tableDataTotal = array();
+		// $tableDataTotal['company_name'] = 'Total';
+		// foreach($tableCollect->values() as $key => $row){
+		// 	$keys = collect($row)->keys();
+		// 	$data = array();
 
-		foreach($tableCollect->values() as $key => $row){
-			$keys = collect($row)->keys();
-			$data = array();
-			if($key == 0)
-				$tableKeys = $keys;
+		// 	foreach($keys as $k){
+		// 		$data[$k] = $row[$k];
 
-			foreach($keys as $k){
-				$data[$k] = $row[$k];
+		// 		if($k === "company_name"){
+		// 			continue;
+		// 		}
 
-				if($k === "company_name"){
-					continue;
-				}
+		// 		if(array_key_exists($k, $tableDataTotal))
+		// 			$tableDataTotal[$k] += $row[$k];
+  //       else{
+		// 			$tableDataTotal[$k] = $row[$k];
+  //         array_push($tableKeys, $k);
+  //       }
+		// 	}
 
-				if(array_key_exists($k, $tableDataTotal))
-					$tableDataTotal[$k] += $row[$k];
-				else
-					$tableDataTotal[$k] = $row[$k];
-			}
+		// 	array_push($tableData,$data);
 
-			array_push($tableData,$data);
+		// }
 
-		}
-
-		array_push($tableData,$tableDataTotal);
+		// array_push($tableData,$tableDataTotal);
 
 		return response()->json([
 			'tableData' => $tableData,
@@ -1131,27 +1175,27 @@ class PurchaseOrderController extends LogsController
 			->whereBetween('poidel_deliverydate',[$from,$to])
 			->sum('poidel_quantity') * $item->poi_unitprice;
 
-			$itemDeliveries = $item->delivery()->whereBetween('poidel_deliverydate',[$from,$to])
-				->orderBy('poidel_deliverydate', 'ASC')
-				->get();
+			// $itemDeliveries = $item->delivery()->whereBetween('poidel_deliverydate',[$from,$to])
+			// 	->orderBy('poidel_deliverydate', 'ASC')
+			// 	->get();
 
-			if($summaryFormat !== 'none'){
-				foreach($itemDeliveries as $data){
+			// if($summaryFormat !== 'none'){
+			// 	foreach($itemDeliveries as $data){
 
-					$date = Carbon::parse($data->poidel_deliverydate);
-					$key = $date->format('Y-m-d');
+			// 		$date = Carbon::parse($data->poidel_deliverydate);
+			// 		$key = $date->format('Y-m-d');
 
-					if($summaryFormat == 'weekly')
-						$key = "Week_".$date->weekOfYear."_".$date->format('Y');
-					else if($summaryFormat == 'monthly')
-						$key = $date->format('M')."_".$date->format('Y');
+			// 		if($summaryFormat == 'weekly')
+			// 			$key = "Week_".$date->weekOfYear."_".$date->format('Y');
+			// 		else if($summaryFormat == 'monthly')
+			// 			$key = $date->format('M')."_".$date->format('Y');
 
-					if(!array_key_exists($key, $salesSummary))
-						$salesSummary[$key] = $data->poidel_quantity * $item->poi_unitprice;
-					else
-						$salesSummary[$key] += $data->poidel_quantity * $item->poi_unitprice;
-				}
-			}
+			// 		if(!array_key_exists($key, $salesSummary))
+			// 			$salesSummary[$key] = $data->poidel_quantity * $item->poi_unitprice;
+			// 		else
+			// 			$salesSummary[$key] += $data->poidel_quantity * $item->poi_unitprice;
+			// 	}
+			// }
 			
 			if(strtoupper($item->po->po_currency) == 'USD'){
 				$open = $open * $conversion;
@@ -1176,7 +1220,7 @@ class PurchaseOrderController extends LogsController
 			'retentionAmt' => $retentionAmount,
 			'newCustomerAmt' => $newCustomerAmount,
 			'increaseAmt' => $increaseAmount,
-			'salesSummary' => $salesSummary,
+			// 'salesSummary' => $salesSummary,
 		);
 
 	}

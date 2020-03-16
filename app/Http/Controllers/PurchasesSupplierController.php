@@ -1236,7 +1236,8 @@ class PurchasesSupplierController extends Controller
       ->select(
         'ssi_pritem_id',
         DB::raw('count(*) as invoiceCount'),
-        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as int) as totalDelivered')
+        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as int) as totalDelivered'),
+        DB::raw('CAST(SUM(ssi_drquantity) as int) as totalInvoiceQty')
       )
       ->groupBy('ssi_pritem_id');
 
@@ -1274,6 +1275,7 @@ class PurchasesSupplierController extends Controller
         DB::raw('(pri_unitprice * pri_quantity) as totalAmount'),
         DB::raw('IFNULL(totalDelivered,0) as totalDelivered'),
         DB::raw('IFNULL(invoiceCount,0) as invoiceCount'),
+        DB::raw('IFNULL(totalInvoiceQty,0) as totalInvoiceQty'),
         Db::raw('(pri_quantity - IFNULL(totalDelivered,0)) as remaining')
       )
       ->latest('id')
@@ -1289,6 +1291,7 @@ class PurchasesSupplierController extends Controller
   public function purchaseOrderItemGetArray($item){
     $totalDelivered = $item->invoice()
       ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity'));
+    $totalInvoiceQty = $item->invoice()->sum(Db::raw('ssi_drquantity'));
     $status = "OPEN";
 
     if($totalDelivered >= $item->pri_quantity)
@@ -1308,6 +1311,7 @@ class PurchasesSupplierController extends Controller
       'totalAmount' => $item->pri_unitprice * $item->pri_quantity,
       'totalDelivered' => $totalDelivered,
       'invoiceCount' => $item->invoice()->count(),
+      'totalInvoiceQty' => $totalInvoiceQty,
       'remaining' => $item->pri_quantity - $totalDelivered,
     );
   }
@@ -1315,14 +1319,14 @@ class PurchasesSupplierController extends Controller
   public function purchaseOrderDeliveryGetArray($invoice){
     return (object) array(
       'id' => $invoice->id,
-      'invoiceNumber' => $invoice->ssi_invoice,
-      'drNumber' => $invoice->ssi_dr,
+      'invoice' => $invoice->ssi_invoice,
+      'dr' => $invoice->ssi_dr,
       'date' => $invoice->ssi_date,
-      'drquantity' => $invoice->ssi_drquantity ?? 0,
+      'quantity' => $invoice->ssi_drquantity ?? 0,
       'rrNumber' => $invoice->ssi_rrnum,
       'inspectedQty' => $invoice->ssi_inspectedquantity ?? 0,
       'receivedQty' => $invoice->ssi_receivedquantity ?? 0,
-      'underrunQty' => $invoice->ssi_underrunquantity ?? 0,
+      'underrun' => $invoice->ssi_underrunquantity ?? 0,
       'remarks' => $invoice->ssi_remarks,
     );
   }
@@ -1366,10 +1370,12 @@ class PurchasesSupplierController extends Controller
   public function addDeliveryToPO(Request $request){
 
     $poItem = PurchaseRequestItems::findOrFail($request->item_id);
-    $totalRemaining = $poItem->pri_quantity - $poItem->invoice()
-      ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity'));
+    $totalRemaining = intval($poItem->pri_quantity)
+      - intval($poItem->invoice()->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
+      - intval($poItem->invoice()->sum(Db::raw('ssi_drquantity')) );
 
-    $validator = Validator::make($request->all(),
+    $totalQty = array('totalQty' => intval($request->quantity) + intval($request->underrun));
+    $validator = Validator::make(array_merge($request->all(),$totalQty),
       $this->purchaseOrderValidationArray($totalRemaining),
       [],
       [
@@ -1400,6 +1406,58 @@ class PurchasesSupplierController extends Controller
       'newItem' => $newItem,
       'newDelivery' => $newDelivery,
     ]);
+  }
 
+  public function updateDeliveryToPo(Request $request, $id){
+    $poItem = PurchaseRequestItems::findOrFail($request->item_id);
+    $invoice = SupplierInvoice::findOrFail($id);
+    $totalRemaining = intval($poItem->pri_quantity)
+      - intval($poItem->invoice()
+          ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
+      - intval($poItem->invoice()
+          ->sum(Db::raw('ssi_drquantity')) ) + $invoice->ssi_drquantity;
+    $totalQty = array('totalQty' => intval($request->quantity) + intval($request->underrun));
+    $validator = Validator::make(array_merge($request->all(),$totalQty),
+      $this->purchaseOrderValidationArray($totalRemaining),
+      [],
+      [
+        'dr' => 'delivery receipt',
+        'invoice' => 'invoice number',
+        'totalQty' => 'Total sum of quantity and underrun',
+      ]);
+
+    $validator->sometimes('dr', 'unique:psms_supplierinvoice,ssi_dr,
+      '.$id.',id,ssi_pritem_id,'.$request->item_id, function($input) {
+        return $input->dr != 'NA';
+      })->sometimes('invoice', 'unique:psms_supplierinvoice,ssi_invoice,
+      '.$id.',id,ssi_pritem_id,'.$request->item_id, function($input) {
+        return $input->invoice != 'NA';
+      });
+
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()], 422);
+
+    $invoice->fill($this->purchaseOrderDeliveryInputArray($request));
+    $invoice->save();
+
+    $poItem->refresh();
+    $newItem = $this->purchaseOrderItemGetArray($poItem);
+    $newDelivery = $this->purchaseOrderDeliveryGetArray($invoice);
+
+    return response()->json([
+      'newItem' => $newItem,
+      'newDelivery' => $newDelivery,
+    ]);
+  }
+
+  public function deleteDeliveryPo($id){
+    $invoice = SupplierInvoice::findOrFail($id);
+    $poItem = $invoice->pritem;
+    $invoice->delete();
+
+    $newItem = $this->purchaseOrderItemGetArray($poItem);
+    return response()->json([
+      'newItem' => $newItem,
+    ]);
   }
 }

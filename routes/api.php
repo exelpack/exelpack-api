@@ -196,6 +196,7 @@ Route::group(['middleware' => ['auth:api']], function() {
     
     Route::put('/psms/pr/{id}','PurchasesSupplierController@editPrWithPrice');
     Route::put('/psms/po/{id}','PurchasesSupplierController@markAsSentToSupplier');
+    Route::put('/psms/po/invoice/{id}','PurchasesSupplierController@updateDeliveryToPo');
 
     Route::delete('/psms/approval/{id}','PurchasesSupplierController@deleteApprovalRequest');
     Route::delete('/psms/pr/{id}','PurchasesSupplierController@deletePriceOnPr');
@@ -204,6 +205,8 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::post('/psms/po','PurchasesSupplierController@addPurchaseOrder');
 
     Route::delete('/psms/po/{id}','PurchasesSupplierController@cancelPurchaseOrder');
+    Route::delete('/psms/po/invoice/{id}','PurchasesSupplierController@deleteDeliveryPo');
+    
   });
 
   Route::group(['middleware' => ['approvalpr']], function() {
