@@ -66,7 +66,8 @@ class MailController extends Controller
 			$mail->bcc($request->bcc);
 
 		// return (new PoItemScheduleMail($sched_arr,$dates,auth()->user()->username))->render();
-		$mail->send(new PoItemScheduleMail($sched_arr,$dates,auth()->user()->fullname));
+    $fullname = auth()->user()->firstname." ".auth()->user()->lastname;
+		$mail->send(new PoItemScheduleMail($sched_arr,$dates,$fullname));
 
 		$log = new CposmsLogs();
 
@@ -86,25 +87,33 @@ class MailController extends Controller
 	public function endorsePo(Request $request){
 
 		$validator = Validator::make($request->all(),[
-			'customer_label' => 'string|required',
+			'customerLabel' => 'string|required',
+      'po_num' => 'string|required',
 			'date' => 'date|required',
-			'items' => 'array|min:1'
 		],[],['customer_label' => 'customer']);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
 
-		$poDetails = array(
-			'customer' => $request->customer_label,
-			'po_num' => $request->po_num,
-			'date' => $request->date,
-			'itemCount' => count($request->items),
-			'items' => $request->items
-		);
-
 		$emails = EmailListCposms::all()->pluck('email')->toArray();
 		$po = PurchaseOrder::find($request->id);
+    $poDetails = (object) array(
+      'customer' => $request->customerLabel,
+      'po_num' => $request->po_num,
+      'date' => $request->date,
+      'itemCount' => $po->poitems()->count(),
+      'items' => $po->poitems->map(function($item){
+        return array(
+          'code' => $item->poi_code,
+          'partnum' => $item->poi_partnum,
+          'itemdesc' => $item->poi_itemdescription,
+          'quantity' => $item->poi_quantity,
+          'unit' => $item->poi_unit,
+          'deliverydate' => $item->poi_deliverydate
+        );
+      })
+    );
 		if($po->isEndorsed)
 			return response()->json(['errors' => ['Purchase order already sent to planner']],422);
 

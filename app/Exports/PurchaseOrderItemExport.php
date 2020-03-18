@@ -61,6 +61,23 @@ class PurchaseOrderItemExport implements FromArray, WithHeadings
 
     ]);
 
+    if(request()->has('customer')){
+      $q->whereRaw('customer.id = ?', array(request()->customer));
+    }
+
+    if(request()->has('status')){
+      $status = strtolower(request()->status);
+      if($status == 'served')
+        $q->whereRaw('IFNULL(delivery.totalDelivered,0) >= poi_quantity');
+      else
+        $q->whereRaw('IFNULL(delivery.totalDelivered,0) < poi_quantity');
+    }
+
+    if(request()->has('deliveryDue')){
+      $dateFilter = Carbon::now()->addDays(request()->deliveryDue);
+      $q->whereDate('poi_deliverydate','<=', $dateFilter);
+    }
+
     $poItems = $q->latest()
       ->limit(request()->has('recordCount') ? request()->recordCount : 500)
       ->get()

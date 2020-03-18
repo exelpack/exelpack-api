@@ -1,8 +1,8 @@
 <div style="line-height: 0.5; font-size : 14px">
-	<p>Customer name : {{ $poDetails['customer'] }}</p>
-	<p>Purchase order no. : {{ $poDetails['po_num'] }}</p>
-	<p>Date : {{ $poDetails['date'] }}</p>
-	<p>Item count : {{ $poDetails['itemCount'] }}</p>
+	<p>Customer name : {{ $poDetails->customer }}</p>
+	<p>Purchase order no. : {{ $poDetails->po_num }}</p>
+	<p>Date : {{ $poDetails->date }}</p>
+	<p>Item count : {{ $poDetails->itemCount }}</p>
 </div>
 <table 
 	style="font-size : 12px; padding : 0; margin : 0; width: 100%"
@@ -22,7 +22,7 @@
 	</thead>
 
 	<tbody>
-		@foreach($poDetails['items'] as $item)
+		@foreach($poDetails->items as $item)
 		<tr>
 			<td>{{ $item['code'] }}</td>
 			<td>{{ $item['partnum'] }}</td>

@@ -53,6 +53,26 @@ class PurchaseOrderExport implements FromArray, WithHeadings
         
       ]);
 
+      if(request()->has('customer')){
+        $q->whereRaw('customer.id = ?', array(request()->customer));
+      }
+
+      if(request()->has('status')){
+        $status = strtolower(request()->status);
+        if($status == 'served')
+          $q->whereRaw('IFNULL(delivery.totalDelivered,0) >= poi.totalQuantity');
+        else
+          $q->whereRaw('IFNULL(delivery.totalDelivered,0) < poi.totalQuantity');
+      }
+
+      if(request()->has('month')){
+        $q->whereMonth('po_date' , request()->month);
+      }
+
+      if(request()->has('year')){
+        $q->whereYear('po_date', request()->year);
+      }
+
       $po = $q->latest()
         ->limit(request()->has('recordCount') ? request()->recordCount : 500)
         ->get()
