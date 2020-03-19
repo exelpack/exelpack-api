@@ -26,6 +26,9 @@ use App\Masterlist;
 use App\Supplier;
 use App\User;
 
+use App\Exports\ExportSupplierPurchaseOrder;
+use App\Exports\ExportSupplierPurchaseOrderItems;
+
 class PurchasesSupplierController extends Controller
 {
   public function getTitle($gender){
@@ -35,6 +38,18 @@ class PurchasesSupplierController extends Controller
       return 'ms.';
     else return '';
   }
+
+  // exports
+  public function exportPurchaseOrder()
+  {
+    return Excel::download(new ExportSupplierPurchaseOrder, 'purchaseorder.xlsx');
+  }
+
+  public function exportPurchaseOrderItems()
+  {
+    return Excel::download(new ExportSupplierPurchaseOrderItems, 'purchaseorderitems.xlsx');
+  }
+
 
   public function getPurchaseOrderDetails($po,$id){
     $sd = $po->prprice()->first()->supplier;
@@ -226,7 +241,7 @@ class PurchasesSupplierController extends Controller
 
   public function getPrList()
   {
-    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+    $limit = request()->has('recordCount') ? request()->recordCount : 500;
     $prPrice = DB::table('psms_prsupplierdetails')
       ->select('prsd_pr_id',DB::raw('count(*) as hasSupplier'),
       'prsd_supplier_id')
@@ -294,7 +309,7 @@ class PurchasesSupplierController extends Controller
 
   public function getPrListWithPrice()
   {
-    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+    $limit = request()->has('recordCount') ? request()->recordCount : 500;
 
     $prPrice = DB::table('psms_prsupplierdetails')
       ->select('prsd_pr_id',DB::raw('count(*) as hasSupplier'),
@@ -381,6 +396,23 @@ class PurchasesSupplierController extends Controller
         ) as status'),
        DB::raw('IF(approvalRequestCount,true, false) as hasRequest'),
     ]);
+
+    if(request()->has('supplier')){
+      $q->whereRaw('supplier.id = ?', array(request()->supplier));
+    }
+
+    if(request()->has('currency')){
+      $q->whereRaw('prprice.prsd_currency = ?', array(request()->currency));
+    }
+
+    if(request()->has('month')){
+      $q->whereMonth('pr_date', request()->month);
+    }
+
+    if(request()->has('year')){
+      $q->whereYear('pr_date', request()->year);
+    }
+
     $prList = $q->orderBy('price_id','DESC')
       ->limit($limit)
       ->get();
@@ -483,7 +515,7 @@ class PurchasesSupplierController extends Controller
         'id' => 'required|int',
         'prNum' => 'required|string',
         'supplier' => 'required',
-        'currency' => 'required|string',
+        'currency' => 'required|string|in:PHP,USD',
         'prItems' => 'array|min:1|required',
       ),[],
     [
@@ -708,7 +740,7 @@ class PurchasesSupplierController extends Controller
 
   //approval on pr
   public function getPendingPrList(){
-    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+    $limit = request()->has('recordCount') ? request()->recordCount : 500;
     $userId = Auth()->user()->id;
     $pr = DB::table('prms_prlist')
       ->select('id','pr_jo_id','pr_prnum')
@@ -773,6 +805,7 @@ class PurchasesSupplierController extends Controller
         'psms_prapprovaldetails.created_at as created_at',
         'psms_prapprovaldetails.pra_remarks as remarks',
       ]);
+
       $prList = $q->latest('id')->limit($limit)->get();
 
       return response()->json([
@@ -1049,7 +1082,7 @@ class PurchasesSupplierController extends Controller
       ->select('pri_pr_id',DB::raw('count(*) as itemCount'))
       ->groupBy('pri_pr_id');
 
-    $poList = PurchaseOrderSupplier::has('prprice.pr.jo.poitems.po')
+    $q = PurchaseOrderSupplier::has('prprice.pr.jo.poitems.po')
       ->leftJoinSub($joinQry,'pr', function($join){
         $join->on('pr.prsd_spo_id','=','psms_spurchaseorder.id');
       })
@@ -1074,11 +1107,41 @@ class PurchasesSupplierController extends Controller
             ),
             "OPEN"
           )
-        ) as status')
-      )
-      ->orderBy('id','DESC')
-      ->limit($limit)
-      ->get();
+        ) as status'),
+        'spo_date as date'
+      );
+
+    if(request()->has('poStatus')){
+      $status = strtolower(request()->poStatus);  
+      if($status == 'pending')
+        $q->whereRaw('spo_sentToSupplier < 1 and quantityDelivered = 0');
+      else if($status == 'open')
+        $q->whereRaw('spo_sentToSupplier = 1 and quantityDelivered < 1');
+      else if($status == 'delivered')
+        $q->whereRaw('quantityDelivered >= totalPoQuantity');
+      else if($status == 'partial')
+        $q->whereRaw('quantityDelivered > 0 and quantityDelivered < totalPoQuantity');
+    }
+
+    if(request()->has('supplier')){
+      $q->whereRaw('supplier.id = ?', array(request()->supplier));
+    }
+
+    if(request()->has('currency')){
+      $q->whereRaw('currency = ?', array(request()->currency));
+    }
+
+    if(request()->has('month')){
+      $q->whereMonth('spo_date', request()->month);
+    }
+
+    if(request()->has('year')){
+      $q->whereYear('spo_date', request()->year);
+    }
+
+    $poList = $q->orderBy('id','DESC')
+    ->limit($limit)
+    ->get();
 
     return response()->json([
       'poList' => $poList,
@@ -1173,6 +1236,7 @@ class PurchasesSupplierController extends Controller
       'quantityDelivered' => $quantityDelivered,
       'totalPoQuantity' => $totalPoQuantity,
       'status' => $status,
+      'date' => $po->spo_date
     );
     return response()->json([
       'message' => 'Record updated',
@@ -1204,7 +1268,7 @@ class PurchasesSupplierController extends Controller
 
   public function getPoItems()
   {
-    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+    $limit = request()->has('recordCount') ? request()->recordCount : 500;
 
     $pr = Db::table('prms_prlist')
       ->select(
@@ -1241,7 +1305,7 @@ class PurchasesSupplierController extends Controller
       )
       ->groupBy('ssi_pritem_id');
 
-    $poItems = PurchaseRequestItems::has('pr.prpricing.po')
+    $q = PurchaseRequestItems::has('pr.prpricing.po')
       ->leftJoinSub($pr, 'pr', function($join){
         $join->on('prms_pritems.pri_pr_id','=','pr.id');
       })
@@ -1276,9 +1340,35 @@ class PurchasesSupplierController extends Controller
         DB::raw('IFNULL(totalDelivered,0) as totalDelivered'),
         DB::raw('IFNULL(invoiceCount,0) as invoiceCount'),
         DB::raw('IFNULL(totalInvoiceQty,0) as totalInvoiceQty'),
-        Db::raw('(pri_quantity - IFNULL(totalDelivered,0)) as remaining')
-      )
-      ->latest('id')
+        Db::raw('(pri_quantity - IFNULL(totalDelivered,0)) as remaining'),
+        'pri_deliverydate as deliverydate'
+      );
+
+      if(request()->has('poItemStatus')){
+        $status = strtolower(request()->poItemStatus);  
+        if($status == 'open')
+          $q->whereRaw('pri_quantity > IFNULL(totalDelivered,0)');
+        else if($status == 'delivered')
+          $q->whereRaw('IFNULL(totalDelivered,0) >= pri_quantity');
+      }
+
+      if(request()->has('supplier')){
+        $q->whereRaw('supplier.id = ?', array(request()->supplier));
+      }
+
+      if(request()->has('currency')){
+        $q->whereRaw('currency = ?', array(request()->currency));
+      }
+
+      if(request()->has('month')){
+        $q->whereMonth('pri_deliverydate', request()->month);
+      }
+
+      if(request()->has('year')){
+        $q->whereYear('pri_deliverydate', request()->year);
+      }
+
+      $poItems = $q->latest('id')
       ->limit($limit)
       ->get();
 
@@ -1313,6 +1403,7 @@ class PurchasesSupplierController extends Controller
       'invoiceCount' => $item->invoice()->count(),
       'totalInvoiceQty' => $totalInvoiceQty,
       'remaining' => $item->pri_quantity - $totalDelivered,
+      'deliverydate' => $item->pri_deliverydate,
     );
   }
 

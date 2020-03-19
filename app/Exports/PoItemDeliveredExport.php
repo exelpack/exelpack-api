@@ -5,6 +5,7 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use App\PurchaseOrderDelivery;
+use DB;
 
 class PoItemDeliveredExport implements FromArray, WithHeadings
 {
@@ -13,31 +14,56 @@ class PoItemDeliveredExport implements FromArray, WithHeadings
     */
     public function array() :array
     {
-    	$q = PurchaseOrderDelivery::query();
+    	$recordCount = request()->has('recordCount') ? request()->recordCount : 500;
+      $item = DB::table('cposms_purchaseorderitem')->select(
+        'poi_itemdescription',
+        'poi_partnum',
+        'poi_code',
+        'poi_po_id',
+        'id'
+      );
 
-    	if(request()->has('search')){
-    		$search = request()->search;
-    		$q->whereHas('item.po' ,function($q) use ($search) {
-    			$q->where('po_ponum','LIKE','%'.$search.'%');
-    		})
-    		->orWhereHas('item', function($q) use ($search){
-    			$q->where('poi_itemdescription','LIKE','%'.$search.'%');
-    		})
-    		->orWhere('poidel_dr','LIKE','%'.$search.'%')
-    		->orWhere('poidel_invoice','LIKE','%'.$search.'%');
-    	}
+      $po = DB::table('cposms_purchaseorder')->select(
+        'id',
+        'po_ponum',
+        'po_customer_id'
+      );
 
-    	if(request()->has('start') && request()->has('end')){
-    		$start = request()->start;
-    		$end = request()->end;
+      $customer = DB::table('customer_information')->select(
+        'id',
+        'companyname'
+      ); 
 
-    		$q->whereBetween('poidel_deliverydate',[$start,$end]);
-    	}
-    	$q->has('item.po');
-    	$q->orderBy('poidel_deliverydate','desc');
-    	$deliveries_result = $q->get();
+      $q = PurchaseOrderDelivery::has('item.po')
+        ->leftJoinSub($item, 'item', function($join){
+          $join->on('cposms_poitemdelivery.poidel_item_id','=','item.id');
+        })
+        ->leftJoinSub($po, 'po', function($join){
+          $join->on('item.poi_po_id','=','po.id');
+        })
+        ->leftJoinSub($customer, 'customer', function($join){
+          $join->on('po.po_customer_id','=','customer.id');
+        })
+        ->select(
+          'companyname as customer',
+          'po.po_ponum as po_num',
+          'item.poi_itemdescription as item_desc',
+          'poidel_quantity as quantity',
+          'poidel_underrun_qty as underrun',
+          'poidel_deliverydate as date',
+          'poidel_invoice as invoice',
+          'poidel_dr as dr',
+          'poidel_remarks as remarks'
+        );
 
-    	$deliveredItems = $this->getDeliveries($deliveries_result);
+      if(request()->has('start') && request()->has('end')){
+        $start = request()->start;
+        $end = request()->end;
+        $q->whereBetween('poidel_deliverydate',[$start,$end]);
+      }
+      $deliveredItems = $q->latest('cposms_poitemdelivery.id')
+        ->limit($recordCount)
+        ->get()->toArray();
     	return $deliveredItems;
     }
 
@@ -57,31 +83,4 @@ class PoItemDeliveredExport implements FromArray, WithHeadings
     	];
     }
 
-    public function getDeliveries($deliveries) //convert deliveries
-    {
-    	$deliveries_arr = array();
-
-    	foreach($deliveries as $row){
-    		array_push($deliveries_arr,$this->getDelivery($row));
-    	}
-
-    	return $deliveries_arr;
-    }
-
-		public function getDelivery($delivery) //convert delivery
-		{
-
-			return array(
-				'customer' => $delivery->item->po->customer->companyname,
-				'po_num' => $delivery->item->po->po_ponum,
-				'item_desc' => $delivery->item->poi_itemdescription,
-				'quantity' => $delivery->poidel_quantity,
-				'underrun' => $delivery->poidel_underrun_qty,
-				'date' => $delivery->poidel_deliverydate,
-				'invoice' => $delivery->poidel_invoice,
-				'dr' => $delivery->poidel_dr,
-				'remarks' => $delivery->poidel_remarks,
-			);
-
-		}
 	}

@@ -206,6 +206,10 @@ Route::group(['middleware' => ['auth:api']], function() {
 
     Route::delete('/psms/po/{id}','PurchasesSupplierController@cancelPurchaseOrder');
     Route::delete('/psms/po/invoice/{id}','PurchasesSupplierController@deleteDeliveryPo');
+
+    //exports
+    Route::get('/psms/po/exports/dl', 'PurchasesSupplierController@exportPurchaseOrder');
+    Route::get('/psms/poitem/exports/dl', 'PurchasesSupplierController@exportPurchaseOrderItems');
     
   });
 
