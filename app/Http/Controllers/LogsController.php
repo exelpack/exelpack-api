@@ -9,7 +9,9 @@ use App\PjomsLogs;
 use App\PmmsLogs;
 use App\WimsLogs;
 use App\PrmsLogs;
+use App\PsmsLogs;
 use App\Customers;
+use App\Supplier;
 use Illuminate\Support\Facades\Auth;
 
 class LogsController extends Controller
@@ -123,7 +125,7 @@ class LogsController extends Controller
 	}
 
 
-	public function logPoEdit($dirty,$original)
+	public function logPoEdit($dirty,$original,$po)
 	{
 
 		$log = new CposmsLogs();
@@ -140,7 +142,7 @@ class LogsController extends Controller
 		$log->fill(
 			[
 				'user_id' => auth()->user()->id,
-				'action' => 'Edited PO',
+				'action' => 'Edited PO '.$po,
 				'before' => $vals['before'],
 				'after' => $vals['after'],
 			]);
@@ -717,5 +719,184 @@ class LogsController extends Controller
 
 		$log->save();
 	}
+
+  // psms
+  public function logCreateAndRemovePriceToPr($pr, $supplier, $method = 'Added') {
+    $before = '';
+    $after = 'Supplier : '.$supplier;
+
+    if ($method == 'Deleted') {
+      $before = "Supplier : ".$supplier;
+      $after = '';
+    }
+
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => $method." price for pr ".$pr,
+        'before' => $before,
+        'after' => $after,
+      ]);
+
+    $log->save();
+  }
+
+  public function logPrSupplierDetailsEdit($pr, $dirty,$original)
+  {
+
+    $log = new PsmsLogs();
+    $name_arr = [
+      'prsd_supplier_id' => 'Supplier',
+      'prsd_currency' => 'Currency',
+    ];
+    $supplier = new Supplier();
+
+    $vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original,'po_customer_id',['model' => $supplier, 'cols' => 'sd_supplier_name']]);
+
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => 'Edited supplier details on '.$pr,
+        'before' => $vals['before'],
+        'after' => $vals['after'],
+      ]);
+
+    $log->save();
+  }
+
+  public function logPrSupplierDetailsItemEdit($pr,$dirty,$original){
+    $log = new PsmsLogs();
+    $name_arr = [
+      'pri_unitprice' => 'Unit price',
+      'pri_deliverydate' => 'Delivery date',
+    ];
+
+    $vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => 'Edited supplier detail items on '.$pr,
+        'before' => $vals['before'],
+        'after' => $vals['after'],
+      ]);
+
+    $log->save();
+  }
+
+  public function logCreateAndRemovalOfApprovalRequest($pr, $requestType, $method){
+    $before = '';
+    $after = $pr;
+
+    if ($method == 'Deleted') {
+      $before = $pr;
+      $after = '';
+    }
+
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => $method." request for approval via ".$requestType,
+        'before' => $before,
+        'after' => $after,
+      ]);
+
+    $log->save();
+  }
+
+  public function logCreateAndRemovalOfPotoPr($prs, $po, $method){
+    $before = '';
+    $after = 'Purchase request ('.$prs.')';
+
+    if ($method == 'Deleted') {
+      $before = 'Purchase request ('.$prs.')';
+      $after = '';
+    }
+
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => $method." purchase order ".$po,
+        'before' => $before,
+        'after' => $after,
+      ]);
+
+    $log->save();
+  }
+
+  public function logSentPOToSupplier($po, $status) {
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => "Marked purchase order ".$po." as sent to supplier",
+        'before' => "",
+        'after' => "Status: ".$status,
+      ]);
+
+    $log->save();
+  }
+
+  public function logAddRemovedDeliveredToPo($po, $poitem, $invoice, $dr, $qty, $method) {
+    $before = '';
+    $after = 'Invoice: '.$invoice.' / D.R. : '.$dr." / Qty. : ".$qty;
+
+    if ($method == 'Deleted') {
+      $before = 'Invoice: '.$invoice.' / D.R. : '.$dr." / Qty. : ".$qty;
+      $after = '';
+    }
+
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => $method." delivery details to ".$poitem." on ".$po,
+        'before' => $before,
+        'after' => $after,
+      ]);
+
+    $log->save();
+  }
+
+  public function logEditedDeliveredToPo($po,$poitem,$dirty,$original){
+    $log = new PsmsLogs();
+    $name_arr = [
+      'ssi_invoice' => 'Invoice',
+      'ssi_dr' => 'Delivery receipt',
+      'ssi_date' => 'Date',
+      'ssi_drquantity' => 'Quantity',
+      'ssi_underrunquantity' => 'Underrun Quantity',
+    ];
+
+    $vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => "Edited delivery details to ".$poitem." on ".$po,
+        'before' => $vals['before'],
+        'after' => $vals['after'],
+      ]);
+
+    $log->save();
+  }
+
+  public function getpsmsLogs()
+  {
+
+    $q = PsmsLogs::query();
+    $logs = $this->getLogs($q);
+
+    return response()->json([
+      'logsLength' => $logs['logsLength'],
+      'logs' => $logs['logs'],
+    ]);
+  }
+
+  //end psms
+
 
 }

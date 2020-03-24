@@ -114,4 +114,9 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany('App\PrmsLogs','user_id');
     }
 
+    public function psmsLogs()
+    {
+        return $this->hasMany('App\PsmsLogs','user_id');
+    }
+
 }

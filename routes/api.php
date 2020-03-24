@@ -190,6 +190,7 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/psms/po/print/{id}','PurchasesSupplierController@printPurchaseOrder');
     Route::get('/psms/po/invoice/{id}','PurchasesSupplierController@getPurchaseOrderDeliveries');
 
+
     Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');
     Route::post('/psms/approval','PurchasesSupplierController@addApprovalRequest');
     Route::post('/psms/po/invoice','PurchasesSupplierController@addDeliveryToPO');
@@ -210,6 +211,8 @@ Route::group(['middleware' => ['auth:api']], function() {
     //exports
     Route::get('/psms/po/exports/dl', 'PurchasesSupplierController@exportPurchaseOrder');
     Route::get('/psms/poitem/exports/dl', 'PurchasesSupplierController@exportPurchaseOrderItems');
+
+    Route::get('/psms/logs', 'PurchaseRequestController@getpsmsLogs');
     
   });
 

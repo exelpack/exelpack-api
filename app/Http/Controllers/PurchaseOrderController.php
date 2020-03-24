@@ -453,7 +453,7 @@ class PurchaseOrderController extends LogsController
 		]);
 
 		if($po->isDirty()){
-			$this->logPoEdit($po->getDirty(),$po->getOriginal());
+			$this->logPoEdit($po->getDirty(),$po->getOriginal(),$po->po_ponum);
 			$po->save();
 		}
 

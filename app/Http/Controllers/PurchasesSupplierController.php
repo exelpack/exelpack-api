@@ -29,7 +29,7 @@ use App\User;
 use App\Exports\ExportSupplierPurchaseOrder;
 use App\Exports\ExportSupplierPurchaseOrderItems;
 
-class PurchasesSupplierController extends Controller
+class PurchasesSupplierController extends LogsController
 {
   public function getTitle($gender){
     if(strtolower($gender) == 'male')
@@ -543,6 +543,8 @@ class PurchasesSupplierController extends Controller
       ]);
     }
     $pr->refresh();
+    $this->logCreateAndRemovePriceToPr($pr->pr_prnum,
+        $pr->prpricing->supplier->sd_supplier_name, "Added");//log this action
     $newPr = array(
       'id' => $pr->id,
       'status' => $pr->prpricing ? "W/ PRICE" : "NO PRICE",
@@ -613,16 +615,28 @@ class PurchasesSupplierController extends Controller
       $pr->prpricing->prApproval->pra_rejected == 1)){
       return response()->json(['errors' => ['Record not editable']],422);
     }
-    $pr->prpricing()->update([
+    $prpricing = $pr->prpricing;
+    $prpricing->fill([
       'prsd_supplier_id' => $request->supplier,
       'prsd_currency' => $request->currency,
     ]);
 
+    if($prpricing->isDirty()){
+      $this->logPrSupplierDetailsEdit($pr->pr_prnum,
+          $prpricing->getDirty(), $prpricing->getOriginal());
+      $prpricing->save();
+    }
+
     foreach($request->prItems as $item){
-      PurchaseRequestItems::findOrFail($item['id'])->update([
+      $pritem = PurchaseRequestItems::findOrFail($item['id'])->fill([
         'pri_unitprice' => $item['unitPrice'],
         'pri_deliverydate' => $item['dateNeeded'],
       ]);
+      if($pritem->isDirty()){
+        $this->logPrSupplierDetailsItemEdit($pr->pr_prnum,
+          $pritem->getDirty(), $pritem->getOriginal());
+        $pritem->save();
+      }
     }
     $pr->refresh();
     return response()->json([
@@ -637,6 +651,8 @@ class PurchasesSupplierController extends Controller
       'pri_unitprice' => 0,
       'pri_deliverydate' => null,
     ]);
+    $this->logCreateAndRemovePriceToPr($prsd->pr->pr_prnum,
+        $prsd->supplier->sd_supplier_name, "Deleted");//log this action
     $prsd->prApproval()->delete();
     $prsd->delete();
     return response()->json([
@@ -720,6 +736,8 @@ class PurchasesSupplierController extends Controller
       'pra_approvalType' => $request->method,
     ]);
     $approval->save();
+    $this->logCreateAndRemovalOfApprovalRequest($pr->pr_prnum,
+      $request->method, "Added");
     return response()->json([
       'message' => 'Record added',
       'newApprovalRequest' => $this->approvalArray($approval),
@@ -730,6 +748,8 @@ class PurchasesSupplierController extends Controller
   public function deleteApprovalRequest($id){
     $approval = PurchaseRequestApproval::findOrFail($id);
     $prsd = PurchaseRequestSupplierDetails::findOrFail($approval->pra_prs_id);
+    $this->logCreateAndRemovalOfApprovalRequest($prsd->pr->pr_prnum,
+      $approval->pra_approvalType, "Deleted");
     $approval->delete();
     $pr = $this->prWithPriceArray($prsd->pr);
     return response()->json([
@@ -1169,6 +1189,7 @@ class PurchasesSupplierController extends Controller
     PurchaseOrderSeries::first()
       ->update(['series_number' => DB::raw('series_number + 1')]); //update series
     $addedIds = array();
+    $addedPRs = array();
     foreach($request->prsID as $id)
     {
       $prs = PurchaseRequestSupplierDetails::findOrFail($id);
@@ -1177,8 +1198,11 @@ class PurchasesSupplierController extends Controller
           'prsd_spo_id' => $purchaseOrder->id,
         ]);
         array_push($addedIds, $id);
+        array_push($addedPRs, $prs->pr->pr_prnum);
       }
     }
+
+    $this->logCreateAndRemovalOfPotoPr(implode(",",$addedPRs),$request->poSeries,"Added");
 
     return response()->json([
       'addedIDs' => $addedIds,
@@ -1225,6 +1249,8 @@ class PurchasesSupplierController extends Controller
         $status = "DELIVERED";
     }else 
       $status = "PENDING";
+
+    $this->logSentPOToSupplier($po->po_ponum, $status);
       
     $newPo = array(
       'id' => $po->id,
@@ -1255,6 +1281,13 @@ class PurchasesSupplierController extends Controller
     if($hasDelivery > 0)
       return response()->json(['errors' =>
           ['Cannot cancel purchase order with delivery'] ],422);
+
+    $prs = PurchaseRequest::whereHas('prpricing.po', function($q) use ($id){
+      $q->where('id', $id);
+    })->get()
+      ->pluck('pr_prnum')
+      ->toArray();
+    $this->logCreateAndRemovalOfPotoPr(implode(",",$prs), $po->spo_ponum, "Deleted");
 
     $po->prprice()->update([
       'prsd_spo_id' => 0,
@@ -1489,6 +1522,14 @@ class PurchasesSupplierController extends Controller
     $newDelivery = $poItem->invoice()
       ->create($this->purchaseOrderDeliveryInputArray($request));
 
+    $this->logAddRemovedDeliveredToPo(
+      $poItem->pr->prpricing->po->spo_ponum ?? 'NO PO',
+      $poItem->pri_mspecs,
+      $request->invoice,
+      $request->dr,
+      $request->quantity,
+      "Added"
+    );
     $poItem->refresh();
     $newItem = $this->purchaseOrderItemGetArray($poItem);
     $newDelivery = $this->purchaseOrderDeliveryGetArray($newDelivery);
@@ -1496,6 +1537,7 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'newItem' => $newItem,
       'newDelivery' => $newDelivery,
+      'message' => 'Record added',
     ]);
   }
 
@@ -1529,8 +1571,14 @@ class PurchasesSupplierController extends Controller
       return response()->json(['errors' => $validator->errors()->all()], 422);
 
     $invoice->fill($this->purchaseOrderDeliveryInputArray($request));
-    $invoice->save();
-
+    if($invoice->isDirty()){
+      $this->logEditedDeliveredToPo(
+        $poItem->pr->prpricing->po->spo_ponum ?? 'NO PO',
+        $poItem->pri_mspecs,
+        $invoice->getDirty(),
+        $invoice->getOriginal());
+      $invoice->save();
+    }
     $poItem->refresh();
     $newItem = $this->purchaseOrderItemGetArray($poItem);
     $newDelivery = $this->purchaseOrderDeliveryGetArray($invoice);
@@ -1538,17 +1586,29 @@ class PurchasesSupplierController extends Controller
     return response()->json([
       'newItem' => $newItem,
       'newDelivery' => $newDelivery,
+      'message' => 'Record updated',
     ]);
   }
 
   public function deleteDeliveryPo($id){
     $invoice = SupplierInvoice::findOrFail($id);
     $poItem = $invoice->pritem;
+    $this->logAddRemovedDeliveredToPo(
+      $poItem->pr->prpricing->po->spo_ponum ?? 'NO PO',
+      $poItem->pri_mspecs,
+      $invoice->ssi_invoice,
+      $invoice->ssi_dr,
+      $invoice->ssi_drquantity,
+      "Deleted"
+    );
     $invoice->delete();
 
     $newItem = $this->purchaseOrderItemGetArray($poItem);
     return response()->json([
       'newItem' => $newItem,
+      'message' => 'Record deleted',
     ]);
   }
+
+  // public function getSupplier()
 }
