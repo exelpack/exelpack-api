@@ -884,6 +884,50 @@ class LogsController extends Controller
     $log->save();
   }
 
+  public function logAddRemovedSupplier($supplier, $method) {
+    $before = '';
+    $after = $supplier;
+
+    if ($method == 'Deleted') {
+      $before = $supplier;
+      $after = '';
+    }
+
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => $method." Supplier",
+        'before' => $before,
+        'after' => $after,
+      ]);
+
+    $log->save();
+  }
+
+  public function logEditedSupplier($supplier,$dirty,$original){
+    $log = new PsmsLogs();
+    $name_arr = [
+      'sd_supplier_name' => 'Supplier name',
+      'sd_address' => 'Address',
+      'sd_tin' => 'Tin',
+      'sd_attention' => 'Attention to',
+      'sd_paymentterms' => 'Payment terms',
+    ];
+
+    $vals = $this->getBeforeAndAfter([$name_arr,$dirty,$original]);
+
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => "Edited Supplier",
+        'before' => $vals['before'],
+        'after' => $vals['after'],
+      ]);
+
+    $log->save();
+  }
+
   public function getpsmsLogs()
   {
 

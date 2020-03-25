@@ -19,7 +19,7 @@ class CreateSupplierTable extends Migration
             $table->string('sd_address',255)->nullable();
             $table->string('sd_tin',50)->nullable();
             $table->string('sd_attention',50)->nullable();
-            $table->string('sd_paymentterms',50)->nullable();
+            $table->integer('sd_paymentterms')->unsigned()->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

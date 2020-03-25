@@ -1610,5 +1610,115 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  // public function getSupplier()
+  public function getAllSupplier(){
+    $supplierList = Supplier::all()
+      ->map(function($supplier) {
+        return array(
+          'id' => $supplier->id,
+          'name' => $supplier->sd_supplier_name,
+          'address' => $supplier->sd_address,
+          'tin' => $supplier->sd_tin,
+          'attention' => $supplier->sd_attention,
+          'paymentTerms' => $supplier->sd_paymentterms,
+        );
+      })
+      ->toArray();
+
+    return response()->json([
+      'supplierList' => $supplierList,
+    ]);
+  }
+
+  public function addSupplier(Request $request){
+
+    $validator = Validator::make($request->all(), [
+      'name' => 'string|max:250|regex:/^[a-zA-Z0-9_ -]*$/|unique:psms_supplierdetails,sd_supplier_name',
+      'address' => 'string|max:255|nullable',
+      'tin' => 'string|max:50|nullable',
+      'attention' => 'string|max:50|nullable',
+      'paymentTerms' => 'integer|min:0|nullable',
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    $supplier = new Supplier;
+    $supplier->fill([
+      'sd_supplier_name' => ucwords($request->name),
+      'sd_address' => $request->address,
+      'sd_tin' => $request->tin,
+      'sd_attention' => $request->attention,
+      'sd_paymentterms' => $request->paymentTerms,
+    ])->save();
+    $this->logAddRemovedSupplier($request->name, "Added");
+    $newSupplier = array(
+      'id' => $supplier->id,
+      'name' => $supplier->sd_supplier_name,
+      'address' => $supplier->sd_address,
+      'tin' => $supplier->sd_tin,
+      'attention' => $supplier->sd_attention,
+      'paymentTerms' => $supplier->sd_paymentterms,
+    );
+
+    return response()->json([
+      'newSupplier' => $newSupplier,
+      'message' => 'Record added',
+    ]);
+
+  }
+
+  public function updateSupplier(Request $request,$id){
+
+    $validator = Validator::make($request->all(), [
+      'name' => 'string|max:250|regex:/^[a-zA-Z0-9_ -]*$/|unique:psms_supplierdetails,sd_supplier_name,'.$id,
+      'address' => 'string|max:255|nullable',
+      'tin' => 'string|max:50|nullable',
+      'attention' => 'string|max:50|nullable',
+      'paymentTerms' => 'integer|min:0|nullable',
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+
+    $supplier = Supplier::findOrFail($id);
+    $name = $supplier->sd_supplier_name;
+    $supplier->fill([
+      'sd_supplier_name' => ucwords($request->name),
+      'sd_address' => $request->address,
+      'sd_tin' => $request->tin,
+      'sd_attention' => $request->attention,
+      'sd_paymentterms' => $request->paymentTerms,
+    ]);
+
+    if($supplier->isDirty()){
+      $this->logEditedSupplier($name, $supplier->getDirty(), $supplier->getOriginal());
+      $supplier->save();
+    }
+
+    $newSupplier = array(
+      'id' => $supplier->id,
+      'name' => $supplier->sd_supplier_name,
+      'address' => $supplier->sd_address,
+      'tin' => $supplier->sd_tin,
+      'attention' => $supplier->sd_attention,
+      'paymentTerms' => $supplier->sd_paymentterms,
+    );
+
+    return response()->json([
+      'newSupplier' => $newSupplier,
+      'message' => 'Record updated',
+    ]);
+  }
+
+  public function deleteSupplier($id){
+    $supplier = Supplier::findOrFail($id);
+    $this->logAddRemovedSupplier($supplier->sd_supplier_name, "Deleted");
+    $supplier->delete();
+
+    return response()->json([
+      'message' => 'Record deleted',
+    ]);
+  }
 }
