@@ -39,7 +39,7 @@ class SmsSOA implements FromView
       ->orderBy('si.s_deliverydate','ASC')
       ->get();  
 
-      return view(strtolower($this->currency) == 'php' ? 'sales.exportSalesSOA' : 'sales.exportSalesSoaWithUsd', [
+      return view(strtolower($this->currency) == 'php' ? 'sales.exportSalesSoa' : 'sales.exportSalesSoaWithUsd', [
         'data' => $data,
         'currency' => $this->currency,
         'customer_id' => $this->cid,
