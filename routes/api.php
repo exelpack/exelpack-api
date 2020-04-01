@@ -144,6 +144,10 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 		Route::get('/prms/logs', 'PurchaseRequestController@getprmsLogs');
 
+    //po receiving
+    Route::get('/wrms/polist', 'ReceivingController@getPurchaseOrder');
+    Route::get('/wrms/polist/{id}', 'ReceivingController@viewPurchaseOrderItems');
+
 	});
 
 		//sales

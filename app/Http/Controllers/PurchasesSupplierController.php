@@ -1041,7 +1041,6 @@ class PurchasesSupplierController extends LogsController
   public function purchaseOrderInfo($id)
   {
     $po = PurchaseOrderSupplier::findOrFail($id);
-    $getPoDetails = $this->getPurchaseOrderDetails($po,$id);
     $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
         return $q->where('id', $id);
       })
@@ -1068,7 +1067,7 @@ class PurchasesSupplierController extends LogsController
 
   public function getPurchaseOrder()
   {
-    $limit = request()->has('recordCount') ? request()->recordCount : 1000;
+    $limit = request()->has('recordCount') ? request()->recordCount : 500;
 
     $joinQry = "SELECT
       prms_prlist.id,
