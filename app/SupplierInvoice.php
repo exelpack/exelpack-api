@@ -11,8 +11,17 @@ class SupplierInvoice extends Model
   protected $guarded = ['id'];
   public $timestamps = false;
 
-  public function pritem()
+  public function poitem()
   {
-    return $this->belongsTo('App\PurchaseRequestItems','ssi_pritem_id');
+    return $this->belongsTo('App\PurchaseOrderSupplierItems','ssi_poitem_id');
+  }
+
+  //set attribs
+  public function setSsiInvoiceAttribute($value){
+    $this->attributes['ssi_invoice'] = strtoupper($value); 
+  }
+
+  public function setSsiDrAttribute($value){
+    $this->attributes['ssi_dr'] = strtoupper($value); 
   }
 }

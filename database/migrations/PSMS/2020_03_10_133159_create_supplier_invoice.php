@@ -15,7 +15,7 @@ class CreateSupplierInvoice extends Migration
     {
         Schema::create('psms_supplierinvoice', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->integer('ssi_pritem_id')->unsigned();
+            $table->integer('ssi_poitem_id')->unsigned();
             $table->string('ssi_invoice',50)->nullable();
             $table->string('ssi_dr',50);
             $table->date('ssi_date');
@@ -25,6 +25,8 @@ class CreateSupplierInvoice extends Migration
             $table->integer('ssi_inspectedquantity')->unsigned();
             $table->integer('ssi_receivedquantity')->unsigned();
             $table->string('ssi_remarks',100);
+            $table->integer('ssi_rejectquanttiy')->unsigned();
+            $table->string('ssi_rejectionremarks',250)->nullable();
         });
     }
 

@@ -14,14 +14,15 @@ class CreatePrItemTable extends Migration
     public function up()
     {
         Schema::create('prms_pritems', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->boolean('pri_pr_id')->unsigned();
-            $table->string('pri_code',50);
-            $table->string('pri_mspecs',255);
-            $table->string('pri_uom',50);
-            $table->integer('pri_quantity');
-            $table->double('pri_unitprice')->default(0);
-            $table->string('pri_remarks',100)->nullable();
+          $table->bigIncrements('id');
+          $table->boolean('pri_pr_id')->unsigned();
+          $table->string('pri_code',50);
+          $table->string('pri_mspecs',255);
+          $table->string('pri_uom',50);
+          $table->integer('pri_quantity');
+          $table->double('pri_unitprice')->default(0);
+          $table->string('pri_remarks',100)->nullable();
+          $table->date('pri_deliverydate')->nullable();
         });
     }
 

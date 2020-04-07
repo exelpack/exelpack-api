@@ -17,9 +17,4 @@ class PurchaseRequestItems extends Model
 		return $this->belongsTo('App\PurchaseRequest','pri_pr_id');
 	}
 
-  public function invoice()
-  {
-    return $this->hasMany('App\SupplierInvoice','ssi_pritem_id');
-  }
-
 }

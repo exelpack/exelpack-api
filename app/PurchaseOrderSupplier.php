@@ -22,4 +22,8 @@ class PurchaseOrderSupplier extends Model
   {
     return $this->belongsTo('App\User','spo_user_id')->withTrashed();
   }
+
+  public function poitems(){
+    return $this->hasMany('App\PurchaseOrderSupplierItems', 'spoi_po_id');
+  }
 }

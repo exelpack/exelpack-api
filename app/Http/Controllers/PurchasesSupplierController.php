@@ -17,6 +17,7 @@ use Carbon\Carbon;
 
 use App\PurchaseRequestApproval;
 use App\PurchaseOrderSupplier;
+use App\PurchaseOrderSupplierItems;
 use App\PurchaseRequestSupplierDetails;
 use App\PurchaseOrderSeries;
 use App\PurchaseRequest;
@@ -64,25 +65,19 @@ class PurchasesSupplierController extends LogsController
       'ssi_pritem_id')
       ->groupBy('ssi_pritem_id');
     $prNumber = implode(",", $getPr);
-    $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
-        return $q->where('id', $id);
-      })
-      ->leftJoinSub($deliveredSub,'supplierInvoice', function($join){
-        return $join->on('supplierInvoice.ssi_pritem_id','=','prms_pritems.id');
-      })
-      ->select(
-        'id',
-        DB::raw('IF(count(*) > 1,NULL,pri_code) as code'),
-        'pri_mspecs as materialSpecification',
-        'pri_uom as unit',
-        'pri_unitprice as unitprice',
-        'pri_deliverydate as deliveryDate',
-        DB::raw('CAST(sum(pri_quantity) as int) as quantity'),
-        DB::raw('CAST(delivered as int) as delivered')
-      )
-      ->groupBy('pri_mspecs', 'pri_uom', 'pri_unitprice')
-      ->get();
-
+    $poItems = $po->poitems()->get()->map(function ($item) {
+      return (object)array(
+        'id' => $item->id,
+        'code' => $item->spoi_code,
+        'materialSpecification' => $item->spoi_mspecs,
+        'unit' => $item->spoi_uom,
+        'unitprice' => $item->spoi_unitprice,
+        'quantity' => $item->spoi_quantity,
+        'deliveryDate' => $item->spoi_deliverydate,
+        'delivered' => $item->invoice()->sum('ssi_receivedquantity')
+      ); 
+    });
+    
     $poDetails = (object) array(
       'poNumber' => $po->spo_ponum,
       'currency' => $po->prprice()->first()->prsd_currency,
@@ -1041,21 +1036,17 @@ class PurchasesSupplierController extends LogsController
   public function purchaseOrderInfo($id)
   {
     $po = PurchaseOrderSupplier::findOrFail($id);
-    $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
-        return $q->where('id', $id);
-      })
-      ->get()
+    $poItems = $po->poitems()->get()
       ->map(function($item) {
         return array(
           'id' => $item->id,
-          'prnumber' => $item->pr->pr_prnum,
-          'code' => $item->pri_code,
-          'materialSpecification' => $item->pri_mspecs,
-          'unit' => $item->pri_uom,
-          'unitprice' => $item->pri_unitprice,
-          'quantity' => $item->pri_quantity,
-          'deliveryDate' => $item->pri_deliverydate,
-          'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
+          'code' => $item->spoi_code,
+          'materialSpecification' => $item->spoi_mspecs,
+          'unit' => $item->spoi_uom,
+          'unitprice' => $item->spoi_unitprice,
+          'quantity' => $item->spoi_quantity,
+          'deliveryDate' => $item->spoi_deliverydate,
+          'delivered' => $item->invoice()->sum('ssi_receivedquantity')
         );
       })
       ->toArray();
@@ -1074,23 +1065,23 @@ class PurchasesSupplierController extends LogsController
       prsd.prsd_supplier_id as supplier_id,
       prsd.prsd_spo_id,
       prsd.prsd_currency as currency,
-      GROUP_CONCAT(pr_prnum) as prnumbers,
-      CAST(sum(itemCount) as int) as itemCount,
-      CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
-      IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered
+      GROUP_CONCAT(pr_prnum) as prnumbers
+      -- CAST(sum(itemCount) as int) as itemCount,
+      -- CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
+      -- IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered
       FROM prms_prlist
       LEFT JOIN psms_prsupplierdetails prsd 
       ON prsd.prsd_pr_id = prms_prlist.id
-      LEFT JOIN (SELECT count(*) as itemCount,
-      SUM(pri_quantity) as totalPrQuantity,pri_pr_id,id
-      FROM prms_pritems
-      GROUP BY pri_pr_id) pri
-      ON pri.pri_pr_id = prms_prlist.id
-      LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_pritem_id 
-      FROM psms_supplierinvoice
-      WHERE ssi_receivedquantity > 0
-      GROUP BY ssi_pritem_id) prsi
-      ON prsi.ssi_pritem_id = pri.id
+      -- LEFT JOIN (SELECT count(*) as itemCount,
+      -- SUM(pri_quantity) as totalPrQuantity,pri_pr_id,id
+      -- FROM prms_pritems
+      -- GROUP BY pri_pr_id) pri
+      -- ON pri.pri_pr_id = prms_prlist.id
+      -- LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_pritem_id 
+      -- FROM psms_supplierinvoice
+      -- WHERE ssi_receivedquantity > 0
+      -- GROUP BY ssi_pritem_id) prsi
+      -- ON prsi.ssi_pritem_id = pri.id
       GROUP BY prsd_spo_id";
 
     $supplier = DB::table('psms_supplierdetails')
@@ -1101,10 +1092,33 @@ class PurchasesSupplierController extends LogsController
       ->select('pri_pr_id',DB::raw('count(*) as itemCount'))
       ->groupBy('pri_pr_id');
 
+    $supplierInvoice = DB::table('psms_supplierinvoice')
+      ->select(DB::raw('SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered'),
+        'ssi_poitem_id'
+      )
+      ->groupBy('ssi_poitem_id');
+
+    $spoItems = DB::table('psms_spurchaseorderitems')
+      ->leftJoinSub($supplierInvoice, 'invoice', function($join){
+        $join->on('invoice.ssi_poitem_id','=','psms_spurchaseorderitems.id');
+      })
+      ->select(DB::raw('count(*) as itemCount'),
+        'spoi_po_id',
+        DB::raw('IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered'),
+        DB::raw('CAST(SUM(spoi_quantity) as int) as totalPoQuantity')
+      )
+      ->groupBy('spoi_po_id');
+
+    
+
     $q = PurchaseOrderSupplier::has('prprice.pr.jo.poitems.po')
       ->leftJoinSub($joinQry,'pr', function($join){
         $join->on('pr.prsd_spo_id','=','psms_spurchaseorder.id');
       })
+      ->leftJoinSub($spoItems, 'spoi', function($join){
+        $join->on('spoi.spoi_po_id','=','psms_spurchaseorder.id');
+      })
+      
       ->leftJoinSub($supplier,'supplier', function($join){
         $join->on('supplier.id','=','pr.supplier_id');
       })
@@ -1189,6 +1203,8 @@ class PurchasesSupplierController extends LogsController
       ->update(['series_number' => DB::raw('series_number + 1')]); //update series
     $addedIds = array();
     $addedPRs = array();
+
+    //update prsd add po id
     foreach($request->prsID as $id)
     {
       $prs = PurchaseRequestSupplierDetails::findOrFail($id);
@@ -1200,6 +1216,36 @@ class PurchasesSupplierController extends LogsController
         array_push($addedPRs, $prs->pr->pr_prnum);
       }
     }
+
+    //copy items from pr to poitem table
+    $getPurchaseRequestItems = PurchaseRequestItems::whereHas('pr.prpricing', function($q) use ($addedIds){
+        return $q->whereIn('id', $addedIds);
+      })
+      ->select(
+        DB::raw('IF(count(*) > 0,"",pri_code) as code'),
+        'pri_mspecs as materialSpecification',
+        'pri_uom as unit',
+        'pri_unitprice as unitprice',
+        DB::raw('sum(pri_quantity) as quantity'),
+        'pri_deliverydate as deliveryDate',
+        'pri_remarks as remarks'
+      )
+      ->orderBy('pri_deliverydate','desc')
+      ->groupBy('pri_mspecs', 'pri_uom', 'pri_unitprice')
+      ->get();
+
+    foreach($getPurchaseRequestItems as $row){
+      $purchaseOrder->poitems()->create([
+        'spoi_code' => $row->code,
+        'spoi_mspecs' => $row->materialSpecification,
+        'spoi_uom' => $row->unit,
+        'spoi_quantity' => $row->quantity,
+        'spoi_unitprice' => $row->unitprice,
+        'spoi_remarks' => $row->remarks,
+        'spoi_deliverydate' => $row->deliveryDate,
+      ]);
+    }
+    //end copy items
 
     $this->logCreateAndRemovalOfPotoPr(implode(",",$addedPRs),$request->poSeries,"Added");
 
@@ -1227,15 +1273,11 @@ class PurchasesSupplierController extends LogsController
       ->pluck('pr_prnum')
       ->toArray();
     $prNumber = implode(",", $prNumbers);
-    $item = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q)
-      use ($id){
-        return $q->where('id', $id);
-      })
-      ->get();
+    $item = $po->poitems()->get();
 
     $itemCount = $item->count();
-    $totalPoQuantity = $item->sum('pri_quantity');
-    $quantityDelivered = SupplierInvoice::whereHas('pritem.pr.prpricing.po', function($q) 
+    $totalPoQuantity = $item->sum('spoi_quantity');
+    $quantityDelivered = SupplierInvoice::whereHas('poitem.spo', function($q) 
       use ($id){
         return $q->where('id', $id);
       })
@@ -1272,10 +1314,7 @@ class PurchasesSupplierController extends LogsController
   public function cancelPurchaseOrder($id)
   {
     $po = PurchaseOrderSupplier::findOrFail($id);
-    $hasDelivery = PurchaseRequestItems::has('invoice')
-      ->whereHas('pr.prpricing', function($q) use ($id){
-        return $q->where('prsd_spo_id', $id);
-      })
+    $hasDelivery = PurchaseOrderSupplierItems::has('invoice')
       ->count();
     if($hasDelivery > 0)
       return response()->json(['errors' =>
@@ -1291,6 +1330,7 @@ class PurchasesSupplierController extends LogsController
     $po->prprice()->update([
       'prsd_spo_id' => 0,
     ]);
+    $po->poitems()->delete();
     $po->delete();
 
     return response()->json([
@@ -1302,19 +1342,13 @@ class PurchasesSupplierController extends LogsController
   {
     $limit = request()->has('recordCount') ? request()->recordCount : 500;
 
-    $pr = Db::table('prms_prlist')
-      ->select(
-        'id',
-        'pr_prnum as prNum'
-      );
-
     $prPrice = Db::table('psms_prsupplierdetails')
       ->select(
-        'prsd_pr_id',
         'prsd_spo_id',
         'prsd_supplier_id',
         'prsd_currency as currency'
-      );
+      )
+      ->groupBy('prsd_spo_id');
 
     $supplier = Db::table('psms_supplierdetails')
       ->select(
@@ -1330,58 +1364,54 @@ class PurchasesSupplierController extends LogsController
 
     $invoice = Db::table('psms_supplierinvoice')
       ->select(
-        'ssi_pritem_id',
+        'ssi_poitem_id',
         DB::raw('count(*) as invoiceCount'),
         DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as int) as totalDelivered'),
         DB::raw('CAST(SUM(ssi_drquantity) as int) as totalInvoiceQty')
       )
-      ->groupBy('ssi_pritem_id');
+      ->groupBy('ssi_poitem_id');
 
-    $q = PurchaseRequestItems::has('pr.prpricing.po')
-      ->leftJoinSub($pr, 'pr', function($join){
-        $join->on('prms_pritems.pri_pr_id','=','pr.id');
-      })
-      ->leftJoinSub($prPrice, 'prprice', function($join){
-        $join->on('pr.id','=','prprice.prsd_pr_id');
+    $q = PurchaseOrderSupplierItems::has('spo')
+      ->leftJoinSub($invoice, 'invoice', function($join){
+        $join->on('invoice.ssi_poitem_id','=','psms_spurchaseorderitems.id');
       })
       ->leftJoinSub($po, 'po', function($join){
-        $join->on('po.id','=','prprice.prsd_spo_id');
+        $join->on('po.id','=','psms_spurchaseorderitems.spoi_po_id');
       })
-      ->leftJoinSub($invoice, 'invoice', function($join){
-        $join->on('prms_pritems.id','=','invoice.ssi_pritem_id');
+      ->leftJoinSub($prPrice, 'prprice', function($join){
+        $join->on('po.id','=','prprice.prsd_spo_id');
       })
       ->leftJoinSub($supplier, 'supplier', function($join){
         $join->on('prprice.prsd_supplier_id','=','supplier.id');
       })
       ->select(
-        'prms_pritems.id',
+        'psms_spurchaseorderitems.id',
         DB::raw('
-          IF(IFNULL(totalDelivered,0) >= pri_quantity,
+          IF(IFNULL(totalDelivered,0) >= spoi_quantity,
             "DELIVERED",
             "OPEN") as status
         '),
         'poNum',
-        'prNum',
         'supplier',
-        'pri_code as code',
-        'pri_mspecs as materialSpecification',
-        'pri_unitprice as unitPrice',
-        'pri_quantity as quantity',
+         DB::raw('spoi_code as code'),
+        'spoi_mspecs as materialSpecification',
+        'spoi_unitprice as unitPrice',
+        'spoi_quantity as quantity',
         'currency',
-        DB::raw('(pri_unitprice * pri_quantity) as totalAmount'),
-        DB::raw('IFNULL(totalDelivered,0) as totalDelivered'),
-        DB::raw('IFNULL(invoiceCount,0) as invoiceCount'),
-        DB::raw('IFNULL(totalInvoiceQty,0) as totalInvoiceQty'),
-        Db::raw('(pri_quantity - IFNULL(totalDelivered,0)) as remaining'),
-        'pri_deliverydate as deliverydate'
+        DB::raw('CAST((spoi_unitprice * spoi_quantity) as int) as totalAmount'),
+        DB::raw('CAST(IFNULL(totalDelivered,0) as int) as totalDelivered'),
+        DB::raw('CAST(IFNULL(invoiceCount,0) as int) as invoiceCount'),
+        DB::raw('CAST(IFNULL(totalInvoiceQty,0) as int) as totalInvoiceQty'),
+        Db::raw('CAST((spoi_quantity - IFNULL(totalDelivered,0)) as int) as remaining'),
+        'spoi_deliverydate as deliverydate'
       );
 
       if(request()->has('poItemStatus')){
         $status = strtolower(request()->poItemStatus);  
         if($status == 'open')
-          $q->whereRaw('pri_quantity > IFNULL(totalDelivered,0)');
+          $q->whereRaw('sum(spoi_quantity) > sum(IFNULL(totalDelivered,0))');
         else if($status == 'delivered')
-          $q->whereRaw('IFNULL(totalDelivered,0) >= pri_quantity');
+          $q->whereRaw('sum(IFNULL(totalDelivered,0) >= sum(spoi_quantity)');
       }
 
       if(request()->has('supplier')){
@@ -1393,11 +1423,11 @@ class PurchasesSupplierController extends LogsController
       }
 
       if(request()->has('month')){
-        $q->whereMonth('pri_deliverydate', request()->month);
+        $q->whereMonth('spoi_deliverydate', request()->month);
       }
 
       if(request()->has('year')){
-        $q->whereYear('pri_deliverydate', request()->year);
+        $q->whereYear('spoi_deliverydate', request()->year);
       }
 
       $poItems = $q->latest('id')
@@ -1416,26 +1446,25 @@ class PurchasesSupplierController extends LogsController
     $totalInvoiceQty = $item->invoice()->sum(Db::raw('ssi_drquantity'));
     $status = "OPEN";
 
-    if($totalDelivered >= $item->pri_quantity)
+    if($totalDelivered >= $item->spoi_quantity)
       $status = "DELIVERED";
 
     return (object) array(
       'id' => $item->id,
       'status' => $status,
-      'poNum' => $item->pr->prpricing->po->spo_ponum,
-      'prNum' => $item->pr->pr_prnum,
-      'supplier' => $item->pr->prpricing->supplier->sd_supplier_name,
-      'code' => $item->pri_code,
-      'materialSpecification' => $item->pri_mspecs,
-      'unitPrice' => $item->pri_unitprice,
-      'quantity' => $item->pri_quantity,
-      'currency' => $item->pr->prpricing->prsd_currency,
-      'totalAmount' => $item->pri_unitprice * $item->pri_quantity,
+      'poNum' => $item->spo->spo_ponum,
+      'supplier' => $item->spo->prprice()->first()->supplier->sd_supplier_name,
+      'code' => $item->spoi_code,
+      'materialSpecification' => $item->spoi_mspecs,
+      'unitPrice' => $item->spoi_unitprice,
+      'quantity' => $item->spoi_quantity,
+      'currency' => $item->spo->prprice()->first()->prsd_currency,
+      'totalAmount' => $item->spoi_unitprice * $item->spoi_quantity,
       'totalDelivered' => $totalDelivered,
       'invoiceCount' => $item->invoice()->count(),
       'totalInvoiceQty' => $totalInvoiceQty,
-      'remaining' => $item->pri_quantity - $totalDelivered,
-      'deliverydate' => $item->pri_deliverydate,
+      'remaining' => $item->spoi_quantity - $totalDelivered,
+      'deliverydate' => $item->spoi_deliverydate,
     );
   }
 
@@ -1465,8 +1494,8 @@ class PurchasesSupplierController extends LogsController
   }
 
   public function getPurchaseOrderDeliveries($id){
-    $supplierDeliveries = SupplierInvoice::whereHas('pritem', function($q) use ($id){
-        $q->where('ssi_pritem_id', $id);
+    $supplierDeliveries = SupplierInvoice::whereHas('poitem', function($q) use ($id){
+        $q->where('ssi_poitem_id', $id);
       })
       ->get()
       ->map(function($invoice){
@@ -1492,8 +1521,8 @@ class PurchasesSupplierController extends LogsController
 
   public function addDeliveryToPO(Request $request){
 
-    $poItem = PurchaseRequestItems::findOrFail($request->item_id);
-    $totalRemaining = intval($poItem->pri_quantity)
+    $poItem = PurchaseOrderSupplierItems::findOrFail($request->item_id);
+    $totalRemaining = intval($poItem->spoi_quantity)
       - intval($poItem->invoice()->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
       - intval($poItem->invoice()->sum(Db::raw('ssi_drquantity')) );
 
@@ -1508,10 +1537,10 @@ class PurchasesSupplierController extends LogsController
       ]);
 
     $validator->sometimes('dr', 'unique:psms_supplierinvoice,ssi_dr,
-      null,id,ssi_pritem_id,'.$request->item_id, function($input) {
+      null,id,ssi_poitem_id,'.$request->item_id, function($input) {
         return $input->dr != 'NA';
       })->sometimes('invoice', 'unique:psms_supplierinvoice,ssi_invoice,
-      null,id,ssi_pritem_id,'.$request->item_id, function($input) {
+      null,id,ssi_poitem_id,'.$request->item_id, function($input) {
         return $input->invoice != 'NA';
       });
 
@@ -1522,8 +1551,8 @@ class PurchasesSupplierController extends LogsController
       ->create($this->purchaseOrderDeliveryInputArray($request));
 
     $this->logAddRemovedDeliveredToPo(
-      $poItem->pr->prpricing->po->spo_ponum ?? 'NO PO',
-      $poItem->pri_mspecs,
+      $poItem->spo->spo_ponum ?? 'NO PO',
+      $poItem->spoi_mspecs,
       $request->invoice,
       $request->dr,
       $request->quantity,
@@ -1541,9 +1570,9 @@ class PurchasesSupplierController extends LogsController
   }
 
   public function updateDeliveryToPo(Request $request, $id){
-    $poItem = PurchaseRequestItems::findOrFail($request->item_id);
+    $poItem = PurchaseOrderSupplierItems::findOrFail($request->item_id);
     $invoice = SupplierInvoice::findOrFail($id);
-    $totalRemaining = intval($poItem->pri_quantity)
+    $totalRemaining = intval($poItem->spoi_quantity)
       - intval($poItem->invoice()
           ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
       - intval($poItem->invoice()
@@ -1559,10 +1588,10 @@ class PurchasesSupplierController extends LogsController
       ]);
 
     $validator->sometimes('dr', 'unique:psms_supplierinvoice,ssi_dr,
-      '.$id.',id,ssi_pritem_id,'.$request->item_id, function($input) {
+      '.$id.',id,ssi_poitem_id,'.$request->item_id, function($input) {
         return $input->dr != 'NA';
       })->sometimes('invoice', 'unique:psms_supplierinvoice,ssi_invoice,
-      '.$id.',id,ssi_pritem_id,'.$request->item_id, function($input) {
+      '.$id.',id,ssi_poitem_id,'.$request->item_id, function($input) {
         return $input->invoice != 'NA';
       });
 
@@ -1572,8 +1601,8 @@ class PurchasesSupplierController extends LogsController
     $invoice->fill($this->purchaseOrderDeliveryInputArray($request));
     if($invoice->isDirty()){
       $this->logEditedDeliveredToPo(
-        $poItem->pr->prpricing->po->spo_ponum ?? 'NO PO',
-        $poItem->pri_mspecs,
+        $poItem->spo->spo_ponum ?? 'NO PO',
+        $poItem->spoi_mspecs,
         $invoice->getDirty(),
         $invoice->getOriginal());
       $invoice->save();
@@ -1591,10 +1620,10 @@ class PurchasesSupplierController extends LogsController
 
   public function deleteDeliveryPo($id){
     $invoice = SupplierInvoice::findOrFail($id);
-    $poItem = $invoice->pritem;
+    $poItem = $invoice->poitem;
     $this->logAddRemovedDeliveredToPo(
-      $poItem->pr->prpricing->po->spo_ponum ?? 'NO PO',
-      $poItem->pri_mspecs,
+      $poItem->spo->spo_ponum ?? 'NO PO',
+      $poItem->spoi_mspecs,
       $invoice->ssi_invoice,
       $invoice->ssi_dr,
       $invoice->ssi_drquantity,

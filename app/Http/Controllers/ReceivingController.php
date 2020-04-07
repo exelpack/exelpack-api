@@ -14,14 +14,11 @@ use Storage;
 use File;
 use Carbon\Carbon;
 
-use App\PurchaseRequestApproval;
 use App\PurchaseOrderSupplier;
-use App\PurchaseRequestSupplierDetails;
 use App\PurchaseOrderSeries;
-use App\PurchaseRequest;
+use App\ReceivingReportSeries;
 use App\PurchaseRequestItems;
 use App\SupplierInvoice;
-use App\Masterlist;
 use App\Supplier;
 use App\User;
 
@@ -98,6 +95,7 @@ class ReceivingController extends LogsController
 
     return response()->json([
       'poList' => $poList,
+      'supplierOption' => $this->getSupplier(),
     ]);
   }
 
@@ -128,7 +126,7 @@ class ReceivingController extends LogsController
   }
 
   public function getItemInvoices($id) {
-    $invoices = SupplierInvoice::whereHas('pritem.pr.prpricing.po', function($q) use ($id){
+    $invoiceList = SupplierInvoice::whereHas('pritem.pr.prpricing.po', function($q) use ($id){
         return $q->where('id', $id);
       })
       ->where('ssi_rrnum',null)
@@ -139,9 +137,38 @@ class ReceivingController extends LogsController
 
         return array(
           'id' => $invoice->id,
-          
+          'code' => $invoice->pritem->pri_code,
+          'materialSpecification' => $invoice->pritem->pri_mspecs,
+          'invoice' => $invoice->ssi_invoice,
+          'dr' => $invoice->ssi_dr,
+          'quantity' => $invoice->ssi_drquantity,
+          'underrun' => $invoice->ssi_drquantity,
         );
       })
+      ->values();
 
+      $series = ReceivingReportSeries::first();
+      $number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
+      $rrseries = $series->series_prefix.date('y'). "-".$number;
+
+    return response()->json([
+      'invoiceList' => $invoiceList,
+      'rrseries' => $rrseries,
+    ]);
   }
+
+  public function addReceivingReport(Request $request) {
+    $invoices = SupplierInvoice::whereIn('id', $request->invoiceIDs)->get();
+
+    $checkIfNoRR = $invoices->every(function ($invoice)) {
+      return $invoice->ssi_rrnum == null;
+    });
+    
+    $invoicQtyTotal = $invoices->sum('ssi_drquantity');
+
+    foreach($invoices as $invoice) {
+      
+    }
+  }
+
 }
