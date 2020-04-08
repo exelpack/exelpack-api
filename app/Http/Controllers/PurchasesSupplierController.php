@@ -1036,17 +1036,20 @@ class PurchasesSupplierController extends LogsController
   public function purchaseOrderInfo($id)
   {
     $po = PurchaseOrderSupplier::findOrFail($id);
-    $poItems = $po->poitems()->get()
+    $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
+        return $q->where('id', $id);
+      })
+      ->get()
       ->map(function($item) {
         return array(
           'id' => $item->id,
-          'code' => $item->spoi_code,
-          'materialSpecification' => $item->spoi_mspecs,
-          'unit' => $item->spoi_uom,
-          'unitprice' => $item->spoi_unitprice,
-          'quantity' => $item->spoi_quantity,
-          'deliveryDate' => $item->spoi_deliverydate,
-          'delivered' => $item->invoice()->sum('ssi_receivedquantity')
+          'prnumber' => $item->pr->pr_prnum,
+          'code' => $item->pri_code,
+          'materialSpecification' => $item->pri_mspecs,
+          'unit' => $item->pri_uom,
+          'unitprice' => $item->pri_unitprice,
+          'quantity' => $item->pri_quantity,
+          'deliveryDate' => $item->pri_deliverydate
         );
       })
       ->toArray();
@@ -1222,7 +1225,7 @@ class PurchasesSupplierController extends LogsController
         return $q->whereIn('id', $addedIds);
       })
       ->select(
-        DB::raw('IF(count(*) > 0,"",pri_code) as code'),
+        DB::raw('IF(count(*) > 0,group_concat(pri_code),pri_code) as code'),
         'pri_mspecs as materialSpecification',
         'pri_uom as unit',
         'pri_unitprice as unitprice',
@@ -1235,8 +1238,9 @@ class PurchasesSupplierController extends LogsController
       ->get();
 
     foreach($getPurchaseRequestItems as $row){
+      $newCode = implode(",",array_unique(explode(",", $row->code)));
       $purchaseOrder->poitems()->create([
-        'spoi_code' => $row->code,
+        'spoi_code' => $newCode,
         'spoi_mspecs' => $row->materialSpecification,
         'spoi_uom' => $row->unit,
         'spoi_quantity' => $row->quantity,

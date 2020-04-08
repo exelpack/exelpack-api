@@ -25,7 +25,7 @@ class CreateSupplierInvoice extends Migration
             $table->integer('ssi_inspectedquantity')->unsigned();
             $table->integer('ssi_receivedquantity')->unsigned();
             $table->string('ssi_remarks',100);
-            $table->integer('ssi_rejectquanttiy')->unsigned();
+            $table->integer('ssi_rejectquantity')->unsigned();
             $table->string('ssi_rejectionremarks',250)->nullable();
         });
     }
