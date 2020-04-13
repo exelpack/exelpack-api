@@ -22,6 +22,7 @@ use App\SupplierInvoice;
 use App\Supplier;
 use App\User;
 use App\PurchaseOrderSupplierItems;
+use App\JobOrder;
 
 class ReceivingController extends LogsController
 {
@@ -39,23 +40,10 @@ class ReceivingController extends LogsController
       prsd.prsd_supplier_id as supplier_id,
       prsd.prsd_spo_id,
       prsd.prsd_currency as currency,
-      GROUP_CONCAT(pr_prnum) as prnumbers
-      -- CAST(sum(itemCount) as int) as itemCount,
-      -- CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
-      -- IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered
+      GROUP_CONCAT(pr_prnum) as prNumbers
       FROM prms_prlist
       LEFT JOIN psms_prsupplierdetails prsd 
       ON prsd.prsd_pr_id = prms_prlist.id
-      -- LEFT JOIN (SELECT count(*) as itemCount,
-      -- SUM(pri_quantity) as totalPrQuantity,pri_pr_id,id
-      -- FROM prms_pritems
-      -- GROUP BY pri_pr_id) pri
-      -- ON pri.pri_pr_id = prms_prlist.id
-      -- LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_pritem_id 
-      -- FROM psms_supplierinvoice
-      -- WHERE ssi_receivedquantity > 0
-      -- GROUP BY ssi_pritem_id) prsi
-      -- ON prsi.ssi_pritem_id = pri.id
       GROUP BY prsd_spo_id";
 
     $supplier = DB::table('psms_supplierdetails')
@@ -98,7 +86,7 @@ class ReceivingController extends LogsController
         'psms_spurchaseorder.id',
         'sd_supplier_name as supplier',
         'spo_ponum as poNum',
-        'prnumbers',
+        'prNumbers',
         'currency',
         'itemCount',
         'quantityDelivered',
@@ -301,6 +289,141 @@ class ReceivingController extends LogsController
       'newPo' => $newPo,
     ]);
 
+  }
+
+  public function getRRList() {
+    $limit = request()->has('recordCount') ? request()->recordCount : 500;
+
+    $spo = Db::table('psms_spurchaseorder')
+      ->select('id', 'spo_ponum')
+      ->groupBy('id');
+
+    $item = Db::table('psms_spurchaseorderitems')
+      ->select('id','spoi_po_id', 'spoi_mspecs', 'spoi_code')
+      ->groupBy('id');
+
+    $prPrice = Db::table('psms_prsupplierdetails')
+      ->select('prsd_spo_id', 'prsd_supplier_id')
+      ->groupBy('prsd_spo_id');
+
+    $supplier = Db::table('psms_supplierdetails')
+      ->select('id', 'sd_supplier_name')
+      ->groupBy('id');
+
+    $q = SupplierInvoice::has('poitem.spo')
+      ->leftJoinSub($item, 'item', function($join){
+        return $join->on('psms_supplierinvoice.ssi_poitem_id', '=', 'item.id');
+      })
+      ->leftJoinSub($spo, 'spo', function($join){
+        return $join->on('spo.id', '=', 'item.spoi_po_id');
+      })
+      ->leftJoinSub($prPrice, 'prPrice', function($join){
+        return $join->on('prPrice.prsd_spo_id', '=', 'spo.id');
+      })
+      ->leftJoinSub($supplier, 'supplier', function($join){
+        return $join->on('prPrice.prsd_supplier_id', '=', 'supplier.id');
+      })
+      ->select(
+        'psms_supplierinvoice.id',
+        Db::raw('IF(ssi_rejectquantity > 0, "W/ REJECT", "NO REJECT") as status'),
+        'sd_supplier_name as supplier',
+        'ssi_rrnum as rrNumber',
+        'spo_ponum as poNum',
+        'spoi_code as code',
+        'spoi_mspecs as materialSpecification',
+        'ssi_invoice as invoice',
+        'ssi_dr as dr',
+        'ssi_date as date',
+        'ssi_drquantity as quantity',
+        'ssi_inspectedquantity as inspectedQty',
+        'ssi_receivedquantity as receivedQty',
+        'ssi_remarks as remarks'
+      )
+      ->where('ssi_rrnum','!=', null)
+      ->where('ssi_receivedquantity','!=', 0)
+      ->where('ssi_inspectedquantity','!=', 0);
+
+    $rrList = $q->latest('psms_supplierinvoice.id')
+      ->limit($limit)
+      ->get();
+
+    return response()->json([
+      'rrList' => $rrList,
+      'supplierOption' => $this->getSupplier(),
+    ]);
+  }
+
+  public function removeRRfromInvoice($id) {
+    $invoice = SupplierInvoice::findOrFail($id);
+    $invoice->update([
+      'ssi_rrnum' => null,
+      'ssi_receivedquantity' => 0,
+      'ssi_inspectedquantity' => 0,
+      'ssi_rejectquantity' => null,
+      'ssi_rejectionremarks' => null,
+    ]);
+
+    return response()->json([
+      'message' => 'Record removed',
+    ]);
+  }
+
+  public function printRR($id) {
+    $rr = SupplierInvoice::findOrFail($id);
+
+    $item = $rr->poitem;
+    $po = $rr->poitem->spo;
+    if(!$rr->ssi_rrnum)
+      return response()->json(['errors' => ['No receiving report available!']], 422);
+
+    $jobOrders = JobOrder::whereHas('pr.prpricing.po.poitems.invoice', function($q) use ($id){
+      $q->where('id', $id);
+    })
+    ->get()
+    ->pluck('jo_joborder')
+    ->toArray();
+
+    $rrDetails = (object) array(
+      'rrNum' => $rr->ssi_rrnum,
+      'itemDescription' => $item->spoi_mspecs,
+      'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
+      'poNum' => $po->spo_ponum,
+      'jo' => implode(",",$jobOrders),
+      'drQty' => $rr->ssi_drquantity,
+      'inspectedQty' => $rr->ssi_inspectedquantity,
+      'receivedQty' => $rr->ssi_receivedquantity,
+      'arrivalDate' => $rr->ssi_date,
+      'drNum' => $rr->ssi_dr,
+      'invoice' => $rr->ssi_invoice,
+      'rejectQty' => $rr->ssi_rejectquantity,
+      'rejectRemarks' => $rr->ssi_rejectionremarks,
+    );
+
+    $pdf =  PDF::loadView('wrms.printreceivingreport', compact('rrDetails'))->setPaper('a4','landscape');
+    return $pdf->stream();
+  }
+
+  public function printRTV($id) {
+    $rr = SupplierInvoice::findOrFail($id);
+    $po = $rr->poitem->spo;
+    if(!$rr->ssi_rrnum || !$rr->ssi_rejectquantity || $rr->ssi_rejectquantity < 1)
+      return response()->json(['errors' => ['No rtv available!']], 422);
+
+    $rrDetails = (object) array(
+      'rrNum' => $rr->ssi_rrnum,
+      'itemDescription' => $rr->poitem->spoi_mspecs,
+      'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
+      'poNum' => $po->spo_ponum,
+      'drQty' => $rr->ssi_drquantity,
+      'arrivalDate' => $rr->ssi_date,
+      'drNum' => $rr->ssi_dr,
+      'invoice' => $rr->ssi_invoice,
+      'rejectQty' => $rr->ssi_rejectquantity,
+      'rejectRemarks' => $rr->ssi_rejectionremarks,
+    );
+
+    $pdf =  PDF::loadView('wrms.printrtvreport', compact('rrDetails'))->setPaper('a4','portrait');
+    return $pdf->stream();
   }
 
 }

@@ -149,6 +149,11 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/wrms/polist/{id}', 'ReceivingController@viewPurchaseOrderItems');
     Route::get('/wrms/invoices/{id}', 'ReceivingController@getItemInvoices');
     Route::post('/wrms/invoices', 'ReceivingController@addReceivingReport');
+    Route::get('/wrms/receivingreport', 'ReceivingController@getRRList');
+    Route::delete('/wrms/receivingreport/{id}', 'ReceivingController@removeRRfromInvoice');
+
+    Route::get('/wrms/receivingreport/exports/{id}', 'ReceivingController@printRR');
+    Route::get('/wrms/rtv/exports/{id}', 'ReceivingController@printRTV');
 
 	});
 
