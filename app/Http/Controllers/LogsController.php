@@ -928,6 +928,32 @@ class LogsController extends Controller
     $log->save();
   }
 
+  public function logCreatingReceivedReport($po, $rrNum, $item) {
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => "Added Received Report No. ".$rrNum,
+        'before' => "Purchase order: ".$po." / Item: ".$item,
+        'after' => "",
+      ]);
+
+    $log->save();
+  }
+
+  public function logDeleteingReceivedReport($rrNum, $po){
+    $log = new PsmsLogs();
+    $log->fill(
+      [
+        'user_id' => auth()->user()->id,
+        'action' => "Deleted Received Report No. ".$rrNum,
+        'before' => "Purchase order: ".$po,
+        'after' => "",
+      ]);
+
+    $log->save();
+  }
+
   public function getpsmsLogs()
   {
 

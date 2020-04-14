@@ -1753,4 +1753,32 @@ class PurchasesSupplierController extends LogsController
       'message' => 'Record deleted',
     ]);
   }
+
+  public function getPurchasesReport() {
+
+    $invoice = DB::table('psms_supplierinvoice')->select(
+      DB::raw('sum(ssi_receivedquantity) as totalReceivedQty'),
+      'ssi_poitem_id'
+    )->groupBy('ssi_poitem_id');
+
+    $top5items = PurchaseOrderSupplierItems::whereHas('invoice', function($q){
+        $q->where('ssi_rrnum','!=', null);
+      })
+      ->leftJoinSub($invoice, 'invoice', function($join){
+        $join->on('psms_spurchaseorderitems.id', '=' ,'invoice.ssi_poitem_id');
+      })
+      ->select(
+        'spoi_mspecs as materialSpecification',
+        Db::raw('cast(sum(totalReceivedQty) as int) as totalQtyBought')
+      )
+      ->orderBy('totalQtyBought', 'DESC')
+      ->groupBy('spoi_mspecs')
+      ->limit(5)
+      ->get();
+
+    return response()->json([
+      'top5items' => $top5items,
+    ]);
+
+  }
 }

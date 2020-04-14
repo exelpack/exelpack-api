@@ -229,6 +229,8 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/psms/poitem/exports/dl', 'PurchasesSupplierController@exportPurchaseOrderItems');
 
     Route::get('/psms/logs', 'PurchaseRequestController@getpsmsLogs');
+
+    Route::get('/psms/purchasesreport', 'PurchasesSupplierController@getPurchasesReport');
     
   });
 

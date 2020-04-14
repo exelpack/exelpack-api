@@ -91,48 +91,14 @@ class ReceivingController extends LogsController
         'itemCount',
         'quantityDelivered',
         'totalPoQuantity',
-        Db::raw('IF(spo_sentToSupplier = 0 && quantityDelivered < 1,
-          "PENDING",
-          IF(quantityDelivered > 0,
-            IF(quantityDelivered >= totalPoQuantity,
-              "DELIVERED",
-              "PARTIAL"
-            ),
-            "OPEN"
-          )
-        ) as status'),
         'spo_date as date'
       );
-
-    if(request()->has('poStatus')){
-      $status = strtolower(request()->poStatus);  
-      if($status == 'pending')
-        $q->whereRaw('spo_sentToSupplier < 1 and quantityDelivered = 0');
-      else if($status == 'open')
-        $q->whereRaw('spo_sentToSupplier = 1 and quantityDelivered < 1');
-      else if($status == 'delivered')
-        $q->whereRaw('quantityDelivered >= totalPoQuantity');
-      else if($status == 'partial')
-        $q->whereRaw('quantityDelivered > 0 and quantityDelivered < totalPoQuantity');
-    }
 
     if(request()->has('supplier')){
       $q->whereRaw('supplier.id = ?', array(request()->supplier));
     }
-
-    if(request()->has('currency')){
-      $q->whereRaw('currency = ?', array(request()->currency));
-    }
-
-    if(request()->has('month')){
-      $q->whereMonth('spo_date', request()->month);
-    }
-
-    if(request()->has('year')){
-      $q->whereYear('spo_date', request()->year);
-    }
-
-    $poList = $q->orderBy('id','DESC')
+    $q->whereRaw('quantityDelivered < totalPoQuantity');
+    $poList = $q->latest('psms_spurchaseorder.id')
     ->limit($limit)
     ->get();
 
@@ -199,8 +165,8 @@ class ReceivingController extends LogsController
 
   public function addReceivingReport(Request $request) {
     $invoice = SupplierInvoice::findOrFail($request->invoiceID);
-    $item = $invoice->poitem;
-    $itemRemaining = $item->spoi_quantity - intval($item->invoice()->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) );
+    $invoiceItem = $invoice->poitem;
+    $itemRemaining = $invoiceItem->spoi_quantity - intval($invoiceItem->invoice()->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) );
     $invoiceRemaining = $invoice->ssi_drquantity > $itemRemaining ? $itemRemaining : $invoice->ssi_drquantity; 
 
     if($invoice->ssi_rrnum != null || $invoice->ssi_inspectedquantity != 0 
@@ -244,6 +210,8 @@ class ReceivingController extends LogsController
 
     ReceivingReportSeries::first()
       ->update(['series_number' => DB::raw('series_number + 1')]); //update series
+
+
     $po = $invoice->poitem->spo;
     $id = $po->id;
     $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q)
@@ -253,24 +221,18 @@ class ReceivingController extends LogsController
       ->pluck('pr_prnum')
       ->toArray();
     $prNumber = implode(",", $prNumbers);
-    $item = $po->poitems()->get();
+    $items = $po->poitems()->get();
 
-    $itemCount = $item->count();
-    $totalPoQuantity = $item->sum('spoi_quantity');
+    $itemCount = $items->count();
+    $totalPoQuantity = $items->sum('spoi_quantity');
     $quantityDelivered = SupplierInvoice::whereHas('poitem.spo', function($q) 
       use ($id){
         return $q->where('id', $id);
       })
       ->sum('ssi_receivedquantity');
-    $status = 'OPEN';
-    if($po->spo_sentToSupplier != 0 || $quantityDelivered > 0){
-      if($quantityDelivered > 0)
-        $status = "PARTIAL";
-      else if($quantityDelivered >= $totalPoQuantity)
-        $status = "DELIVERED";
-    }else 
-      $status = "PENDING";
-
+    //log 
+    $this->logCreatingReceivedReport($po->spo_ponum, $request->rrseries,
+      $invoiceItem->spoi_mspecs);
     $newPo = array(
       'id' => $po->id,
       'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
@@ -280,7 +242,6 @@ class ReceivingController extends LogsController
       'itemCount' => $itemCount,
       'quantityDelivered' => $quantityDelivered,
       'totalPoQuantity' => $totalPoQuantity,
-      'status' => $status,
       'date' => $po->spo_date
     );
 
@@ -343,6 +304,10 @@ class ReceivingController extends LogsController
       ->where('ssi_receivedquantity','!=', 0)
       ->where('ssi_inspectedquantity','!=', 0);
 
+    if(request()->has('supplier')){
+      $q->whereRaw('supplier.id = ?', array(request()->supplier));
+    }
+
     $rrList = $q->latest('psms_supplierinvoice.id')
       ->limit($limit)
       ->get();
@@ -355,6 +320,7 @@ class ReceivingController extends LogsController
 
   public function removeRRfromInvoice($id) {
     $invoice = SupplierInvoice::findOrFail($id);
+    $rrSeries = $invoice->ssi_rrnum;
     $invoice->update([
       'ssi_rrnum' => null,
       'ssi_receivedquantity' => 0,
@@ -362,7 +328,7 @@ class ReceivingController extends LogsController
       'ssi_rejectquantity' => null,
       'ssi_rejectionremarks' => null,
     ]);
-
+    $this->logDeleteingReceivedReport($rrSeries, $invoice->poitem->spo->spo_ponum);
     return response()->json([
       'message' => 'Record removed',
     ]);

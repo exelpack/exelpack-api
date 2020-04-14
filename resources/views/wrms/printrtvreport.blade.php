@@ -78,7 +78,7 @@
   <tr>
     <td class="td">
       <p class="description">NON-CONFORMING CONDITION FOUND:</p>
-      {{ $rrDetails->rejectRemarks }} - {{ $rrDetails->rejectQty }}
+      {{ strtoupper($rrDetails->rejectRemarks) }} - {{ $rrDetails->rejectQty }}
     </td>
   </tr>
   <tr>

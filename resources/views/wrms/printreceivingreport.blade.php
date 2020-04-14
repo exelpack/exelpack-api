@@ -129,7 +129,7 @@
     </thead>
     <tbody>
       <tr>
-        <td>{{ $rrDetails->rejectRemarks }}</td>
+        <td>{{ strtoupper($rrDetails->rejectRemarks) }}</td>
         <td>{{ $rrDetails->rejectQty }}</td>
         <td>&nbsp;</td>
         <td></td>
