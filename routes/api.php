@@ -207,7 +207,8 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::post('/psms/approval','PurchasesSupplierController@addApprovalRequest');
     Route::post('/psms/po/invoice','PurchasesSupplierController@addDeliveryToPO');
     Route::post('/psms/supplier','PurchasesSupplierController@addSupplier');
-
+    Route::post('/psms/purchasesreport', 'PurchasesSupplierController@getPurchasesReport');
+    Route::post('/psms/purchasesreport/exports/dl', 'PurchasesSupplierController@exportPurchasesReport');
     
     Route::put('/psms/pr/{id}','PurchasesSupplierController@editPrWithPrice');
     Route::put('/psms/po/{id}','PurchasesSupplierController@markAsSentToSupplier');
@@ -230,7 +231,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 
     Route::get('/psms/logs', 'PurchaseRequestController@getpsmsLogs');
 
-    Route::get('/psms/purchasesreport', 'PurchasesSupplierController@getPurchasesReport');
     
   });
 

@@ -29,6 +29,7 @@ use App\User;
 
 use App\Exports\ExportSupplierPurchaseOrder;
 use App\Exports\ExportSupplierPurchaseOrderItems;
+use App\Exports\PurchasesReportExport;
 
 class PurchasesSupplierController extends LogsController
 {
@@ -41,6 +42,19 @@ class PurchasesSupplierController extends LogsController
   }
 
   // exports
+  public function exportPurchasesReport(Request $request)
+  {
+    $validator = Validator::make($request->all(), [
+      'date' => 'array|required|min:2|max:2',
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()]);
+    }
+
+    return Excel::download(new PurchasesReportExport(...$request->date), 'purchasesreport.xlsx');
+  }
+
   public function exportPurchaseOrder()
   {
     return Excel::download(new ExportSupplierPurchaseOrder, 'purchaseorder.xlsx');
@@ -1754,14 +1768,50 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  public function getPurchasesReport() {
+  public function getSupplierTotal($id, $date){
+    $date1 = Carbon::parse($date[0]);
+    $date2 = Carbon::parse($date[1]);
+    return PurchaseOrderSupplierItems::whereHas('spo.prprice.supplier', function($q) use ($id){
+      $q->where('id', $id);
+    })
+    ->get()
+    ->map(function($item) use ($date1, $date2) {
+      $totalPhp = 0;
+      $totalUsd = 0;
+      $currency =  $item->spo->prprice()->first()->prsd_currency;
+      $totalReceived = $item->invoice()
+        ->whereBetween('ssi_date', [$date1, $date2])
+        ->sum('ssi_receivedquantity');
+
+      if(strtoupper($currency) == 'PHP')
+        $totalPhp+= $item->spoi_unitprice * $totalReceived;
+      else
+        $totalUsd+= ($item->spoi_unitprice * $totalReceived) * 47;
+
+      return array(
+        'totalPhp' => $totalPhp,
+        'totalUsd' => $totalUsd
+      );
+    })
+    ->toArray();
+  }
+
+  public function getPurchasesReport(Request $request) {
+
+    $validator = Validator::make($request->all(), [
+      'date' => 'array|required|min:2|max:2',
+    ]);
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()]);
+    }
 
     $invoice = DB::table('psms_supplierinvoice')->select(
       DB::raw('sum(ssi_receivedquantity) as totalReceivedQty'),
       'ssi_poitem_id'
     )->groupBy('ssi_poitem_id');
 
-    $top5items = PurchaseOrderSupplierItems::whereHas('invoice', function($q){
+    $items = PurchaseOrderSupplierItems::whereHas('invoice', function($q){
         $q->where('ssi_rrnum','!=', null);
       })
       ->leftJoinSub($invoice, 'invoice', function($join){
@@ -1773,11 +1823,24 @@ class PurchasesSupplierController extends LogsController
       )
       ->orderBy('totalQtyBought', 'DESC')
       ->groupBy('spoi_mspecs')
-      ->limit(5)
       ->get();
 
+    $date = $request->date;
+    $supplierTotal = Supplier::all()
+      ->map(function($supplier) use($date) {
+
+        $total = $this->getSupplierTotal($supplier->id, $date);
+        return (object) array(
+          'supplierName' => $supplier->sd_supplier_name,
+          'totalPhp' => array_sum(array_column($total, 'totalPhp')),
+          'totalUsd' => array_sum(array_column($total, 'totalUsd')),
+        );
+      })
+      ->sortByDesc('totalPhp')
+      ->values();
     return response()->json([
-      'top5items' => $top5items,
+      'items' => $items,
+      'supplierTotal' => $supplierTotal,
     ]);
 
   }
