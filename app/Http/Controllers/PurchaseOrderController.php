@@ -12,6 +12,7 @@ use App\PurchaseOrderDelivery;
 use App\PurchaseOrderSchedule;
 use App\Masterlist;
 use App\Customers;
+use App\Units;
 
 use DB;
 use Excel;
@@ -77,45 +78,50 @@ class PurchaseOrderController extends LogsController
 
 	}
 
-	public function test()
-	{
-		$date = request()->date;
-		$dailyScheds = PurchaseOrderSchedule::whereDate('pods_scheduledate',$date)
-		->has('item')
-		->get();
-		$schedules = $this->getSchedules($dailyScheds);
-		$data = [
-			'schedules' => $schedules,
-			'date' => $date
-		];
-		// return view('cposms.itemDailySChedule', $data);
-		$pdf = PDF::loadView('cposms.itemDailySChedule', $data)->setPaper('a4','landscape');
-		return $pdf->download('Schedule_for_'.$date.'.pdf');
-	}
-	// end exports
-
 	public function getOptionsPOSelect()
 	{
 		$customers = Customers::select('id','companyname')->orderBy('companyname','ASC')->get();
-		$itemSelectionList	= Masterlist::all()->map(function($item){
-				return array(
-					'id' => $item->id,
-					'itemdesc' => $item->m_projectname,
-					'partnum' => $item->m_partnumber,
-					'code' => $item->m_code,
-					'unit' => $item->m_unit,
-					'unitprice' => $item->m_unitprice,
-					'customer' => $item->customer->companyname,
-				);
-		})->toArray();
+    $units = Units::all()->pluck('unit')->toArray();
 
 		return response()->json(
 			[
 				'customers' => $customers,
-				'itemSelectionList' => $itemSelectionList,
+				'unitsOption' => $units,
 			]);
-
 	}
+
+  public function getCustomerItemsOptions()
+  {
+    if(!request()->has('customer'))
+      return response()->json(['errors' => ['ID is required']], 422);
+
+    $id = request()->customer;
+    $customerItemList  = Masterlist::select(
+        'id',
+        'm_projectname as itemdesc',
+        'm_partnumber as partnum',
+        'm_code as code',
+        'm_unit as unit',
+        'm_unitprice as unitprice'
+      )
+      ->where('m_customer_id', $id)
+      ->whereRaw('ROUND (   
+        (
+            LENGTH(m_code)
+            - LENGTH( REPLACE ( m_code, "-", "") ) 
+            ) / LENGTH("-")        
+        ) = 1'
+      )/////filter where dash occurence in string is only one meaning the code used is for item not materials
+      ->latest('id')
+      ->get();
+
+    return response()->json(
+      [
+        'customerItemList' => $customerItemList,
+        'customerId' => $id,
+      ]);
+
+  }
 	// PO
 	public function itemArray($item)
 	{
@@ -148,6 +154,7 @@ class PurchaseOrderController extends LogsController
 			'date' => $po->po_date,
 			'currency' => $po->po_currency,
       'isEndorsed' => $po->isEndorsed,
+      'isForecast' =>  $po->po_isForeCast,
 			'totalItems'=> $po->poitems()->count(),
 			'totalQuantity'=> $totalQuantity,
 			'totalDelivered'=> $totalDelivered,
@@ -155,17 +162,6 @@ class PurchaseOrderController extends LogsController
 			'hasJo' => $hasJo,
 		);
 
-	}
-
-	public function getPos($pos)
-	{
-		$po_arr = array();
-
-		foreach($pos as $row){
-			array_push($po_arr,$this->getPo($row));
-		}
-
-		return $po_arr;
 	}
 
 	public function getItems($items)
@@ -184,21 +180,18 @@ class PurchaseOrderController extends LogsController
 		$delivered = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
 		$status = $delivered >= $item->poi_quantity ? 'SERVED' : 'OPEN';
 
-		$diff =	Carbon::now()->diff($item->poi_deliverydate)->days;
-		$isGte =	Carbon::now()->gte($item->poi_deliverydate);
-		$hasWarning = ($diff < 3 || $isGte) && $status == 'OPEN' ? true : false; 
-
 		//restrict
-		$isNotEditable = $status === 'SERVED' ? true : false; //if served. then not editable anymore
-		$withJo = $item->jo()->count() > 0 ? true : false; // if with jo
-		$qtyDisabled = $isNotEditable || $delivered !== 0 || $withJo;// disabled editing of quantity
-		$itemRemovable = !$withJo && !$isNotEditable && $delivered === 0;//if no jo andnot served and doesnt have delivered
+    $isEditable = true;
+
+    if ($status === 'SERVED' || $item->jo()->count() > 0 || $delivered > 0)
+      $isEditable = false;
 
 		$hasDelivery = $item->delivery()->count() > 0 ? true : false;
 		$hasSchedule = $item->schedule()->count() > 0 ? true : false;
 
 		return array(
 			'id' => $item->id,
+      'key' => uniqid(),
 			'customer' => $item->po->customer->companyname,
 			'customer_id' => $item->po->po_customer_id,
 			'status' => $status,
@@ -211,19 +204,14 @@ class PurchaseOrderController extends LogsController
 			'currency' => $item->po->po_currency,
 			'unitprice' => $item->poi_unitprice,
 			'deliverydate' => $item->poi_deliverydate,
+      'delivered_qty' => $delivered,
 			'kpi' => $item->poi_kpi,
 			'others' => $item->poi_others,
-			'delivered_qty' => $delivered,
 			'remarks' => $item->poi_remarks,
-			'withJo' => $withJo,
-			'isNotEditable' => $isNotEditable,
-			'qtyDisabled' => $qtyDisabled,
-			'itemRemovable' => $itemRemovable,
-			'hasWarning' => $hasWarning,
-			'hasDelivery' => $hasDelivery,
-			'hasSchedule' => $hasSchedule,
+      'hasDelivery' => $hasDelivery,
+      'hasSchedule' => $hasSchedule,
+      'isEditable' => $isEditable,
 		);
-
 	}
 
 	public function poIndex()
@@ -257,12 +245,13 @@ class PurchaseOrderController extends LogsController
     $q->select([
       'cposms_purchaseorder.id as id',
       DB::raw('IF(IFNULL(delivery.totalDelivered,0) >= poi.totalQuantity,"SERVED","OPEN") as status'),
-      'po_ponum as po_num',
+      DB::raw('UPPER(po_ponum) as po_num'),
       'customer.companyname as customerLabel',
       'customer.id as customer',
       'po_date as date',
       'po_currency as currency',
       'isEndorsed',
+      'po_isForeCast as isForeCast',
       DB::raw('IFNULL(poi.totalItems,0) as totalItems'),
       DB::raw('IFNULL(poi.totalQuantity,0) as totalQuantity'),
       DB::raw('IFNULL(delivery.totalDelivered,0) as totalDelivered'),

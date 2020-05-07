@@ -28,7 +28,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
 
 			// cposms
-		Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
+    Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
+		Route::get('/cposms/option/customeritems', 'PurchaseOrderController@getCustomerItemsOptions'); // fetch option for po
 		Route::get('/cposms/option/openitems', 'PurchaseOrderController@getOpenItems'); //fetch all open items
 		Route::get('/cposms/option/scheduledates', 'PurchaseOrderController@getScheduleDates'); //fetch all open items
 
@@ -85,7 +86,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::delete('/pjoms/jo/produced/{id}','JobOrderController@deleteJoProduced');
 
 		Route::get('/pjoms/jo/itemdetails/{id}', 'JobOrderController@getItemDetails');
-
 		//exports
 		Route::get('/pjoms/jo/export-csv/dl','JobOrderController@exportJobOrder');
 		Route::get('/pjoms/jo/print','JobOrderController@printJobOrder');

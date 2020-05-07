@@ -8,11 +8,15 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LogsController;
 
+use App\PurchaseOrder;
+use App\Customers;
 use App\PurchaseOrderItems;
 use App\PurchaseOrderDelivery;
 use App\JobOrder;
 use App\JobOrderProduced;
 use App\JobOrderSeries;
+use App\Inventory;
+use App\PurchaseOrderSupplierItems;
 
 use DB;
 use Excel;
@@ -42,23 +46,19 @@ class JobOrderController extends LogsController
 			'customer' => $item->po->customer->companyname,
 			'po_num' => $item->po->po_ponum,
 			'code' => $item->poi_code,
-			'partnum' => $item->poi_partnum,
 			'itemdesc' => $item->poi_itemdescription,
 			'quantity' => $item->poi_quantity,
-			'unit' => $item->poi_unit,
 			'currency' => $item->po->po_currency,
 			'unitprice' => $item->poi_unitprice,
 			'deliverydate' => $item->poi_deliverydate,
 			'kpi' => $item->poi_kpi,
-			'qtyWithoutJo' => $qtyWithoutJo,
-			'others' => $item->poi_others,
+      'qtyWithoutJo' => $qtyWithoutJo,
+			'totalJoQty' => $item->jo->sum('jo_quantity'),
 		);
-
 	}
 
 	public function getPoItems($items)
 	{
-
 		$items_arr = array();
 
 		foreach($items as $item){
@@ -70,54 +70,88 @@ class JobOrderController extends LogsController
 
 	public function getOpenItems()
 	{
-		$sortDate = request()->sortDate;
-		$showItems = strtolower(request()->showItems);
-		$pageSize = request()->pageSize;
+    $showItems = strtolower(request()->showItems);
+    //SUB QUERIES
+		$delivery = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+		as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
 
-		$subdel = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
-			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
+		$jobOrder = JobOrder::select(DB::raw('sum(jo_quantity) as totalJoQty'),'jo_po_item_id')
+			->groupBy('jo_po_item_id');
 
-		$subjo = JobOrder::select(DB::raw('sum(jo_quantity) as totalJo'),'jo_po_item_id')
-		->groupBy('jo_po_item_id');
+		$purchaseOrder = PurchaseOrder::select('id', 'po_customer_id','po_ponum', 'po_currency','isEndorsed')
+			->groupBy('id');
 
-		$q = PurchaseOrderItems::query();
-		$q->from('cposms_purchaseorderitem')
-		->leftJoinSub($subdel,'delivery',function ($join){
-			$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
-		})->leftJoinSub($subjo,'jo',function ($join){
-			$join->on('cposms_purchaseorderitem.id','=','jo.jo_po_item_id');				
-		});
+		$customer = Customers::select('id','companyname')
+			->groupBy('id');
 
-		$q->whereHas('po', function($q){
-			$q->where('isEndorsed',1);
-		});
-
-		//search filter
-		if(request()->has('search')){
-			$search = '%'.request()->search.'%';
-
-			$q->whereHas('po', function($q) use ($search){
-				$q->where('po_ponum','LIKE', $search);
+		$q = PurchaseOrderItems::has('po');
+    // JOIN
+		$q->leftJoinSub($delivery,'delivery',function ($join){
+				$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
 			})
-			->orWhere('poi_itemdescription','LIKE', $search)
-			->orWhere('poi_code','LIKE', $search)
-			->orWhere('poi_partnum','LIKE', $search);
-		}
+			->leftJoinSub($jobOrder,'jo',function ($join){
+				$join->on('cposms_purchaseorderitem.id','=','jo.jo_po_item_id');				
+			})
+			->leftJoinSub($purchaseOrder,'po',function ($join){
+				$join->on('cposms_purchaseorderitem.poi_po_id','=','po.id');				
+			})
+			->leftJoinSub($customer,'customer',function ($join){
+				$join->on('customer.id','=','po.po_customer_id');				
+			});
+    // SELECT
+    $q->select(
+      'cposms_purchaseorderitem.id as item_id',
+      'companyname as customer',
+      'po_ponum as po_num',
+      'poi_code as code',
+      'poi_itemdescription as itemdesc',
+      'poi_quantity as quantity',
+      'po_currency as currency',
+      'poi_unitprice as unitprice',
+      'poi_deliverydate as deliverydate',
+      'poi_kpi as kpi',
+      Db::raw('CAST(IFNULL(totalJoQty,0) as int) as totalJoQty'),
+      Db::raw('CAST(poi_quantity - IFNULL(totalJoQty,0) as int) as qtyWithoutJo')
+    );
 
-		$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
+      //search filter
+    if(request()->has('search')){
+      $search = '%'.request()->search.'%';
 
-		if($showItems == 'pending'){
-			$q->whereRaw('poi_quantity > IFNULL(totalJo,0)');
-		}
+      $q->whereHas('po', function($q) use ($search){
+        $q->where('po_ponum','LIKE', $search);
+      })
+      ->orWhere('poi_itemdescription','LIKE', $search)
+      ->orWhere('poi_code','LIKE', $search)
+      ->orWhere('poi_partnum','LIKE', $search);
+    }
 
-		$itemResult = $q->orderBy('poi_deliverydate',$sortDate)->paginate($pageSize);
+    //VIEWING
+    if($showItems == 'pending'){
+      $q->whereRaw('poi_quantity > IFNULL(totalJoQty,0)');
+    }
 
-		$openItems = $this->getPoItems($itemResult);
-		$joSeries = $this->fetchJoSeries();
+    $q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)')
+      ->whereRaw('isEndorsed = 1');
+
+    //SORT
+    if (request()->has('sort')) {
+      $sort = strtolower(request()->sort);
+
+      if($sort == 'del_asc') 
+        $q->orderBy('poi_deliverydate', 'ASC');
+      else if($sort == 'del_desc') 
+        $q->orderBy('poi_deliverydate', 'DESC');
+      else if($sort == 'oldest')
+        $q->oldest();
+      else 
+        $q->latest();
+    }
+    //return
+		$result = $q->paginate(1000);
 		return response()->json([
-			'openItems' => $openItems,
-			'openItemsLength' => $itemResult->total(),
-			'joSeries' => $joSeries
+			'openItems' => $result->items(),
+			'openItemsLength' => $result->total(),
 		]);
 
 	}
@@ -149,11 +183,10 @@ class JobOrderController extends LogsController
 		return array(
 			'id' => $jo->id,
 			'item_id' => $item->id,
-			'po_num' => $po->po_ponum,
+			'poNum' => $po->po_ponum,
 			'customer' => $po->customer->companyname,
 			'code' => $item->poi_code,
-			'part_num' => $item->poi_partnum,
-			'item_desc' => $item->poi_itemdescription,
+			'itemDesc' => $item->poi_itemdescription,
 			'jo_num' => $jo->jo_joborder,
 			'date_issued' => $jo->jo_dateissued,
 			'date_needed' => $jo->jo_dateneeded,
@@ -182,15 +215,69 @@ class JobOrderController extends LogsController
 
 	public function fetchJo()
 	{
+    $sort = strtolower(request()->sort);
+    $showRecord = strtolower(request()->showRecord);
 
-		$pageSize = request()->pageSize;
-		$sort = strtolower(request()->sort);
-		$showRecord = strtolower(request()->showRecord);
-		$subProd = JobOrderProduced::select(Db::raw('sum(jop_quantity) as totalProduced'),
-			'jop_jo_id')->groupBy('jop_jo_id');
+    $jobOrder = JobOrder::select(Db::raw('sum(jo_quantity) as totalJobOrderQty'),'jo_po_item_id')
+      ->groupBy('jo_po_item_id');
 
+    $purchaseOrderItem = PurchaseOrderItems::select(
+        'id',
+        'poi_po_id',
+        'poi_itemdescription',
+        'poi_code',
+        'poi_quantity'
+      )->groupBy('id');
+
+    $purchaseOrder = PurchaseOrder::select('id', 'po_customer_id','po_ponum', 'po_currency')
+      ->groupBy('id');
+
+    $customer = Customers::select('id','companyname')
+      ->groupBy('id');
+
+    $produced = JobOrderProduced::select(Db::raw('sum(jop_quantity) as producedQty'),
+      'jop_jo_id')->groupBy('jop_jo_id');
+
+    $pr = Db::table('prms_prlist')->select(
+        Db::raw('count(*) as prCount'),
+        'pr_jo_id'
+      )->groupBy('pr_jo_id');
 
 		$q = JobOrder::query();
+    // join
+    $q->leftJoinSub($produced, 'prod', function($join){
+      $join->on('prod.jop_jo_id','=','pjoms_joborder.id');
+    })->leftJoinSub($purchaseOrderItem, 'item', function($join){
+      $join->on('item.id','=','pjoms_joborder.jo_po_item_id');
+    })->leftJoinSub($jobOrder, 'jo', function($join){
+      $join->on('jo.jo_po_item_id','=','item.id');
+    })->leftJoinSub($purchaseOrder, 'po', function($join){
+      $join->on('po.id','=','item.poi_po_id');
+    })->leftJoinSub($customer, 'customer', function($join){
+      $join->on('customer.id','=','po.po_customer_id');
+    })->leftJoinSub($pr, 'pr', function($join){
+      $join->on('pr.pr_jo_id','=','pjoms_joborder.id');
+    });
+    //select
+    $q->select(
+      'pjoms_joborder.id',
+      'item.id as item_id',
+      'po_ponum as poNum',
+      'jo_joborder as jo_num',
+      'companyname as customer',
+      'poi_code as code',
+      'poi_itemdescription as itemDesc',
+      'jo_dateissued as date_issued',
+      'jo_dateneeded as date_needed',
+      'jo_quantity as quantity',
+      'jo_remarks as remarks',
+      'jo_others as others',
+      Db::raw('IF(jo_quantity > IFNULL(producedQty,0),"OPEN","SERVED" ) as status'),
+      Db::raw('IFNULL(producedQty,0) as producedQty'),
+      'jo_forwardToWarehouse as forwardToWarehouse',
+      DB::raw('(poi_quantity - totalJobOrderQty) + jo_quantity as qtyWithoutJo'),
+      DB::raw('IF(IFNULL(prCount,0) > 0,true,false) as hasPr')
+    );
 
 		$q->has('poitems.po');
 
@@ -201,26 +288,15 @@ class JobOrderController extends LogsController
 			$q->whereHas('poitems.po', function($q) use ($search){
 				$q->where('po_ponum','LIKE', $search);
 			})->orWhereHas('poitems', function($q) use ($search){
-				$q->where('poi_itemdescription','LIKE',$search)
-				->orWhere('poi_partnum','LIKE',$search);
+				$q->where('poi_itemdescription','LIKE',$search);
 			})->orWhere('jo_joborder','LIKE',$search);
 
 		}
 
-		if($showRecord == 'open' || $showRecord == 'served'){
-
-			$q->from('pjoms_joborder')
-			->leftJoinSub($subProd,'produced',function ($join){
-				$join->on('pjoms_joborder.id','=','produced.jop_jo_id');				
-			});
-
-			if($showRecord == 'open')
-				$q->whereRaw('jo_quantity > IFNULL(totalProduced,0)');
-			else 
-				$q->whereRaw('jo_quantity <= IFNULL(totalProduced,0)');
-
-		}
-
+		if($showRecord == 'open')
+			$q->whereRaw('jo_quantity > IFNULL(producedQty,0)');
+		else if($showRecord == 'served')
+			$q->whereRaw('jo_quantity <= IFNULL(producedQty,0)');
 
 		if($sort == 'desc'){
 			$q->orderBy('id','DESC');
@@ -236,14 +312,10 @@ class JobOrderController extends LogsController
 			$q->orderBy('jo_joborder','ASC');
 		}
 
-
-		$joResult = $q->paginate($pageSize);
-		
-		$joList = $this->getJos($joResult);
-
+		$joResult = $q->paginate(1000);
 		return response()->json(
 			[
-				'joList' => $joList,
+				'joList' => $joResult->items(),
 				'joListLength' => $joResult->total()
 			]);
 
@@ -252,7 +324,6 @@ class JobOrderController extends LogsController
 	public function fetchJoSeries()
 	{
 		$series = JobOrderSeries::first();
-
 		$number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
 		$joseries = $series->series_prefix.date('y'). "-".$number;
 		return $joseries;
@@ -284,16 +355,15 @@ class JobOrderController extends LogsController
 		if($request->useSeries){
 			JobOrderSeries::first()->update(['series_number' => DB::raw('series_number + 1')]);
 		}
-		$joSeries = $this->fetchJoSeries();
 		$remainingQty = $remaining - $request->quantity;
-
 		$this->logJoCreateDelete("Added",$item->po->po_ponum,$item->poi_itemdescription,
 			$request->jo_num,$request->quantity,null);
 
+    $item->refresh();
+    $newItem = $this->getPoItem($item);
 		return response()->json(
 			[
-				'joSeries' => $joSeries,
-				'remainingQty' => $remainingQty,
+				'newItem' => $newItem,
 				'message' => 'Record added',
 			]);
 
@@ -521,23 +591,47 @@ class JobOrderController extends LogsController
 	public function getItemDetails($id)
 	{
 
-		$item = PurchaseOrderItems::findOrFail($id);
+    $deliverySub = Db::table('psms_supplierinvoice')
+      ->select('ssi_poitem_id as id',Db::raw('IFNULL(sum(ssi_receivedquantity), 0) as totalDelivered'))
+      ->groupBy('ssi_poitem_id');
 
-		$deliveryArr = [];
-		$joborderArr = array();
+		$item = PurchaseOrderItems::findOrFail($id);
+    $code = $item->poi_code;
+    $orderedItems = PurchaseOrderSupplierItems::whereHas('spo.prprice.pr.jo.poitems', function($q) use ($code){
+        return $q->where('poi_code', $code);
+      })
+      ->leftJoinSub($deliverySub, 'delivery', function($join){
+        return $join->on('psms_spurchaseorderitems.id','=','delivery.id');
+      })
+      ->select(
+        'psms_spurchaseorderitems.id',
+        'spoi_code as code',
+        'spoi_mspecs as mspecs',
+        Db::raw('CAST(totalDelivered as int) as totalDelivered'),
+        Db::raw('CAST(spoi_quantity - totalDelivered as int) as pendingDelivery')
+      )
+      ->get();
+    $inventory = Inventory::select(
+        'id',
+        'i_mspecs as mspecs',
+        'i_partnumber as partnumber',
+        'i_code as code',
+        'i_quantity as quantity',
+        'i_min as min',
+        'i_max as max'
+      )->get();
+
+		$itemDeliveryDetails = array();
+		$jobOrderDetails = array();
 		//loop through delivery of the item
-		foreach($item->delivery as $delivery)
+		foreach($item->delivery()->latest()->get() as $delivery)
 		{
 
-			array_push($deliveryArr,
+			array_push($itemDeliveryDetails,
 				array(
 					'id' => $delivery->id.uniqid(),
 					'quantity' => $delivery->poidel_quantity,
-					'underrun' => $delivery->poidel_underrun_qty,
 					'deliverydate' => $delivery->poidel_deliverydate,
-					'invoice' => $delivery->poidel_invoice,
-					'dr' => $delivery->poidel_dr,
-					'remarks' => $delivery->poidel_remarks,
 				)
 			);
 
@@ -547,15 +641,13 @@ class JobOrderController extends LogsController
 		{
 			$producedQty = intval($jo->produced()->sum('jop_quantity'));
 			$status = $jo->jo_quantity > $producedQty ? 'OPEN' : 'SERVED';
-			array_push($joborderArr,
+			array_push($jobOrderDetails,
 				array(
 					'id' => $jo->id.uniqid(),
-					'jo_num' => $jo->jo_joborder,
+					'jobOrder' => $jo->jo_joborder,
 					'date_issued' => $jo->jo_dateissued,
 					'date_needed' => $jo->jo_dateneeded,
 					'quantity' => $jo->jo_quantity,
-					'remarks' => $jo->jo_remarks,
-					'others' => $jo->jo_others,
 					'producedQty' => $producedQty,
 					'status' => $status,
 					'forwardToWarehouse' => $jo->jo_forwardToWarehouse ? 'YES' : 'NO',
@@ -564,10 +656,17 @@ class JobOrderController extends LogsController
 
 		}
 
+    $series = JobOrderSeries::first();
+    $number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
+    $joSeries = $series->series_prefix.date('y'). "-".$number;
+
 		return response()->json(
 			[
-				'deliveryDetails' => $deliveryArr,
-				'jobOrderDetails' => $joborderArr
+        'orderedItems' => $orderedItems,
+				'itemDeliveryDetails' => $itemDeliveryDetails,
+				'jobOrderDetails' => $jobOrderDetails,
+        'inventory' => $inventory,
+        'joSeries' => $joSeries,
 			]);
 
 	}
