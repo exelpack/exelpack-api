@@ -37,6 +37,12 @@ class JobOrderController extends LogsController
 		return $string;
 	}
 
+  public function getCustomers(){
+    $customer = Customers::select('companyname')->get()
+      ->pluck('companyname')->toArray();
+    return $customer;
+  }
+
 	public function getPoItem($item)
 	{
 
@@ -134,6 +140,10 @@ class JobOrderController extends LogsController
     $q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)')
       ->whereRaw('isEndorsed = 1');
 
+    if(request()->has('customer')) {
+      $q->whereRaw('companyname = ?',array(request()->customer));
+    }
+
     //SORT
     if (request()->has('sort')) {
       $sort = strtolower(request()->sort);
@@ -152,6 +162,7 @@ class JobOrderController extends LogsController
 		return response()->json([
 			'openItems' => $result->items(),
 			'openItemsLength' => $result->total(),
+      'customers' => $this->getCustomers(),
 		]);
 
 	}
@@ -243,7 +254,7 @@ class JobOrderController extends LogsController
         'pr_jo_id'
       )->groupBy('pr_jo_id');
 
-		$q = JobOrder::query();
+		$q = JobOrder::has('poitems.po');
     // join
     $q->leftJoinSub($produced, 'prod', function($join){
       $join->on('prod.jop_jo_id','=','pjoms_joborder.id');
@@ -279,8 +290,6 @@ class JobOrderController extends LogsController
       DB::raw('IF(IFNULL(prCount,0) > 0,true,false) as hasPr')
     );
 
-		$q->has('poitems.po');
-
 		if(request()->has('search')){
 
 			$search = "%".strtolower(request()->search)."%";
@@ -297,6 +306,18 @@ class JobOrderController extends LogsController
 			$q->whereRaw('jo_quantity > IFNULL(producedQty,0)');
 		else if($showRecord == 'served')
 			$q->whereRaw('jo_quantity <= IFNULL(producedQty,0)');
+
+    if(request()->has('customer')) {
+      $q->whereRaw('companyname = ?',array(request()->customer));
+    }
+
+    if(request()->has('month')) {
+      $q->whereMonth('jo_dateissued',request()->month);
+    }
+
+    if(request()->has('year')) {
+      $q->whereYear('jo_dateissued',request()->year);
+    }
 
 		if($sort == 'desc'){
 			$q->orderBy('id','DESC');
@@ -316,7 +337,8 @@ class JobOrderController extends LogsController
 		return response()->json(
 			[
 				'joList' => $joResult->items(),
-				'joListLength' => $joResult->total()
+				'joListLength' => $joResult->total(),
+        'customers' => $this->getCustomers(),
 			]);
 
 	}
@@ -423,8 +445,13 @@ class JobOrderController extends LogsController
 	{
 
 		$jo = JobOrder::findOrFail($id);
+    if($jo->pr) {
+      return response()->json(['errors' => ['Job order is not deletable!']]);
+    }
+
 		$jo_num = $jo->jo_joborder;
 		$item_id = $jo->jo_po_item_id;
+    $jo->produced->delete();
 		$jo->delete();
 		$item = PurchaseOrderItems::findOrFail($item_id);
 		$get_jos = $item->jo()->get();

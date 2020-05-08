@@ -36,7 +36,7 @@
 		</tr>
 		<tr>
 			<td width="25%">PO NO.</td>
-			<td width="75%">{{ $jo['po_num'] }}</td>
+			<td width="75%">{{ $jo['poNum'] }}</td>
 		</tr>
 		<tr>
 			<td width="25%">CODE</td>
@@ -44,11 +44,7 @@
 		</tr>
 		<tr>
 			<td width="25%">ITEM DESC</td>
-			<td width="75%">{{ $jo['item_desc'] }}</td>
-		</tr>
-		<tr>
-			<td width="25%">PART NUMBER</td>
-			<td width="75%">{{ $jo['part_num'] }}</td>
+			<td width="75%">{{ $jo['itemDesc'] }}</td>
 		</tr>
 		<tr>
 			<td width="25%">QUANTITY</td>
