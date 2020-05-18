@@ -4,7 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 
-class RestrictWims
+class RestrictPurchasesms
 {
     /**
      * Handle an incoming request.
@@ -15,10 +15,10 @@ class RestrictWims
      */
     public function handle($request, Closure $next)
     {
-      if(auth()->user()->wims_access == 1){
-            return $next($request);
-        }
+      if(auth()->user()->purchasesms_access == 1){
+        return $next($request);
+      }
 
-        return response()->json(['error' => 'Unauthorized'],401);
+      return response()->json(['error' => 'Unauthorized'],401);
     }
 }

@@ -65,6 +65,9 @@ class User extends Authenticatable implements JWTSubject
         if($this->salesms_access)
             $access['salesms'] = true;
 
+        if($this->purchasesms_access)
+            $access['purchasesms'] = true;
+
 
         return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
     }

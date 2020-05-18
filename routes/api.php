@@ -234,6 +234,14 @@ Route::group(['middleware' => ['auth:api']], function() {
     
   });
 
+  Route::group(['middleware' => ['purchasesms']], function() {
+
+    Route::get('/purchasesms/items','PurchasesController@getItems');
+    Route::post('/purchasesms/items','PurchasesController@addItem');
+
+
+  });
+
   Route::group(['middleware' => ['approvalpr']], function() {
 
     Route::get('/psms/prapproval','PurchasesSupplierController@getPendingPrList');

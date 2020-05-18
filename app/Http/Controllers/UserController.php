@@ -33,6 +33,8 @@ class UserController extends Controller
       $access = 'psms_access';
     else if($sys === 'salesms')
       $access = 'salesms_access';
+    else if($sys === 'purchasesms')
+      $access = 'purchasesms_access';
     else if($sys === 'approvalpr')
       $access = 'approval_pr';
     else if($sys === 'approvapo')
