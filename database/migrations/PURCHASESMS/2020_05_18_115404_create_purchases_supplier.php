@@ -19,6 +19,7 @@ class CreatePurchasesSupplier extends Migration
             $table->integer('supplier_payment_terms');
             $table->string('supplier_address',300);
             $table->string('supplier_tin_number',100);
+            $table->softDeletes();
             $table->timestamps();
         });
     }

@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreatePurchasesAccounts extends Migration
+class CreatePostsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,12 +13,8 @@ class CreatePurchasesAccounts extends Migration
      */
     public function up()
     {
-        Schema::create('purchasesms_accounts', function (Blueprint $table) {
+        Schema::create('posts', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('accounts_code',50)->nullable();
-            $table->string('accounts_name',250);
-            $table->boolean('accounts_requiredInvoice')->default(0);
-            $table->softDeletes();
             $table->timestamps();
         });
     }
@@ -30,6 +26,6 @@ class CreatePurchasesAccounts extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('purchasesms_accounts');
+        Schema::dropIfExists('posts');
     }
 }

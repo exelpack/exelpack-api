@@ -237,7 +237,11 @@ Route::group(['middleware' => ['auth:api']], function() {
   Route::group(['middleware' => ['purchasesms']], function() {
 
     Route::get('/purchasesms/items','PurchasesController@getItems');
+    Route::get('/purchasesms/suppliers','PurchasesController@getSuppliers');
+    Route::get('/purchasesms/accounts','PurchasesController@getAccounts');
     Route::post('/purchasesms/items','PurchasesController@addItem');
+    Route::put('/purchasesms/items/{id}','PurchasesController@updatedItem');
+    Route::delete('/purchasesms/items/{id}','PurchasesController@deleteItem');
 
 
   });
