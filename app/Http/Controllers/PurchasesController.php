@@ -57,20 +57,7 @@ class PurchasesController extends Controller
     );
   }
 
-  public function getSuppliers() {
-
-    $suppliers = AccountingPurchasesSupplier::select(
-        'id',
-        'supplier_name as supplier',
-        'supplier_payment_terms as terms',
-        'supplier_address as address',
-        'supplier_tin_number as tin'  
-      )->get();
-
-    return response()->json([
-      'suppliersList' => $suppliers
-    ]);
-  }
+  
 
   public function getAccounts() {
     $accounts = AccountingPurchasesAccounts::select(
@@ -255,6 +242,113 @@ class PurchasesController extends Controller
   public function deleteItem($id){
     $item = AccountingPurchasesItems::findOrFail($id);
     $item->delete();
+
+    return response()->json([
+      'message' => 'Record deleted',
+    ]);
+  }
+
+  ///suppliers
+  public function getSuppliers() {
+
+    $suppliers = AccountingPurchasesSupplier::select(
+        'id',
+        'supplier_name as supplier',
+        'supplier_payment_terms as terms',
+        'supplier_address as address',
+        'supplier_tin_number as tin'  
+      )->get();
+
+    return response()->json([
+      'suppliersList' => $suppliers
+    ]);
+  }
+
+  public function addSupplier(Request $request) {
+    $validator = Validator::make(
+      $request->all(),
+      array(
+        'supplier' => 'string|min:1|max:150|required
+          |unique:purchasesms_supplier,supplier_name',
+        'terms' => 'integer|min:0|nullable',
+        'address' => 'string|min:1|max:300|required',
+        'tin' => 'string|min:1|max:50|required',
+      )
+    );
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()], 422);
+    }
+
+    $supplier = new AccountingPurchasesSupplier();
+    $supplier->fill(array(
+      'supplier_name' => $request->supplier,
+      'supplier_payment_terms' => $request->terms,
+      'supplier_address' => $request->address,
+      'supplier_tin_number' => $request->tin,
+    ));
+    $supplier->save();
+
+    $newSupplier = array(
+      'id' => $supplier->id,
+      'supplier' => $supplier->supplier_name,
+      'terms' => $supplier->supplier_payment_terms,
+      'address' => $supplier->supplier_address,
+      'tin' => $supplier->supplier_tin_number,
+    );
+
+    return response()->json([
+      'newSupplier' => $newSupplier,
+      'message' => 'Record added',
+    ]);
+  }
+
+
+  public function updateSupplier(Request $request, $id) {
+    $validator = Validator::make(
+      $request->all(),
+      array(
+        'supplier' => 'string|min:1|max:150|required
+          |unique:purchasesms_supplier,supplier_name,'.$id,
+        'terms' => 'integer|min:0|nullable',
+        'address' => 'string|min:1|max:300|required',
+        'tin' => 'string|min:1|max:50|required',
+      )
+    );
+
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()], 422);
+    }
+
+    $supplier = AccountingPurchasesSupplier::findOrFail($id);
+    $supplier->fill(array(
+      'supplier_name' => $request->supplier,
+      'supplier_payment_terms' => $request->terms,
+      'supplier_address' => $request->address,
+      'supplier_tin_number' => $request->tin,
+    ));
+    
+    if($supplier->isDirty()){
+      $supplier->save();
+    }
+
+    $newSupplier = array(
+      'id' => $supplier->id,
+      'supplier' => $supplier->supplier_name,
+      'terms' => $supplier->supplier_payment_terms,
+      'address' => $supplier->supplier_address,
+      'tin' => $supplier->supplier_tin_number,
+    );
+
+    return response()->json([
+      'newSupplier' => $newSupplier,
+      'message' => 'Record updated',
+    ]);
+  }
+
+  public function deleteSupplier($id){
+    $supplier = AccountingPurchasesSupplier::findOrFail($id);
+    $supplier->delete();
 
     return response()->json([
       'message' => 'Record deleted',

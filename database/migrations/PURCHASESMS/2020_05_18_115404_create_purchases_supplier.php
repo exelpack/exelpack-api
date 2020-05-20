@@ -16,7 +16,7 @@ class CreatePurchasesSupplier extends Migration
         Schema::create('purchasesms_supplier', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->string('supplier_name',255);
-            $table->integer('supplier_payment_terms');
+            $table->integer('supplier_payment_terms')->nullable();
             $table->string('supplier_address',300);
             $table->string('supplier_tin_number',100);
             $table->softDeletes();
