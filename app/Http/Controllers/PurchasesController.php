@@ -26,14 +26,14 @@ class PurchasesController extends Controller
       'dateReceived' => $item->item_datereceived,
       'datePurchased' => $item->item_datepurchased,
       'supplier' => $item->supplier->id ?? '',
-      'supplierLabel' => $item->supplier->supplier_name ?? '',
+      'supplierLabel' => strtoupper($item->supplier->supplier_name) ?? '',
       'accounts' => $item->account->id ?? '',
-      'accountsLabel' => $item->account->accounts_name ?? '',
-      'invoice' => $item->item_salesinvoice_no,
-      'deliveryReceipt' => $item->item_deliveryreceipt_no,
-      'purchaseOrderNo' => $item->item_purchaseorder_no,
-      'purchaseRequestNo' => $item->item_purchaserequest_no,
-      'particular' => $item->item_particular,
+      'accountsLabel' => strtoupper($item->account->accounts_name) ?? '',
+      'invoice' => strtoupper($item->item_salesinvoice_no),
+      'deliveryReceipt' => strtoupper($item->item_deliveryreceipt_no),
+      'purchaseOrderNo' => strtoupper($item->item_purchaseorder_no),
+      'purchaseRequestNo' => strtoupper($item->item_purchaserequest_no),
+      'particular' => strtoupper($item->item_particular),
       'quantity' => $item->item_quantity,
       'unit' => $item->item_unit,
       'unitPrice' => $item->item_unitprice,
@@ -57,23 +57,6 @@ class PurchasesController extends Controller
     );
   }
 
-  
-
-  public function getAccounts() {
-    $accounts = AccountingPurchasesAccounts::select(
-        'id',
-        'accounts_code as code',
-        'accounts_name as account',
-        'accounts_requiredInvoice as requiredInvoice'
-      )->get();
-
-    return response()->json([
-      'accountsList' => $accounts
-    ]);
-
-  }
-
-
   //cruds
   public function getItems() {
     $q = AccountingPurchasesItems::query();
@@ -91,14 +74,14 @@ class PurchasesController extends Controller
       'item_datereceived as dateReceived',
       'item_datepurchased as datePurchased',
       'purchasesms_supplier.id as supplier',
-      'supplier_name as supplierLabel',
+      Db::raw('UPPER(supplier_name) as supplierLabel'),
       'purchasesms_accounts.id as accounts',
-      'accounts_name as accountsLabel',
-      'item_salesinvoice_no as invoice',
-      'item_deliveryreceipt_no as deliveryReceipt',
-      'item_purchaseorder_no as purchaseOrderNo',
-      'item_purchaserequest_no as purchaseRequestNo',
-      'item_particular as particular',
+      Db::raw('UPPER(accounts_name) as accountsLabel'),
+      Db::raw('UPPER(item_salesinvoice_no) as invoice'),
+      Db::raw('UPPER(item_deliveryreceipt_no) as deliveryReceipt'),
+      Db::raw('UPPER(item_purchaseorder_no) as purchaseOrderNo'),
+      Db::raw('UPPER(item_purchaserequest_no) as purchaseRequestNo'),
+      Db::raw('UPPER(item_particular) as particular'),
       'item_quantity as quantity',
       'item_unit as unit',
       'item_unitprice as unitPrice'
@@ -158,11 +141,11 @@ class PurchasesController extends Controller
         'datePurchased' => 'date|required|before_or_equal:'.date('Y-m-d'),
         'supplier' => 'integer|required|min:1',
         'accounts' => 'integer|required|min:1',
-        'invoice' => 'string|required_if:isInvoiceRequired,true|min:3|max:50',
-        'deliveryReceipt' => 'string|required_if:isInvoiceRequired,true|min:3|max:50',
-        'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50',
-        'purchaseRequestNo' => 'string|min:3|max:50|nullable',
-        'particular' => 'string|required|min:1|max:150',
+        'invoice' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'deliveryReceipt' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseRequestNo' => 'string|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
+        'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
         'quantity' => 'integer|required|min:1',
         'unit' => 'string|required|min:1|max:50',
         'unitPrice' => 'integer|required|min:0',
@@ -174,8 +157,8 @@ class PurchasesController extends Controller
     $validator->sometimes('particular',
       'unique:purchasesms_items,item_particular,null,id,item_salesinvoice_no,'.$request->invoice,
       function($input) {
-        return strtoupper($input->invoice) != "NA" || strtoupper($input->invoice) != "N/A"
-          || $input->invoice != "";
+        return strtoupper($input->invoice) != "NA" && strtoupper($input->invoice) != "N/A"
+          && $input->invoice != "";
     });
 
     if($validator->fails()){
@@ -202,11 +185,11 @@ class PurchasesController extends Controller
         'datePurchased' => 'date|required|before_or_equal:'.date('Y-m-d'),
         'supplier' => 'integer|required|min:1',
         'accounts' => 'integer|required|min:1',
-        'invoice' => 'string|required_if:isInvoiceRequired,true|min:3|max:50',
-        'deliveryReceipt' => 'string|required_if:isInvoiceRequired,true|min:3|max:50',
-        'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50',
-        'purchaseRequestNo' => 'string|min:3|max:50|nullable',
-        'particular' => 'string|required|min:1|max:150',
+        'invoice' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'deliveryReceipt' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseRequestNo' => 'string|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
+        'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
         'quantity' => 'integer|required|min:1',
         'unit' => 'string|required|min:1|max:50',
         'unitPrice' => 'integer|required|min:0',
@@ -218,8 +201,8 @@ class PurchasesController extends Controller
     $validator->sometimes('particular',
       'unique:purchasesms_items,item_particular,'.$id.',id,item_salesinvoice_no,'.$request->invoice,
       function($input) {
-        return strtoupper($input->invoice) != "NA" || strtoupper($input->invoice) != "N/A"
-          || $input->invoice != "";
+        return strtoupper($input->invoice) != "NA" && strtoupper($input->invoice) != "N/A"
+          && $input->invoice != "";
     });
 
     if($validator->fails()){
@@ -253,10 +236,10 @@ class PurchasesController extends Controller
 
     $suppliers = AccountingPurchasesSupplier::select(
         'id',
-        'supplier_name as supplier',
+        Db::raw('UPPER(supplier_name) as supplier'),
         'supplier_payment_terms as terms',
-        'supplier_address as address',
-        'supplier_tin_number as tin'  
+        Db::raw('UPPER(supplier_address) as address'),
+        Db::raw('UPPER(supplier_tin_number) as tin')  
       )->get();
 
     return response()->json([
@@ -268,7 +251,7 @@ class PurchasesController extends Controller
     $validator = Validator::make(
       $request->all(),
       array(
-        'supplier' => 'string|min:1|max:150|required
+        'supplier' => 'string|regex:/^[a-zA-Z0-9 _-]*$/|min:1|max:150|required
           |unique:purchasesms_supplier,supplier_name',
         'terms' => 'integer|min:0|nullable',
         'address' => 'string|min:1|max:300|required',
@@ -291,10 +274,10 @@ class PurchasesController extends Controller
 
     $newSupplier = array(
       'id' => $supplier->id,
-      'supplier' => $supplier->supplier_name,
+      'supplier' => strtoupper($supplier->supplier_name),
       'terms' => $supplier->supplier_payment_terms,
-      'address' => $supplier->supplier_address,
-      'tin' => $supplier->supplier_tin_number,
+      'address' => strtoupper($supplier->supplier_address),
+      'tin' => strtoupper($supplier->supplier_tin_number),
     );
 
     return response()->json([
@@ -308,7 +291,7 @@ class PurchasesController extends Controller
     $validator = Validator::make(
       $request->all(),
       array(
-        'supplier' => 'string|min:1|max:150|required
+        'supplier' => 'string|regex:/^[a-zA-Z0-9 _-]*$/|min:1|max:150|required
           |unique:purchasesms_supplier,supplier_name,'.$id,
         'terms' => 'integer|min:0|nullable',
         'address' => 'string|min:1|max:300|required',
@@ -334,10 +317,10 @@ class PurchasesController extends Controller
 
     $newSupplier = array(
       'id' => $supplier->id,
-      'supplier' => $supplier->supplier_name,
+      'supplier' => strtoupper($supplier->supplier_name),
       'terms' => $supplier->supplier_payment_terms,
-      'address' => $supplier->supplier_address,
-      'tin' => $supplier->supplier_tin_number,
+      'address' => strtoupper($supplier->supplier_address),
+      'tin' => strtoupper($supplier->supplier_tin_number),
     );
 
     return response()->json([
@@ -349,6 +332,115 @@ class PurchasesController extends Controller
   public function deleteSupplier($id){
     $supplier = AccountingPurchasesSupplier::findOrFail($id);
     $supplier->delete();
+
+    return response()->json([
+      'message' => 'Record deleted',
+    ]);
+  }
+
+  public function getAccounts() {
+    $accounts = AccountingPurchasesAccounts::select(
+        'id',
+        DB::raw('upper(accounts_code) as code'),
+        DB::raw('upper(accounts_name) as account'),
+        'accounts_requiredInvoice as requiredInvoice'
+      )->get();
+
+    return response()->json([
+      'accountsList' => $accounts
+    ]);
+  }
+
+  public function addAccount(Request $request) {
+    $validator = Validator::make(
+      $request->all(),
+      array(
+        'account' => 'string|regex:/^[a-zA-Z0-9 _-]*$/|min:1|max:250|required
+          |unique:purchasesms_accounts,accounts_name',
+        'code' => 'string|regex:/^[a-zA-Z0-9_-]*$/|min:1|max:500|nullable',
+        'requiredInvoice' => 'boolean|required',
+      )
+    );
+
+    $validator->sometimes('code', 'unique:purchasesms_accounts,accounts_code',
+      function($input) {
+        return $input->code != null && $input->code != "";
+      }
+    );
+
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()] ,422);
+
+    $account = new AccountingPurchasesAccounts();
+    $account->fill(array(
+      'accounts_code' => $request->code,
+      'accounts_name' => $request->account,
+      'accounts_requiredInvoice' => $request->requiredInvoice
+    ));
+    $account->save();
+
+    $newAccount = array(
+      'id' => $account->id,
+      'code' => strtoupper($account->accounts_code),
+      'account' => strtoupper($account->accounts_name),
+      'requiredInvoice' => $account->accounts_requiredInvoice,
+    );
+
+    return response()->json([
+      'newAccount' => $newAccount,
+      'message' => 'Record added',
+    ]);
+
+  }
+
+  public function updateAccount(Request $request, $id) {
+    $validator = Validator::make(
+      $request->all(),
+      array(
+        'account' => 'string|regex:/^[a-zA-Z0-9 _-]*$/|min:1|max:250|required
+          |unique:purchasesms_accounts,accounts_name,'.$id,
+        'code' => 'string|regex:/^[a-zA-Z0-9_-]*$/|min:1|max:500|nullable',
+        'requiredInvoice' => 'boolean|required',
+      )
+    );
+
+    $validator->sometimes('code', 'unique:purchasesms_accounts,accounts_code,'.$id,
+      function($input) {
+        return $input->code != null && $input->code != "";
+      }
+    );
+
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()] ,422);
+
+    $account = AccountingPurchasesAccounts::findOrFail($id);
+    $account->fill(array(
+      'accounts_code' => $request->code,
+      'accounts_name' => $request->account,
+      'accounts_requiredInvoice' => $request->requiredInvoice
+    ));
+
+    if($account->isDirty()){
+      $account->save();
+    }
+
+    $newAccount = array(
+      'id' => $account->id,
+      'code' => strtoupper($account->accounts_code),
+      'account' => strtoupper($account->accounts_name),
+      'requiredInvoice' => $account->accounts_requiredInvoice,
+    );
+
+    return response()->json([
+      'newAccount' => $newAccount,
+      'message' => 'Record updated',
+    ]);
+
+  }
+
+  public function deleteAccount($id){
+    $account = AccountingPurchasesAccounts::findOrFail($id);
+    $account->delete();
 
     return response()->json([
       'message' => 'Record deleted',

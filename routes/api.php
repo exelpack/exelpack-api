@@ -247,14 +247,13 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::delete('/purchasesms/suppliers/{id}','PurchasesController@deleteSupplier');
 
     Route::get('/purchasesms/accounts','PurchasesController@getAccounts');
-    
-
-
+    Route::post('/purchasesms/accounts','PurchasesController@addAccount');
+    Route::put('/purchasesms/accounts/{id}','PurchasesController@updateAccount');
+    Route::delete('/purchasesms/accounts/{id}','PurchasesController@deleteAccount');
 
   });
 
   Route::group(['middleware' => ['approvalpr']], function() {
-
     Route::get('/psms/prapproval','PurchasesSupplierController@getPendingPrList');
     Route::get('/psms/prapproval/{id}','PurchasesSupplierController@getPrDetails');
     Route::put('/psms/prapproval/{id}','PurchasesSupplierController@addRemarks');
