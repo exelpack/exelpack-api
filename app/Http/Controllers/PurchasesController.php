@@ -23,12 +23,13 @@ class PurchasesController extends Controller
   public function getItem($item) {
     return array(
       'id' => $item->id,
+      'status' => $item->ap ? "PAID" : "NOT PAID",
       'dateReceived' => $item->item_datereceived,
       'datePurchased' => $item->item_datepurchased,
       'supplier' => $item->supplier->id ?? '',
       'supplierLabel' => strtoupper($item->supplier->supplier_name) ?? '',
       'accounts' => $item->account->id ?? '',
-      'accountsLabel' => strtoupper($item->account->accounts_name) ?? '',
+      'accountsLabel' => strtoupper($item->account->accounts_code) ?? strtoupper($item->account->accounts_name),
       'invoice' => strtoupper($item->item_salesinvoice_no),
       'deliveryReceipt' => strtoupper($item->item_deliveryreceipt_no),
       'purchaseOrderNo' => strtoupper($item->item_purchaseorder_no),
@@ -37,6 +38,12 @@ class PurchasesController extends Controller
       'quantity' => $item->item_quantity,
       'unit' => $item->item_unit,
       'unitPrice' => $item->item_unitprice,
+      'withHoldingTax' => $item->ap->ap_withholding ?? null,
+      'officialReceipt' => $item->ap->ap_officialreceipt_no ?? null,
+      'paidByCheck' => $item->ap->ap_is_check ?? null,
+      'checkNo' => $item->ap->ap_check_no ?? null,
+      'bankName' => $item->ap->ap_bankname ?? null,
+      'paymentDate' => $item->ap->ap_payment_date ?? null,
     );
   }
 
@@ -76,7 +83,7 @@ class PurchasesController extends Controller
       'purchasesms_supplier.id as supplier',
       Db::raw('UPPER(supplier_name) as supplierLabel'),
       'purchasesms_accounts.id as accounts',
-      Db::raw('UPPER(accounts_name) as accountsLabel'),
+      Db::raw('UPPER(IF(accounts_code != "",accounts_code,accounts_name)) as accountsLabel'),
       Db::raw('UPPER(item_salesinvoice_no) as invoice'),
       Db::raw('UPPER(item_deliveryreceipt_no) as deliveryReceipt'),
       Db::raw('UPPER(item_purchaseorder_no) as purchaseOrderNo'),
@@ -84,7 +91,13 @@ class PurchasesController extends Controller
       Db::raw('UPPER(item_particular) as particular'),
       'item_quantity as quantity',
       'item_unit as unit',
-      'item_unitprice as unitPrice'
+      'item_unitprice as unitPrice',
+      'ap_withholding as withHoldingTax',
+      'ap_officialreceipt_no as officialReceipt',
+      'ap_is_check as paidByCheck',
+      'ap_check_no as checkNo',
+      'ap_bankname as bankName',
+      'ap_payment_date as paymentDate'
     );
 
     //sorts & filter
@@ -146,9 +159,9 @@ class PurchasesController extends Controller
         'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
         'purchaseRequestNo' => 'string|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
         'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
-        'quantity' => 'integer|required|min:1',
+        'quantity' => 'numeric|required|min:1',
         'unit' => 'string|required|min:1|max:50',
-        'unitPrice' => 'integer|required|min:0',
+        'unitPrice' => 'numeric|required|min:0',
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
@@ -190,9 +203,9 @@ class PurchasesController extends Controller
         'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
         'purchaseRequestNo' => 'string|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
         'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
-        'quantity' => 'integer|required|min:1',
+        'quantity' => 'numeric|required|min:1',
         'unit' => 'string|required|min:1|max:50',
-        'unitPrice' => 'integer|required|min:0',
+        'unitPrice' => 'numeric|required|min:0',
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
@@ -445,6 +458,84 @@ class PurchasesController extends Controller
     return response()->json([
       'message' => 'Record deleted',
     ]);
+  }
+
+
+  ///ap
+
+  public function getItemsBySupplier($supplierId) {
+    $q = AccountingPurchasesItems::query();
+    $q->leftJoin('purchasesms_accounts', function($join){
+      $join->on('purchasesms_accounts.id','=','purchasesms_items.item_accounts_id');
+    });
+
+    $q->select(
+      'purchasesms_items.id',
+      'item_datereceived as dateReceived',
+      'item_datepurchased as datePurchased',
+      'purchasesms_accounts.id as accounts',
+      Db::raw('UPPER(IF(accounts_code != "",accounts_code,accounts_name)) as accountsLabel'),
+      Db::raw('UPPER(item_salesinvoice_no) as invoice'),
+      Db::raw('UPPER(item_deliveryreceipt_no) as deliveryReceipt'),
+      Db::raw('UPPER(item_purchaseorder_no) as purchaseOrderNo'),
+      Db::raw('UPPER(item_purchaserequest_no) as purchaseRequestNo'),
+      Db::raw('UPPER(item_particular) as particular'),
+      'item_quantity as quantity',
+      'item_unit as unit',
+      'item_unitprice as unitPrice'
+    );
+    $q->whereHas('supplier', function($q) use($supplierId){
+      $q->where('id', $supplierId);
+    });
+    $q->doesntHave('ap');
+    $items = $q->latest('purchasesms_items.id')->get();
+    return response()->json([
+      'items' => $items,
+    ]);
+  }
+
+  public function addPayment(Request $request) {
+    $validator = Validator::make(
+      $request->all(),
+      array(
+        'supplier' => 'required',
+        'withHoldingTax' => 'numeric|min:0|max:100|nullable',
+        'officialReceipt' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
+        'paidByCheck' => 'boolean',
+        'bankName' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true|nullable',
+        'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true|nullable',
+        'paymentDate' => 'date|before_or_equal:'.date('Y-m-d'),
+        'selectedItems' => 'array|min:1|required',
+      )
+    );
+
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    $updatedItems = array();
+
+    foreach($request->selectedItems as $id) {
+      $item = AccountingPurchasesItems::findOrFaiL($id);
+      if($item->item_supplier_id == $id || $item->ap)
+        continue;
+
+      $item->ap()->create([
+        'ap_withholding' => $request->withHoldingTax,
+        'ap_officialreceipt_no' => $request->officialReceipt,
+        'ap_is_check' => $request->paidByCheck,
+        'ap_check_no' => $request->checkNo,
+        'ap_bankname' => $request->bankName,
+        'ap_payment_date' => $request->paymentDate,
+      ]);
+
+      $item->refresh();
+      array_push($updatedItems, $this->getItem($item));
+    }
+
+    return response()->json([
+      'message' => 'Payment record added',
+      'updatedItems' => $updatedItems,
+    ]);
+
   }
 
 }

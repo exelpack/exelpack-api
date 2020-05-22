@@ -16,10 +16,12 @@ class CreateAccountsPurchases extends Migration
         Schema::create('purchasesms_apdetails', function (Blueprint $table) {
           $table->bigIncrements('id');
           $table->integer('ap_item_id')->unsigned();
-          $table->double('ap_withholding')->default(0);
+          $table->double('ap_withholding')->default(0)->nullable();
           $table->string('ap_officialreceipt_no',100);
+          $table->boolean('ap_is_check')->default(0);
           $table->string('ap_check_no',50)->nullable();
-          $table->date('ap_payment_date',50)->nullable();
+          $table->string('ap_bankname',150)->nullable();
+          $table->date('ap_payment_date')->nullable();
           $table->timestamps();
         });
     }
