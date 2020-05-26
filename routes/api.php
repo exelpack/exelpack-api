@@ -251,10 +251,10 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::put('/purchasesms/accounts/{id}','PurchasesController@updateAccount');
     Route::delete('/purchasesms/accounts/{id}','PurchasesController@deleteAccount');
 
-
     Route::get('/purchasesms/suppliers/items/{id}','PurchasesController@getItemsBySupplier');
     Route::post('/purchasesms/ap','PurchasesController@addPayment');
 
+    Route::get('/purchasesms/exports/bir','PurchasesController@exportBirMonthly');
 
   });
 

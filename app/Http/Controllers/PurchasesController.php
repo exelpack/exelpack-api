@@ -17,7 +17,115 @@ use App\AccountingPurchasesItems;
 use App\AccountingPurchasesSupplier;
 
 class PurchasesController extends Controller
-{
+{ 
+  private $monthsArray = array(
+    'jan' => 1,
+    'feb' => 2,
+    'mar' => 3,
+    'apr' => 4,
+    'may' => 5,
+    'jun' => 6,
+    'jul' => 7,
+    'aug' => 8,
+    'sep' => 9,
+    'oct' => 10,
+    'nov' => 11,
+    'dec' => 12,
+  );
+
+  //export
+  public function exportBirMonthly() {
+    if(!request()->has('month') || !request()->has('year'))
+      return response()->json(['errors' => ['Invalid parameters']],422);
+
+    $fixedDate = new Carbon(request()->month);
+    $from = $fixedDate->format("Y-m")."-11";
+    $newDate = new Carbon($from);
+    $to = $newDate->addMonth()->format("Y-m")."-10";
+
+    $data = AccountingPurchasesItems::orderBy('item_salesinvoice_no','DESC')->get();
+    
+    // foreach($data as $key => $row)
+    // {
+
+    //     if($row->purchases->currency === 'PHP')
+    //     {
+    //         $php = $row->total_amount;
+    //         $usd = 0;
+    //         $zerorated = $row->total_amount;
+    //     }else{
+    //         $php = 0;
+    //         $usd = $row->total_amount;
+    //         $zerorated = $row->total_amount * $conversion;
+    //     }
+    //     $totalusd+= $usd;
+    //     $totalphp+= $php;
+    //     $totalzero+= $zerorated;
+
+    //     if(array_key_exists($row->accounts->title, $accountsTotal))
+    //         $accountsTotal[$row->accounts->title] += $totalzero;
+    //     else
+    //         $accountsTotal[$row->accounts->title] = $totalzero;
+
+    //     $accountsTotalAll+= $totalzero;
+
+
+    //     $pdate = new Carbon($row->purchases->purchasedate);
+    //     array_push($purchasesItems,array
+    //         (
+    //             'suppliers_name' => $row->purchases->supplier->supplier_name,
+    //             'date_received' => $row->purchases->datereceived,
+    //             'code' => $row->accounts->title,
+    //             'po' => $row->po_num,
+    //             'pr' => $row->pr_num,
+    //             'si' => $row->purchases->invoice_num,
+    //             'dr' => $row->dr_num,
+    //             'particular' => $row->particular,
+    //             'purchasedate' => $pdate->format('d/m/Y'),
+    //             'duedate' => $pdate->addDays($row->purchases->supplier->payment_terms)
+    //             ->format('d/m/Y'),
+    //             'tin' => $row->purchases->supplier->tin,
+    //             'address' => $row->purchases->supplier->address,
+    //             'amountphp' => $php,
+    //             'amountusd' => $usd,
+    //             'zerorated' => $zerorated,
+    //         )
+    //     );
+
+    //     if($count - 1 == $key || $data[$key + 1]->purchases->supplier_id !== $row->purchases->supplier_id)
+    //     {
+    //         array_push($purchasesItems,array
+    //             (
+    //                 'suppliers_name' => $row->purchases->supplier->supplier_name." TOTAL",
+    //                 'date_received' => '',
+    //                 'code' => '',
+    //                 'po' => '',
+    //                 'pr' => '',
+    //                 'si' => '',
+    //                 'dr' => '',
+    //                 'particular' => '',
+    //                 'purchasedate' => '',
+    //                 'duedate' => '',
+    //                 'tin' => '',
+    //                 'address' => '',
+    //                 'amountphp' => $totalphp,
+    //                 'amountusd' => $totalusd,
+    //                 'zerorated' => $totalzero,
+    //             ));
+    //         $totalphp = 0;
+    //         $totalusd = 0;
+    //         $totalzero = 0;
+    //     }
+
+    // }
+
+
+
+    
+    return $from.$to;
+
+  }
+
   // purchases items
   //utils functions
   public function getItem($item) {
@@ -39,11 +147,12 @@ class PurchasesController extends Controller
       'unit' => $item->item_unit,
       'unitPrice' => $item->item_unitprice,
       'withHoldingTax' => $item->ap->ap_withholding ?? null,
-      'officialReceipt' => $item->ap->ap_officialreceipt_no ?? null,
-      'paidByCheck' => $item->ap->ap_is_check ?? null,
-      'checkNo' => $item->ap->ap_check_no ?? null,
-      'bankName' => $item->ap->ap_bankname ?? null,
-      'paymentDate' => $item->ap->ap_payment_date ?? null,
+      'officialReceipt' => $item->ap->ap_officialreceipt_no ?? '',
+      'paidByCheck' => $item->ap->ap_is_check ?? '',
+      'checkNo' => $item->ap->ap_check_no ?? '',
+      'bankName' => $item->ap->ap_bankname ?? '',
+      'paymentDate' => $item->ap->ap_payment_date ?? '',
+      'isInvoiceRequired' => $item->account->accounts_requiredInvoice,
     );
   }
 
@@ -93,11 +202,12 @@ class PurchasesController extends Controller
       'item_unit as unit',
       'item_unitprice as unitPrice',
       'ap_withholding as withHoldingTax',
-      'ap_officialreceipt_no as officialReceipt',
-      'ap_is_check as paidByCheck',
-      'ap_check_no as checkNo',
-      'ap_bankname as bankName',
-      'ap_payment_date as paymentDate'
+      Db::raw('IFNULL(ap_is_check,false) as paidByCheck'),
+      Db::raw('IFNULL(ap_officialreceipt_no,"") as officialReceipt'),
+      Db::raw('IFNULL(ap_check_no,"") as checkNo'),
+      Db::raw('IFNULL(ap_bankname,"") as bankName'),
+      Db::raw('IFNULL(ap_payment_date,"") as paymentDate'),
+      'accounts_requiredInvoice as isInvoiceRequired'
     );
 
     //sorts & filter
@@ -162,6 +272,16 @@ class PurchasesController extends Controller
         'quantity' => 'numeric|required|min:1',
         'unit' => 'string|required|min:1|max:50',
         'unitPrice' => 'numeric|required|min:0',
+        'withHoldingTax' => 'numeric|min:0|max:100|nullable',//ap validation
+        'officialReceipt' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:markAsPaid,true
+          |nullable',
+        'paidByCheck' => 'boolean',
+        'markAsPaid' => 'boolean',
+        'bankName' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
+          |required_if:markAsPaid,true|nullable',
+        'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
+          |required_if:markAsPaid,true|nullable',
+        'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
@@ -181,6 +301,17 @@ class PurchasesController extends Controller
     $item = new AccountingPurchasesItems();
     $item->fill($this->itemInputArray($request));
     $item->save();
+
+    if($request->markAsPaid) {
+      $item->ap()->create([
+        'ap_withholding' => $request->withHoldingTax,
+        'ap_officialreceipt_no' => $request->officialReceipt,
+        'ap_is_check' => $request->paidByCheck,
+        'ap_check_no' => $request->checkNo,
+        'ap_bankname' => $request->bankName,
+        'ap_payment_date' => $request->paymentDate,
+      ]);
+    }
 
     $newItem = $this->getItem($item);
     return response()->json([
@@ -206,6 +337,15 @@ class PurchasesController extends Controller
         'quantity' => 'numeric|required|min:1',
         'unit' => 'string|required|min:1|max:50',
         'unitPrice' => 'numeric|required|min:0',
+        'withHoldingTax' => 'numeric|min:0|max:100|nullable',//ap validation
+        'officialReceipt' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:markAsPaid,true
+          |nullable',
+        'paidByCheck' => 'boolean',
+        'bankName' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
+          |required_if:markAsPaid,true|nullable',
+        'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
+          |required_if:markAsPaid,true|nullable',
+        'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
@@ -228,6 +368,30 @@ class PurchasesController extends Controller
       $item->save();
     }
 
+    if($request->markAsPaid) {
+      if($item->ap) {
+        $item->ap()->update([
+          'ap_withholding' => $request->withHoldingTax,
+          'ap_officialreceipt_no' => $request->officialReceipt,
+          'ap_is_check' => $request->paidByCheck,
+          'ap_check_no' => $request->checkNo,
+          'ap_bankname' => $request->bankName,
+          'ap_payment_date' => $request->paymentDate,
+        ]);
+      } else {
+        $item->ap()->create([
+          'ap_withholding' => $request->withHoldingTax,
+          'ap_officialreceipt_no' => $request->officialReceipt,
+          'ap_is_check' => $request->paidByCheck,
+          'ap_check_no' => $request->checkNo,
+          'ap_bankname' => $request->bankName,
+          'ap_payment_date' => $request->paymentDate,
+        ]);
+      }
+    }else
+      $item->ap()->delete();
+
+    $item->refresh();
     $newItem = $this->getItem($item);
     return response()->json([
       'newItem' => $newItem,
@@ -504,7 +668,7 @@ class PurchasesController extends Controller
         'paidByCheck' => 'boolean',
         'bankName' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true|nullable',
         'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true|nullable',
-        'paymentDate' => 'date|before_or_equal:'.date('Y-m-d'),
+        'paymentDate' => 'date|required|before_or_equal:'.date('Y-m-d'),
         'selectedItems' => 'array|min:1|required',
       )
     );
