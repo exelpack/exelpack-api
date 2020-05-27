@@ -16,114 +16,57 @@ use App\AccountingPurchasesAccounts;
 use App\AccountingPurchasesItems;
 use App\AccountingPurchasesSupplier;
 
+use App\Exports\AccountingPurchasesBirMonthly;
+use App\Exports\AccountingPayablesReport;
+use App\Exports\AccountingPurchasesReport;
+
 class PurchasesController extends Controller
 { 
-  private $monthsArray = array(
-    'jan' => 1,
-    'feb' => 2,
-    'mar' => 3,
-    'apr' => 4,
-    'may' => 5,
-    'jun' => 6,
-    'jul' => 7,
-    'aug' => 8,
-    'sep' => 9,
-    'oct' => 10,
-    'nov' => 11,
-    'dec' => 12,
-  );
 
   //export
   public function exportBirMonthly() {
-    if(!request()->has('month') || !request()->has('year'))
-      return response()->json(['errors' => ['Invalid parameters']],422);
+    if(!request()->has('month')
+      || !request()->has('year')
+      || !request()->has('conversion')
+      || !request()->has('company')
+    )
+    return response()->json(['errors' => ['Invalid parameters']],422);
 
-    $fixedDate = new Carbon(request()->month);
-    $from = $fixedDate->format("Y-m")."-11";
-    $newDate = new Carbon($from);
-    $to = $newDate->addMonth()->format("Y-m")."-10";
+    $month = request()->month;
+    $year = request()->year;
+    $conversion = request()->conversion;
+    $company = request()->company;
 
-    $data = AccountingPurchasesItems::orderBy('item_salesinvoice_no','DESC')->get();
-    
-    // foreach($data as $key => $row)
-    // {
+    return Excel::download(new AccountingPurchasesBirMonthly($conversion, $year, $month, $company), $company.'-bir-report'.$month.'-'.$year.'.xlsx');
+  }
 
-    //     if($row->purchases->currency === 'PHP')
-    //     {
-    //         $php = $row->total_amount;
-    //         $usd = 0;
-    //         $zerorated = $row->total_amount;
-    //     }else{
-    //         $php = 0;
-    //         $usd = $row->total_amount;
-    //         $zerorated = $row->total_amount * $conversion;
-    //     }
-    //     $totalusd+= $usd;
-    //     $totalphp+= $php;
-    //     $totalzero+= $zerorated;
+  public function exportPayablesReport() {
+    if(!request()->has('month')
+      || !request()->has('year')
+      || !request()->has('company')
+    )
+    return response()->json(['errors' => ['Invalid parameters']],422);
 
-    //     if(array_key_exists($row->accounts->title, $accountsTotal))
-    //         $accountsTotal[$row->accounts->title] += $totalzero;
-    //     else
-    //         $accountsTotal[$row->accounts->title] = $totalzero;
+    $company = request()->company;
+    $month = request()->month;
+    $year = request()->year;
+    return Excel::download(new AccountingPayablesReport(), $company.'-payables'.$month.'-'.$year.'.xlsx');
+  }
 
-    //     $accountsTotalAll+= $totalzero;
+  public function exportPurchasesReport() {
+    if(!request()->has('month')
+      || !request()->has('year')
+      || !request()->has('conversion')
+      || !request()->has('company')
+    )
+    return response()->json(['errors' => ['Invalid parameters']],422);
 
+    $month = request()->month;
+    $year = request()->year;
+    $conversion = request()->conversion;
+    $company = request()->company;
 
-    //     $pdate = new Carbon($row->purchases->purchasedate);
-    //     array_push($purchasesItems,array
-    //         (
-    //             'suppliers_name' => $row->purchases->supplier->supplier_name,
-    //             'date_received' => $row->purchases->datereceived,
-    //             'code' => $row->accounts->title,
-    //             'po' => $row->po_num,
-    //             'pr' => $row->pr_num,
-    //             'si' => $row->purchases->invoice_num,
-    //             'dr' => $row->dr_num,
-    //             'particular' => $row->particular,
-    //             'purchasedate' => $pdate->format('d/m/Y'),
-    //             'duedate' => $pdate->addDays($row->purchases->supplier->payment_terms)
-    //             ->format('d/m/Y'),
-    //             'tin' => $row->purchases->supplier->tin,
-    //             'address' => $row->purchases->supplier->address,
-    //             'amountphp' => $php,
-    //             'amountusd' => $usd,
-    //             'zerorated' => $zerorated,
-    //         )
-    //     );
-
-    //     if($count - 1 == $key || $data[$key + 1]->purchases->supplier_id !== $row->purchases->supplier_id)
-    //     {
-    //         array_push($purchasesItems,array
-    //             (
-    //                 'suppliers_name' => $row->purchases->supplier->supplier_name." TOTAL",
-    //                 'date_received' => '',
-    //                 'code' => '',
-    //                 'po' => '',
-    //                 'pr' => '',
-    //                 'si' => '',
-    //                 'dr' => '',
-    //                 'particular' => '',
-    //                 'purchasedate' => '',
-    //                 'duedate' => '',
-    //                 'tin' => '',
-    //                 'address' => '',
-    //                 'amountphp' => $totalphp,
-    //                 'amountusd' => $totalusd,
-    //                 'zerorated' => $totalzero,
-    //             ));
-    //         $totalphp = 0;
-    //         $totalusd = 0;
-    //         $totalzero = 0;
-    //     }
-
-    // }
-
-
-
-    
-    return $from.$to;
-
+    return Excel::download(new AccountingPurchasesReport(), $company.'-purchases-'.$month.'-'.$year.'.xlsx');
   }
 
   // purchases items
@@ -145,6 +88,7 @@ class PurchasesController extends Controller
       'particular' => strtoupper($item->item_particular),
       'quantity' => $item->item_quantity,
       'unit' => $item->item_unit,
+      'currency' => $item->item_currency,
       'unitPrice' => $item->item_unitprice,
       'withHoldingTax' => $item->ap->ap_withholding ?? null,
       'officialReceipt' => $item->ap->ap_officialreceipt_no ?? '',
@@ -169,6 +113,7 @@ class PurchasesController extends Controller
       'item_particular' => $input->particular,
       'item_quantity' => $input->quantity,
       'item_unit' => $input->unit,
+      'item_currency' => $input->currency,
       'item_unitprice' => $input->unitPrice,
     );
   }
@@ -200,6 +145,7 @@ class PurchasesController extends Controller
       Db::raw('UPPER(item_particular) as particular'),
       'item_quantity as quantity',
       'item_unit as unit',
+      'item_currency as currency',
       'item_unitprice as unitPrice',
       'ap_withholding as withHoldingTax',
       Db::raw('IFNULL(ap_is_check,false) as paidByCheck'),
@@ -282,6 +228,7 @@ class PurchasesController extends Controller
         'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
           |required_if:markAsPaid,true|nullable',
         'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
+        'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
@@ -346,6 +293,7 @@ class PurchasesController extends Controller
         'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
           |required_if:markAsPaid,true|nullable',
         'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
+        'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
