@@ -80,7 +80,7 @@ class AccountingPurchasesBirMonthly implements FromView
         array(
           'suppliers_name' => $supplier->supplier_name,
           'date_received' => $row->item_datereceived,
-          'code' => $row->account->account_name,
+          'code' => $row->account->accounts_name,
           'po' => $row->item_purchaseorder_no,
           'pr' => $row->item_purchaserequest_no,
           'si' => $row->item_salesinvoice_no,

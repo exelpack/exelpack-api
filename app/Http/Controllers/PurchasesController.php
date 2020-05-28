@@ -19,9 +19,25 @@ use App\AccountingPurchasesSupplier;
 use App\Exports\AccountingPurchasesBirMonthly;
 use App\Exports\AccountingPayablesReport;
 use App\Exports\AccountingPurchasesReport;
+use App\Exports\AccountingPayablesSummary;
 
 class PurchasesController extends Controller
 { 
+
+  private $monthsArray = array(
+    'jan' => 1,
+    'feb' => 2,
+    'mar' => 3,
+    'apr' => 4,
+    'may' => 5,
+    'jun' => 6,
+    'jul' => 7,
+    'aug' => 8,
+    'sep' => 9,
+    'oct' => 10,
+    'nov' => 11,
+    'dec' => 12,
+  );
 
   //export
   public function exportBirMonthly() {
@@ -69,6 +85,19 @@ class PurchasesController extends Controller
     return Excel::download(new AccountingPurchasesReport(), $company.'-purchases-'.$month.'-'.$year.'.xlsx');
   }
 
+  public function exportAccountsPayablesSummary() {
+    if(!request()->has('month')
+      || !request()->has('year')
+      || !request()->has('company')
+    )
+    return response()->json(['errors' => ['Invalid parameters']],422);
+    $month = request()->month;
+    $year = request()->year;
+    $company = request()->company ?? 'no_companyname';
+  
+    return Excel::download(new AccountingPayablesSummary(), $company.'-apsummary-'.$month.'-'.$year.'.xlsx');
+  }
+
   // purchases items
   //utils functions
   public function getItem($item) {
@@ -97,6 +126,7 @@ class PurchasesController extends Controller
       'bankName' => $item->ap->ap_bankname ?? '',
       'paymentDate' => $item->ap->ap_payment_date ?? '',
       'isInvoiceRequired' => $item->account->accounts_requiredInvoice,
+      'withUnreleasedCheck' => $item->item_with_unreleasedcheck ? 'YES' : 'NO'
     );
   }
 
@@ -115,6 +145,7 @@ class PurchasesController extends Controller
       'item_unit' => $input->unit,
       'item_currency' => $input->currency,
       'item_unitprice' => $input->unitPrice,
+      'item_with_unreleasedcheck' => $input->markAsPaid ? false : $input->withUnreleasedCheck,
     );
   }
 
@@ -148,12 +179,13 @@ class PurchasesController extends Controller
       'item_currency as currency',
       'item_unitprice as unitPrice',
       'ap_withholding as withHoldingTax',
-      Db::raw('IFNULL(ap_is_check,false) as paidByCheck'),
+      Db::raw('IF(ap_is_check,true,false) as paidByCheck'),
       Db::raw('IFNULL(ap_officialreceipt_no,"") as officialReceipt'),
       Db::raw('IFNULL(ap_check_no,"") as checkNo'),
       Db::raw('IFNULL(ap_bankname,"") as bankName'),
       Db::raw('IFNULL(ap_payment_date,"") as paymentDate'),
-      'accounts_requiredInvoice as isInvoiceRequired'
+      'accounts_requiredInvoice as isInvoiceRequired',
+      Db::raw('IF(item_with_unreleasedcheck,"YES","NO") as withUnreleasedCheck')
     );
 
     //sorts & filter
@@ -229,6 +261,7 @@ class PurchasesController extends Controller
           |required_if:markAsPaid,true|nullable',
         'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
         'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
+        'withUnreleasedCheck' => 'boolean'
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')
@@ -292,8 +325,10 @@ class PurchasesController extends Controller
           |required_if:markAsPaid,true|nullable',
         'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
           |required_if:markAsPaid,true|nullable',
-        'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
+        'paymentDate' => 'date|required_if:paidByCheck,true|nullable
+          |before_or_equal:'.date('Y-m-d'),
         'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
+        'withUnreleasedCheck' => 'boolean'
       ),
       [],
       array('isInvoiceRequired' => 'invoice required')

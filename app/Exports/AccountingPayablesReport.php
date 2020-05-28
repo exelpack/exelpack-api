@@ -49,22 +49,24 @@ class AccountingPayablesReport implements FromView
       {
         $php = $row->item_unitprice * $row->item_quantity;
         $usd = 0;
+        $unreleased_amt = $php;
       }else{
         $php = 0;
         $usd = $row->item_unitprice * $row->item_quantity;
+        $unreleased_amt = $usd;
       }
       $totalusd+= $usd;
       $totalphp+= $php;
 
-        // if($row->purchases->with_unreleasedcheque == 1)
-        // {
-        //     $status = 'UNRELEASED CHECK';
-        //     $unreleased = $unreleased_amt;
-        //     $totalunreleased+= $unreleased;
-        // }else{
-        //     $status = 'NOT YET PAID';
-        //     $unreleased = 0;
-        // }
+      if($row->item_with_unreleasedcheck)
+      {
+        $status = 'UNRELEASED CHECK';
+        $unreleased = $unreleased_amt;
+        $totalunreleased+= $unreleased;
+      }else{
+        $status = 'NOT PAID';
+        $unreleased = 0;
+      }
 
       array_push($payables,
         array(
@@ -76,10 +78,10 @@ class AccountingPayablesReport implements FromView
           'purchasedate' => $row->item_datepurchased,
           'duedate' => $date->format('d/m/Y'),
           'remarks' => '',
-          'status' => 'NOT PAID',
+          'status' => $status,
           'php' => $php,
           'usd' => $usd,
-          'unreleased_amt' => 0,
+          'unreleased_amt' => $unreleased,
         )
       );
 

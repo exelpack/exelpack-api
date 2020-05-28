@@ -257,6 +257,7 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::get('/purchasesms/exports/bir','PurchasesController@exportBirMonthly');
     Route::get('/purchasesms/exports/payables','PurchasesController@exportPayablesReport');
     Route::get('/purchasesms/exports/purchases','PurchasesController@exportPurchasesReport');
+    Route::get('/purchasesms/exports/ap','PurchasesController@exportAccountsPayablesSummary');
 
   });
 
