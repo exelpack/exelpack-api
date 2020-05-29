@@ -227,11 +227,15 @@ class PurchasesController extends Controller
     else
       $q->latest('purchasesms_items.id');
 
-    $list = $q->paginate(1000);
+    $isFullLoad = request()->has('start') && request()->has('end');
+    if($isFullLoad)
+      $list = $q->offset(request()->start)->limit(request()->end)->get();
+    else 
+      $list = $q->paginate(1000);
 
     return response()->json([
-      'itemsListLength' => $list->total(),
-      'itemsList' => $list->items(),
+      'itemsListLength' => $isFullLoad ? intval(request()->end) : $list->total(),
+      'itemsList' => $isFullLoad ? $list : $list->items(),
     ]);
   }
 
