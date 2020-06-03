@@ -246,10 +246,10 @@ class PurchasesController extends Controller
         'datePurchased' => 'date|required|before_or_equal:'.date('Y-m-d'),
         'supplier' => 'integer|required|min:1',
         'accounts' => 'integer|required|min:1',
-        'invoice' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'deliveryReceipt' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'purchaseRequestNo' => 'string|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
+        'invoice' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'deliveryReceipt' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseOrderNo' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseRequestNo' => 'string|nullable|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
         'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
         'quantity' => 'numeric|required|min:1',
         'unit' => 'string|required|min:1|max:50',
@@ -259,10 +259,8 @@ class PurchasesController extends Controller
           |nullable',
         'paidByCheck' => 'boolean',
         'markAsPaid' => 'boolean',
-        'bankName' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
-          |required_if:markAsPaid,true|nullable',
-        'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
-          |required_if:markAsPaid,true|nullable',
+        'bankName' => 'string|nullable|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
+        'checkNo' => 'string|nullable|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
         'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
         'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
         'withUnreleasedCheck' => 'boolean'
@@ -276,6 +274,14 @@ class PurchasesController extends Controller
       function($input) {
         return strtoupper($input->invoice) != "NA" && strtoupper($input->invoice) != "N/A"
           && $input->invoice != "";
+    });
+
+    $validator->sometimes('bankName', 'required', function($input) {
+      return $input->paidByCheck && $input->markAsPaid;
+    });
+
+    $validator->sometimes('checkNo', 'required', function($input) {
+      return $input->paidByCheck && $input->markAsPaid;
     });
 
     if($validator->fails()){

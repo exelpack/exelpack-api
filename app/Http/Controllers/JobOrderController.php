@@ -158,13 +158,17 @@ class JobOrderController extends LogsController
         $q->latest();
     }
     //return
-		$result = $q->paginate(1000);
-		return response()->json([
-			'openItems' => $result->items(),
-			'openItemsLength' => $result->total(),
-      'customers' => $this->getCustomers(),
-		]);
+    $isFullLoad = request()->has('start') && request()->has('end');
+    if($isFullLoad)
+      $list = $q->offset(request()->start)->limit(request()->end)->get();
+    else 
+      $list = $q->paginate(1000);
 
+    return response()->json([
+      'openItemsLength' => $isFullLoad ? intval(request()->end) : $list->total(),
+      'openItems' => $isFullLoad ? $list : $list->items(),
+      'customers' => $this->getCustomers(),
+    ]);
 	}
 
 	public function joArray($val)
@@ -333,14 +337,17 @@ class JobOrderController extends LogsController
 			$q->orderBy('jo_joborder','ASC');
 		}
 
-		$joResult = $q->paginate(1000);
-		return response()->json(
-			[
-				'joList' => $joResult->items(),
-				'joListLength' => $joResult->total(),
-        'customers' => $this->getCustomers(),
-			]);
+    $isFullLoad = request()->has('start') && request()->has('end');
+    if($isFullLoad)
+      $list = $q->offset(request()->start)->limit(request()->end)->get();
+    else 
+      $list = $q->paginate(1000);
 
+    return response()->json([
+      'joListLength' => $isFullLoad ? intval(request()->end) : $list->total(),
+      'joList' => $isFullLoad ? $list : $list->items(),
+      'customers' => $this->getCustomers(),
+    ]);
 	}
 
 	public function fetchJoSeries()

@@ -16,7 +16,6 @@ class UserController extends Controller
 {
 	public function login(Request $request,$sys)
 	{
-		
 		$username = $request->username;
 		$password = $request->password;
     if($sys === 'cposms')
@@ -37,15 +36,17 @@ class UserController extends Controller
       $access = 'purchasesms_access';
     else if($sys === 'approvalpr')
       $access = 'approval_pr';
-    else if($sys === 'approvapo')
-      $access = 'approval_po';
     else {
       return response()->json(
         [
           'error' => ['Invalid access']
         ],422);
     }
-    $user = User::where([ [$access,1] , ['username', $username] ])->first();
+
+    if($sys === 'pmms')
+      $user = User::where('username', $username)->first();
+    else
+      $user = User::where([ [$access,1] , ['username', $username] ])->first();
 		// return $user;
     if ($user && Hash::check($request->password, $user->password)){ // The passwords match...
     	$token = JWTAuth::fromUser($user);
@@ -56,11 +57,11 @@ class UserController extends Controller
         'action' => 'Logged in',
         'system' => $sys,
       ]);
-     return response()->json(['success' => true, 'message' => 'Login Success', 'access_token' => $token,'token_type' => 'Bearer',
+     return response()->json(['message' => 'Login Success', 'access_token' => $token,'token_type' => 'Bearer',
       'expires_in' => auth('api')->factory()->getTTL() * 60 ]);
    }
 
-   return response()->json(['success' => false, 'message' => 'Invalid username or password'],401);
+   return response()->json(['message' => 'Invalid username or password'],401);
 
  }
 
