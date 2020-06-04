@@ -15,7 +15,7 @@ class CreateCPOSMSPurchaseOrderItem extends Migration
     {
         Schema::create('cposms_purchaseorderitem', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->integer('poi_po_id')->integer();
+            $table->integer('poi_po_id');
             $table->string('poi_code',50);
             $table->string('poi_partnum',50);
             $table->string('poi_itemdescription',150);
@@ -23,7 +23,7 @@ class CreateCPOSMSPurchaseOrderItem extends Migration
             $table->string('poi_unit',30);
             $table->double('poi_unitprice',30);
             $table->date('poi_deliverydate');
-            $table->string('poi_kpi',20)->nullable();
+            $table->string('poi_kpi',20);
             $table->string('poi_others',60)->nullable();
             $table->string('poi_remarks',100)->nullable();
             $table->timestamps();
