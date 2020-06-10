@@ -24,6 +24,7 @@ use App\Exports\AccountingPayablesSummary;
 class PurchasesController extends Controller
 { 
 
+  private $validator = array();
   private $monthsArray = array(
     'jan' => 1,
     'feb' => 2,
@@ -38,6 +39,33 @@ class PurchasesController extends Controller
     'nov' => 11,
     'dec' => 12,
   );
+
+  public function __construct(){
+    $this->validator = array(
+        'dateReceived' => 'date|required|before_or_equal:'.date('Y-m-d'),
+        'datePurchased' => 'date|required|before_or_equal:'.date('Y-m-d'),
+        'supplier' => 'integer|required|min:1',
+        'accounts' => 'integer|required|min:1',
+        'invoice' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'deliveryReceipt' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseOrderNo' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
+        'purchaseRequestNo' => 'string|nullable|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
+        'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
+        'quantity' => 'numeric|required|min:1',
+        'unit' => 'string|required|min:1|max:50',
+        'unitPrice' => 'numeric|required|min:0',
+        'withHoldingTax' => 'numeric|min:0|max:100|nullable',//ap validation
+        'officialReceipt' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:markAsPaid,true
+          |nullable',
+        'paidByCheck' => 'boolean',
+        'markAsPaid' => 'boolean',
+        'bankName' => 'string|nullable|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
+        'checkNo' => 'string|nullable|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
+        'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
+        'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
+        'withUnreleasedCheck' => 'boolean'
+      );
+  }
 
   //export
   public function exportBirMonthly() {
@@ -240,31 +268,7 @@ class PurchasesController extends Controller
   }
 
   public function addItem(Request $request) {
-    $validator = Validator::make($request->all(),
-      array(
-        'dateReceived' => 'date|required|before_or_equal:'.date('Y-m-d'),
-        'datePurchased' => 'date|required|before_or_equal:'.date('Y-m-d'),
-        'supplier' => 'integer|required|min:1',
-        'accounts' => 'integer|required|min:1',
-        'invoice' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'deliveryReceipt' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'purchaseOrderNo' => 'string|nullable|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'purchaseRequestNo' => 'string|nullable|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
-        'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
-        'quantity' => 'numeric|required|min:1',
-        'unit' => 'string|required|min:1|max:50',
-        'unitPrice' => 'numeric|required|min:0',
-        'withHoldingTax' => 'numeric|min:0|max:100|nullable',//ap validation
-        'officialReceipt' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:markAsPaid,true
-          |nullable',
-        'paidByCheck' => 'boolean',
-        'markAsPaid' => 'boolean',
-        'bankName' => 'string|nullable|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
-        'checkNo' => 'string|nullable|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|nullable',
-        'paymentDate' => 'date|required_if:paidByCheck,true|before_or_equal:'.date('Y-m-d'),
-        'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
-        'withUnreleasedCheck' => 'boolean'
-      ),
+    $validator = Validator::make($request->all(),$this->validator,
       [],
       array('isInvoiceRequired' => 'invoice required')
     );
@@ -313,33 +317,7 @@ class PurchasesController extends Controller
   public function updatedItem(Request $request, $id) {
     $item = AccountingPurchasesItems::findOrFail($id);
 
-    $validator = Validator::make($request->all(),
-      array(
-        'dateReceived' => 'date|required|before_or_equal:'.date('Y-m-d'),
-        'datePurchased' => 'date|required|before_or_equal:'.date('Y-m-d'),
-        'supplier' => 'integer|required|min:1',
-        'accounts' => 'integer|required|min:1',
-        'invoice' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'deliveryReceipt' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'purchaseOrderNo' => 'string|required_if:isInvoiceRequired,true|min:3|max:50|regex:/^[a-zA-Z0-9 _-]*$/',
-        'purchaseRequestNo' => 'string|min:3|max:50|nullable|regex:/^[a-zA-Z0-9 _-]*$/',
-        'particular' => 'string|required|min:1|max:150|regex:/^[a-zA-Z0-9 '."'".'"_-]*$/',
-        'quantity' => 'numeric|required|min:1',
-        'unit' => 'string|required|min:1|max:50',
-        'unitPrice' => 'numeric|required|min:0',
-        'withHoldingTax' => 'numeric|min:0|max:100|nullable',//ap validation
-        'officialReceipt' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:markAsPaid,true
-          |nullable',
-        'paidByCheck' => 'boolean',
-        'bankName' => 'string|max:100|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
-          |required_if:markAsPaid,true|nullable',
-        'checkNo' => 'string|max:50|regex:/^[a-zA-Z0-9-_ ]*$/|required_if:paidByCheck,true
-          |required_if:markAsPaid,true|nullable',
-        'paymentDate' => 'date|required_if:paidByCheck,true|nullable
-          |before_or_equal:'.date('Y-m-d'),
-        'currency' => 'string|min:1|max:3|in:PHP,USD,php,usd|required',
-        'withUnreleasedCheck' => 'boolean'
-      ),
+    $validator = Validator::make($request->all(),$this->validator,
       [],
       array('isInvoiceRequired' => 'invoice required')
     );
@@ -356,7 +334,6 @@ class PurchasesController extends Controller
     }
 
     $item->fill($this->itemInputArray($request));
-
     if($item->isDirty()){
       $item->save();
     }

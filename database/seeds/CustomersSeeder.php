@@ -11,6 +11,8 @@ class CustomersSeeder extends Seeder
      */
     public function run()
     {
+      $faker = Faker\Factory::create();
+
       factory(App\Customers::class, 30)->create();
       for ($i=1; $i <= 30; $i++) { 
         App\Masterlist::create(

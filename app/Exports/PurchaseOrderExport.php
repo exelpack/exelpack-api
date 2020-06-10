@@ -73,10 +73,23 @@ class PurchaseOrderExport implements FromArray, WithHeadings
         $q->whereYear('po_date', request()->year);
       }
 
-      $po = $q->latest()
-        ->limit(request()->has('recordCount') ? request()->recordCount : 500)
-        ->get()
-        ->toArray();
+      if(request()->has('search')){
+      $q->where('po_ponum', 'LIKE' ,'%'.request()->search.'%');
+    }
+
+    $sort = strtolower(request()->sort) ?? '';
+    if($sort == 'date-asc')
+      $q->orderBy('po_date', 'ASC');
+    else if($sort == 'date-desc')
+      $q->orderBy('po_date', 'DESC');
+    else if($sort == 'latest')
+      $q->latest('cposms_purchaseorder.id');
+    else if($sort == 'oldest')
+      $q->oldest('cposms_purchaseorder.id');
+
+    $po = $q->latest()
+      ->get()
+      ->toArray();
 
     	return $po;
     }

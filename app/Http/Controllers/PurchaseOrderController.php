@@ -278,15 +278,32 @@ class PurchaseOrderController extends LogsController
       $q->whereYear('po_date', request()->year);
     }
 
-    $poList = $q->latest('id')
-      ->limit(request()->has('recordCount') ? request()->recordCount : 500)
-      ->get();
+    if(request()->has('search')){
+      $q->where('po_ponum', 'LIKE' ,'%'.request()->search.'%');
+    }
+
+    $sort = strtolower(request()->sort) ?? '';
+    if($sort == 'date-asc')
+      $q->orderBy('po_date', 'ASC');
+    else if($sort == 'date-desc')
+      $q->orderBy('po_date', 'DESC');
+    else if($sort == 'latest')
+      $q->latest('cposms_purchaseorder.id');
+    else if($sort == 'oldest')
+      $q->oldest('cposms_purchaseorder.id');
+
+    $isFullLoad = request()->has('start') && request()->has('end');
+    if($isFullLoad)
+      $list = $q->offset(request()->start)->limit(request()->end)->get();
+    else 
+      $list = $q->paginate(1000);
 
     return response()->json(
       [
-        'poLength' => count($poList),
-        'po' => $poList,
-      ]);
+        'poLength' => $isFullLoad ? intval(request()->end) : $list->total(),
+        'po' => $isFullLoad ? $list : $list->items(),
+      ]
+    );
 	}
 
   public function getPoItems($id)
@@ -360,18 +377,41 @@ class PurchaseOrderController extends LogsController
         $q->whereRaw('IFNULL(delivery.totalDelivered,0) < poi_quantity');
     }
 
+    if(request()->has('search')){
+      $search = "%".request()->search."%";
+      $q->whereRaw('po.po_ponum like ?', array($search))
+        ->whereRaw('poi_code like ?', array($search))
+        ->whereRaw('poi_itemdescription like ?', array($search))
+        ->whereRaw('poi_partnum like ?', array($search));
+    }
+
     if(request()->has('deliveryDue')){
       $dateFilter = Carbon::now()->addDays(request()->deliveryDue);
       $q->whereDate('poi_deliverydate','<=', $dateFilter);
     }
 
-    $poItems = $q->latest('id')
-      ->limit(request()->has('recordCount') ? request()->recordCount : 500)
-      ->get();
+    $sort = strtolower(request()->sort) ?? '';
+    if($sort == 'date-asc')
+      $q->orderBy('poi_deliverydate', 'ASC');
+    else if($sort == 'date-desc')
+      $q->orderBy('poi_deliverydate', 'DESC');
+    else if($sort == 'latest')
+      $q->latest('cposms_purchaseorderitem.id');
+    else if($sort == 'oldest')
+      $q->oldest('cposms_purchaseorderitem.id');
+
+    $isFullLoad = request()->has('start') && request()->has('end');
+    if($isFullLoad)
+      $list = $q->offset(request()->start)->limit(request()->end)->get();
+    else 
+      $list = $q->paginate(1000);
+
     return response()->json(
       [
-        'poItems' => $poItems,
-      ]);
+        'poItemsLength' => $isFullLoad ? intval(request()->end) : $list->total(),
+        'poItems' => $isFullLoad ? $list : $list->items(),
+      ]
+    );
 	}
 
 	public function createPurchaseOrder(Request $request){

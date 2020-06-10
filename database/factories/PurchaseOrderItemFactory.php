@@ -4,6 +4,7 @@
 
 use App\PurchaseOrderItems;
 use Faker\Generator as Faker;
+use Carbon\Carbon;
 
 $factory->define(PurchaseOrderItems::class, function (Faker $faker) {
   $date = new Carbon();

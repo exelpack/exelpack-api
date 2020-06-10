@@ -78,8 +78,30 @@ class PurchaseOrderItemExport implements FromArray, WithHeadings
       $q->whereDate('poi_deliverydate','<=', $dateFilter);
     }
 
+    if(request()->has('search')){
+      $search = "%".request()->search."%";
+      $q->whereRaw('po.po_ponum like ?', array($search))
+        ->whereRaw('poi_code like ?', array($search))
+        ->whereRaw('poi_itemdescription like ?', array($search))
+        ->whereRaw('poi_partnum like ?', array($search));
+    }
+
+    if(request()->has('deliveryDue')){
+      $dateFilter = Carbon::now()->addDays(request()->deliveryDue);
+      $q->whereDate('poi_deliverydate','<=', $dateFilter);
+    }
+
+    $sort = strtolower(request()->sort) ?? '';
+    if($sort == 'date-asc')
+      $q->orderBy('poi_deliverydate', 'ASC');
+    else if($sort == 'date-desc')
+      $q->orderBy('poi_deliverydate', 'DESC');
+    else if($sort == 'latest')
+      $q->latest('cposms_purchaseorderitem.id');
+    else if($sort == 'oldest')
+      $q->oldest('cposms_purchaseorderitem.id');
+
     $poItems = $q->latest()
-      ->limit(request()->has('recordCount') ? request()->recordCount : 500)
       ->get()
       ->toArray();
 
