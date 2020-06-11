@@ -820,27 +820,47 @@ class PurchaseOrderController extends LogsController
 
 	public function getOpenItems()
 	{
-
-		$q = PurchaseOrderItems::query();
-		$q->has('po'); //fetch item with po only
 		$date = request()->date;
+    $pod = DB::table('cposms_poitemdelivery')->select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
+      as totalDelivered'),'poidel_item_id',DB::raw('count(*) as deliveryCount'))->groupBy('poidel_item_id');
 
-		$sub = PurchaseOrderDelivery::select(DB::raw('sum(poidel_quantity + poidel_underrun_qty) 
-			as totalDelivered'),'poidel_item_id')->groupBy('poidel_item_id');
+    $po = DB::table('cposms_purchaseorder')->select('id', 'po_ponum', 'po_currency', 'po_customer_id')
+      ->groupBy('id');
 
-		$q->from('cposms_purchaseorderitem')
-		->leftJoinSub($sub,'delivery',function ($join){
-			$join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');				
-		});
+    $customer = DB::table('customer_information')->select('id', 'companyname')
+      ->groupBy('id');
 
-		$q->whereDoesntHave('schedule', function($q) use ($date){
-			$q->where('pods_scheduledate', $date);
-		});
+    $q = PurchaseOrderItems::has('po')
+      ->leftJoinSub($pod, 'delivery',function ($join){
+        $join->on('cposms_purchaseorderitem.id','=','delivery.poidel_item_id');       
+      })
+      ->leftJoinSub($po, 'po', function($join){
+        $join->on('po.id','=','cposms_purchaseorderitem.poi_po_id');    
+      })
+      ->leftJoinSub($customer, 'customer', function($join){
+        $join->on('customer.id','=','po.po_customer_id');    
+      });
 
-		$q->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
-		$itemResult = $q->get();
-		$openItems = $this->getItems($itemResult);
+    $q->whereDoesntHave('schedule', function($q) use ($date){
+      $q->where('pods_scheduledate', $date);
+    });
 
+    $q->select(
+      'cposms_purchaseorderitem.id as id',
+      'customer.companyname as customer',
+      'po.po_ponum as po_num',
+      'poi_code as code',
+      'poi_partnum as partnum',
+      'poi_itemdescription as itemdesc',
+      'poi_quantity as quantity',
+      'poi_unit as unit',
+      'po.po_currency as currency',
+      'poi_unitprice as unitprice',
+      'poi_deliverydate as deliverydate',
+      DB::raw('IFNULL(delivery.totalDelivered,0) as delivered_qty')
+    )
+      ->whereRaw('poi_quantity > IFNULL(totalDelivered,0)');
+    $openItems =  $q->get();
 		return response()->json(
 			[
 				'openItems' => $openItems
@@ -958,9 +978,7 @@ class PurchaseOrderController extends LogsController
 
 			array_push($addedItems,$this->getSchedule($newItem));
 			array_push($addedItemKeys,$newItem->pods_item_id);
-
 		}
-
 
 		if(count($addedItemKeys) > 0){
 			$this->logPoDeliveryCreateAndDelete($date,$previousCount,count($addedItemKeys),"Added");

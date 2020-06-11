@@ -17,10 +17,12 @@ class PoEmailNotification extends Mailable
      * @return void
      */
     protected $poDetails;
+    protected $company;
 
-    public function __construct($poDetails)
+    public function __construct($poDetails, $company)
     {
         $this->poDetails = $poDetails;
+        $this->company = $company;
     }
 
     /**
@@ -31,7 +33,7 @@ class PoEmailNotification extends Mailable
     public function build()
     {
         return $this->view('mail.poEmailNotification')
-            ->subject("EXELPACK NEW PURCHASE ORDER FROM ".$this->poDetails->customer)
+            ->subject($this->company." NEW PURCHASE ORDER FROM ".$this->poDetails->customer)
             ->with([
                 'poDetails' => $this->poDetails
             ]);

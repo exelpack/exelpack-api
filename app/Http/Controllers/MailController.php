@@ -128,9 +128,9 @@ class MailController extends Controller
 				'before' => '---',
 				'after' => '---',
 			]);
-
+    $company = request()->company ?? 'COMPANY NOT DEFINED';
 		Mail::to($emails)
-		->send(new PoEmailNotification($poDetails));
+		  ->send(new PoEmailNotification($poDetails, $company));
 
 		return response()->json(
 			[
