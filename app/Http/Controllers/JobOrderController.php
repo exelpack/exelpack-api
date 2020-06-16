@@ -427,15 +427,11 @@ class JobOrderController extends LogsController
 			$origVal = $jo->getOriginal();
 			$dirtyVal = $jo->getDirty();
 			if(array_key_exists('jo_forwardToWarehouse',$jo->getDirty())){
-
 				$origVal['jo_forwardToWarehouse'] = str_replace([1,0],['Yes','No'],$origVal['jo_forwardToWarehouse']);
 				$dirtyVal['jo_forwardToWarehouse'] = str_replace([1,0],['Yes','No'],$dirtyVal['jo_forwardToWarehouse']);
 			}
-
 			$this->logJoEdit($dirtyVal,$origVal,$request->jo_num);
-
 		}
-
 		$jo->save();
 
 		$get_jos = PurchaseOrderItems::findOrFail($request->item_id)->jo()->get(); //to update all remaining jos available qty
@@ -443,7 +439,8 @@ class JobOrderController extends LogsController
 
 		return response()->json(
 			[
-				'updatedJos' => $updatedJos
+				'updatedJos' => $updatedJos,
+        'message' => 'Record updated',
 			]);
 
 	}

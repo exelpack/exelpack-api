@@ -10,12 +10,15 @@ use App\Inventory;
 use App\InventoryIncoming;
 use App\InventoryOutgoing;
 use App\InventoryLocation;
+use App\PurchaseRequestItems;
 
 use Carbon\Carbon;
 use Validator;
 use DB;
+use Excel;
 
 use App\Http\Controllers\LogsController;
+use App\Exports\InventoryExport;
 
 class InventoryController extends LogsController
 {
@@ -23,11 +26,10 @@ class InventoryController extends LogsController
 		'mspecs' => 'required|string|max:255',
 		'itemdesc' => 'required|string|max:255',
 		'partnum' => 'required|string|max:150',
-		'unitprice' => 'nullable|numeric|min:1',
 		'unit' => 'nullable|string|max:50',
 		'quantity' => 'nullable|integer|min:1',
 		'min' => 'nullable|integer|min:1',
-		'max' => 'nullable|integer|min:1',
+		'max' => 'nullable|integer|min:min',
 	);
 
 	private $inventoryName = array(
@@ -37,21 +39,25 @@ class InventoryController extends LogsController
 		'unitprice' => 'Unit price',
 	);
 
+  public function exportInventory(Request $request){
+    return Excel::download(new InventoryExport, 'inventory.xlsx');
+  }
+
 	public function getMasterlistItems()
 	{
 
 		$masterlist = Masterlist::select(
-			'id',
-			'm_mspecs as mspecs',
-			'm_projectname as itemdesc',
-			'm_partnumber as partnum',
-			'm_code as code',
-			'm_unit as unit',
-			'm_requiredquantity as requiredQty',
-			'm_outs as outs',
-			'm_unitprice as unitprice',
-			'm_remarks as remarks')
-		->get();
+  			'id',
+  			'm_mspecs as mspecs',
+  			'm_projectname as itemdesc',
+  			'm_partnumber as partnum',
+  			'm_code as code',
+  			'm_unit as unit',
+  			'm_requiredquantity as requiredQty',
+  			'm_outs as outs',
+  			'm_unitprice as unitprice',
+  			'm_remarks as remarks')
+  		->get();
 
 		return response()->json(
 			[
@@ -76,7 +82,6 @@ class InventoryController extends LogsController
 			'partnum' => $item->i_partnumber,
 			'code' => $item->i_code,
 			'unit' => $item->i_unit,
-			'unitprice' => $item->i_unitprice,
 			'quantity' => $item->i_quantity,
 			'min' => $item->i_min,
 			'max' => $item->i_max,
@@ -94,7 +99,6 @@ class InventoryController extends LogsController
 	{
 
 		$inventory = Inventory::orderBy('i_quantity','desc')->get();
-		$items_arr = array();
 		$inv = $inventory->map(function($item,$key) {
 			return $this->getInventoryItem($item);
 		})->all();
@@ -129,7 +133,6 @@ class InventoryController extends LogsController
 				'i_projectname' => $request->itemdesc,
 				'i_partnumber' => $request->partnum,
 				'i_code' => $request->code,
-				'i_unitprice' => $request->unitprice,
 				'i_unit' => $request->unit,
 				'i_quantity' => $request->quantity,
 				'i_min' => $request->min,
@@ -169,7 +172,6 @@ class InventoryController extends LogsController
 				'i_projectname' => $request->itemdesc,
 				'i_partnumber' => $request->partnum,
 				'i_code' => $request->code,
-				'i_unitprice' => $request->unitprice,
 				'i_unit' => $request->unit,
 				'i_quantity' => $request->quantity,
 				'i_min' => $request->min,
@@ -178,6 +180,7 @@ class InventoryController extends LogsController
 
 		if($inventory->isDirty()){
 			$inventory->save();
+      $this->logEditInventoryItem($inventory->getDirty(),$inventory->getOriginal());
 		}
 		$newItem = $this->getInventoryItem($inventory);
 		return response()->json(
@@ -185,7 +188,6 @@ class InventoryController extends LogsController
 				'newItem' => $newItem,
 				'message' => 'Record updated'
 			]);
-
 	}
 
 	public function deleteInventoryItem($id)

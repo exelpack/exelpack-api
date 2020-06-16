@@ -119,7 +119,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/inventory/option/masterlist', 'InventoryController@getMasterlistItems');
 		Route::get('/inventory/option/joborder', 'InventoryController@getJobOrders');
 
-		Route::get('/inventory', 'InventoryController@getInventoryItems');
+    Route::get('/inventory', 'InventoryController@getInventoryItems');
+		Route::get('/inventory/export', 'InventoryController@exportInventory');
 		Route::post('/inventory', 'InventoryController@createInvetoryItem');
 		Route::put('/inventory/{id}', 'InventoryController@editInventoryItem');
 		Route::delete('/inventory/{id}', 'InventoryController@deleteInventoryItem');

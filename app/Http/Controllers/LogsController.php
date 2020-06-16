@@ -537,7 +537,6 @@ class LogsController extends Controller
 			'itemdesc' => 'Item description',
 			'partnum'  => 'Part number',
 			'code' => 'Code',
-			'unitprice' => 'Unit price',
 			'unit' => 'Unit',
 			'quantity' => 'Quantity',
 			'min' => 'Min',
