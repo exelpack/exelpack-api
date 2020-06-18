@@ -133,9 +133,13 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/inventory/outgoing','InventoryController@createInventoryOutgoing');
 		Route::delete('/inventory/outgoing/{id}','InventoryController@deleteOutgoing');
 
-		Route::get('/inventory/locations', 'InventoryController@getLocation');
-		Route::post('/inventory/locations', 'InventoryController@addLocation');
-		Route::delete('/inventory/locations/{id}', 'InventoryController@removeLocation');
+		Route::get('/inventory/locations', 'InventoryController@getLocations');
+    Route::post('/inventory/locations', 'InventoryController@addLocation');
+    Route::put('/inventory/locations/{id}', 'InventoryController@updateLocation');
+    Route::delete('/inventory/locations/{id}', 'InventoryController@deleteLocation');
+
+		Route::post('/inventory/item/locations', 'InventoryController@addLocationToInventory');
+		Route::delete('/inventory/item/locations/{id}', 'InventoryController@removeLocationToInventory');
 		//prms(wh)
 		Route::get('/prms/jolist', 'PurchaseRequestController@getJobOrders');
 		Route::get('/prms/pr/{id}', 'PurchaseRequestController@getPrItemDetails');

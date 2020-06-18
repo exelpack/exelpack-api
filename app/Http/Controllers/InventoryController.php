@@ -518,51 +518,99 @@ class InventoryController extends LogsController
 
 	}
 
-	public function getLocation()
+  public function addLocationToInventory(Request $request){
+    $inventory = Inventory::findOrFail($request->id);
+    $inventory->locations()->attach($request->locId);
+    $newItem = $this->getInventoryItem($inventory);
+
+    return response()->json(
+      [
+        'newItem' => $newItem,
+        'message' => 'Record updated'
+      ]);
+  }
+
+  public function removeLocationToInventory($id)
+  {
+    if(!request()->has('locId'))
+      return response()->json(['errors' => ['Location id parameter required']]);
+
+    $inventory = Inventory::findOrFail($id);
+    $inventory->locations()->detach(request()->locId);
+    $newItem = $this->getInventoryItem($inventory);
+
+    return response()->json(
+      [
+        'newItem' => $newItem,
+        'message' => 'Record deleted'
+      ]);
+  }
+
+	public function getLocations()
 	{
 
-		$location = InventoryLocation::get()->map(function($loc,$key){
+		$location = InventoryLocation::get()->map(function($loc){
 			return array(
 				'key' => $loc->id,
-				'label' => $loc->loc_description
+				'label' => $loc->loc_description,
+        'x' => $loc->loc_x,
+        'y' => $loc->loc_y,
+        'width' => $loc->loc_width,
+        'height' => $loc->loc_height,
 			);	
 		});
 
-		return response()->json(
-			[
-				'locations' => $location
-			]);
+		return response()->json([
+			'locations' => $location
+		]);
 	}
 
 	public function addLocation(Request $request)
 	{
+    // $location = new InventoryLocation;
+    // $location->fill([
+    //   ''
+    // ]);
+		// $inventory = Inventory::findOrFail($request->id);
+		// $inventory->locations()->attach($request->locId);
+		// $newItem = $this->getInventoryItem($inventory);
 
-		$inventory = Inventory::findOrFail($request->id);
-		$inventory->locations()->attach($request->locId);
-		$newItem = $this->getInventoryItem($inventory);
-
-		return response()->json(
-			[
-				'newItem' => $newItem,
-				'message' => 'Record updated'
-			]);
-
+		// return response()->json(
+		// 	[
+		// 		'newItem' => $newItem,
+		// 		'message' => 'Record updated'
+		// 	]);
 	}
+
+  public function updateLocation(Request $request, $id)
+  {
+    
+    // $inventory = Inventory::findOrFail($request->id);
+    // $inventory->locations()->attach($request->locId);
+    // $newItem = $this->getInventoryItem($inventory);
+
+    // return response()->json(
+    //  [
+    //    'newItem' => $newItem,
+    //    'message' => 'Record updated'
+    //  ]);
+
+  }
 
 	public function removeLocation($id)
 	{
-		if(!request()->has('locId'))
-			return response()->json(['errors' => ['Location id parameter required']]);
+		// if(!request()->has('locId'))
+		// 	return response()->json(['errors' => ['Location id parameter required']]);
 
-		$inventory = Inventory::findOrFail($id);
-		$inventory->locations()->detach(request()->locId);
-		$newItem = $this->getInventoryItem($inventory);
+		// $inventory = Inventory::findOrFail($id);
+		// $inventory->locations()->detach(request()->locId);
+		// $newItem = $this->getInventoryItem($inventory);
 
-		return response()->json(
-			[
-				'newItem' => $newItem,
-				'message' => 'Record deleted'
-			]);
+		// return response()->json(
+		// 	[
+		// 		'newItem' => $newItem,
+		// 		'message' => 'Record deleted'
+		// 	]);
 	}
 
 }

@@ -13,11 +13,15 @@ class CreateLocationTable extends Migration
      */
     public function up()
     {
-        Schema::create('wims_locations', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->string('loc_description',50);
-            $table->timestamps();
-        });
+      Schema::create('wims_locations', function (Blueprint $table) {
+        $table->bigIncrements('id');
+        $table->string('loc_description',50);
+        $table->double('loc_x');
+        $table->double('loc_y');
+        $table->integer('loc_width');
+        $table->integer('loc_height');
+        $table->softDeletes();
+      });
     }
 
     /**

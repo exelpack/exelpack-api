@@ -172,14 +172,32 @@ class PurchaseRequestController extends LogsController
 			'status' => $pr->prpricing()->count() > 0 ? 'W/ PRICE' : 'NO PRICE',
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
-				return $this->getPrItems($data);
-			}),
-		);
-
+  				return $this->getPrItems($data);
+  			}),
+      'outgoingList' => $pr->jo->outgoing()->get()->map(function($outgoing) {
+        return array(
+          'id' => $outgoing->id,
+          'materialSpecs' => $outgoing->inventory->i_mspecs,
+          'code' => $outgoing->inventory->i_code,
+          'date' => $outgoing->out_date,
+          'mrNum' => $outgoing->out_mr_num,
+          'quantity' => $outgoing->out_quantity,
+        );
+      }),
+    );
+      
 	}
 
 	public function getPrItems($item)
 	{
+    $delivered = 0;
+
+    if($item->pr->prpricing)
+      $delivered = $item->pr->prpricing->po->poitems()
+        ->where('spoi_mspecs', $item->pri_mspecs)
+        ->first()
+        ->invoice()
+        ->sum('ssi_receivedquantity');
 
 		return array(
 			'id' => $item->id,
@@ -188,9 +206,9 @@ class PurchaseRequestController extends LogsController
 			'mspecs' => $item->pri_mspecs,
 			'unit' => $item->pri_uom,
 			'quantity' => $item->pri_quantity,
-			'remarks' => $item->pri_remarks
+			'remarks' => $item->pri_remarks,
+      'delivered' => intval($delivered),
 		);
-
 	}
 
 	public function getPrList()
@@ -235,7 +253,6 @@ class PurchaseRequestController extends LogsController
 				$q->where('pr_forPricing',0);
 
 		}
-
 
 		if($sort == 'desc'){
 			$q->orderBy('id','DESC');
@@ -293,40 +310,43 @@ class PurchaseRequestController extends LogsController
 				'errors' => ['Code parameter is required']
 			],422);
 		}
-		$code = request()->code;
-		$joQty = JobOrder::findOrFail($id)->jo_quantity;
+    $code = request()->code;
+    $jobOrder = JobOrder::findOrFail($id);
+		$joQty = $jobOrder->jo_quantity;
+
 		$prItems = PurchaseRequestItems::whereHas('pr',function($q) use ($id){
-			$q->where('pr_jo_id',$id);	
-		})
-		->get()
-		->map(function($data) {
-			return $this->getPrItems($data);
-		});
+  			$q->where('pr_jo_id',$id);	
+  		})
+  		->get()
+  		->map(function($data) {
+  			return $this->getPrItems($data);
+  		});
 
 		$items = Masterlist::where('m_code','LIKE','%'.$code."%")
-		->get()
-		->reject(function($data) {
-			$countDash = count(explode("-",$data->m_code)) - 1;
-			return $countDash < 2;
-		})
-		->map(function($data) use($joQty) {
-			return array(
-				'id' => $data->id,
-				'code' => $data->m_code,
-				'mspecs' => $data->m_mspecs,
-				'quantity' => ($joQty * $data->m_requiredquantity) / $data->m_outs,
-				'requiredQty' => $data->m_requiredquantity,
-				'unit' => $data->m_unit,
-				'outs' => $data->m_outs,
-				'remarks' => $data->m_remarks,
-			);
+  		->get()
+  		->reject(function($data) {
+  			$countDash = count(explode("-",$data->m_code)) - 1;
+  			return $countDash < 2;
+  		})
+  		->map(function($data) use($joQty) {
+  			return array(
+  				'id' => $data->id,
+  				'code' => $data->m_code,
+  				'mspecs' => $data->m_mspecs,
+  				'quantity' => number_format(($joQty * $data->m_requiredquantity) / $data->m_outs, 2, '.',''),
+  				'requiredQty' => $data->m_requiredquantity,
+  				'unit' => $data->m_unit,
+  				'outs' => $data->m_outs,
+  				'remarks' => $data->m_remarks,
+  			);
 
-		})->values();
+  		})->values();
 		return response()->json(
 			[
 				'pr_series' => $this->fetchPrSeries(),
 				'prItemList' => $prItems,
 				'items' => $items,
+        'outgoingList' => $outgoingList,
 			]);
 	}
 
