@@ -135,6 +135,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 		Route::get('/inventory/locations', 'InventoryController@getLocations');
     Route::post('/inventory/locations', 'InventoryController@addLocation');
+    Route::post('/inventory/locations/map', 'InventoryController@updateLocationMapDetails');
     Route::put('/inventory/locations/{id}', 'InventoryController@updateLocation');
     Route::delete('/inventory/locations/{id}', 'InventoryController@deleteLocation');
 

@@ -87,7 +87,7 @@ class InventoryController extends LogsController
 			'max' => $item->i_max,
 			'locations' => $item->locations()->get()->map(function($loc,$key){
 				return array(
-					'key' => strval($loc->id),
+					'id' => strval($loc->id),
 					'label' => $loc->loc_description
 				);
 			}),
@@ -546,71 +546,122 @@ class InventoryController extends LogsController
       ]);
   }
 
+  protected function getLocation($location){
+    return array(
+      'id' => $location->id,
+      'label' => $location->loc_description,
+      'x_position' => $location->loc_x,
+      'y_position' => $location->loc_y,
+      'width' => $location->loc_width,
+      'height' => $location->loc_height,
+      'showOnMap' => $location->loc_showOnMap,
+      'itemsCount' => $location->inventory()->count()
+    );
+  }
+
 	public function getLocations()
 	{
 
 		$location = InventoryLocation::get()->map(function($loc){
-			return array(
-				'key' => $loc->id,
-				'label' => $loc->loc_description,
-        'x' => $loc->loc_x,
-        'y' => $loc->loc_y,
-        'width' => $loc->loc_width,
-        'height' => $loc->loc_height,
-			);	
+			return $this->getLocation($loc);
 		});
 
 		return response()->json([
 			'locations' => $location
-		]);
+		]);   
 	}
+
+  protected function inputLocation($input){
+    return array(
+      'loc_description' => $input->label,
+      'loc_showOnMap' => $input->showOnMap,
+    );
+  }
 
 	public function addLocation(Request $request)
 	{
-    // $location = new InventoryLocation;
-    // $location->fill([
-    //   ''
-    // ]);
-		// $inventory = Inventory::findOrFail($request->id);
-		// $inventory->locations()->attach($request->locId);
-		// $newItem = $this->getInventoryItem($inventory);
+    $validator = Validator::make($request->all(),
+      array(
+        'label' => 'string|max:50|min:1
+          |unique:wims_locations,loc_description|alpha_dash',
+        'showOnMap' => 'boolean|required',
+      )
+    );
 
-		// return response()->json(
-		// 	[
-		// 		'newItem' => $newItem,
-		// 		'message' => 'Record updated'
-		// 	]);
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()],422);
+
+    $location = new InventoryLocation;
+    $location->fill($this->inputLocation($request));
+    $location->save();
+    $location->refresh();
+		return response()->json(
+			[
+				'newLocation' => $this->getLocation($location),
+				'message' => 'Record added'
+			]
+    );
 	}
 
   public function updateLocation(Request $request, $id)
   {
+    $validator = Validator::make($request->all(),
+      array(
+        'label' => 'string|alpha_dash|max:50|min:1
+          |unique:wims_locations,loc_description,'.$id,
+        'showOnMap' => 'boolean|required',
+      )
+    );
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()],422);
     
-    // $inventory = Inventory::findOrFail($request->id);
-    // $inventory->locations()->attach($request->locId);
-    // $newItem = $this->getInventoryItem($inventory);
-
-    // return response()->json(
-    //  [
-    //    'newItem' => $newItem,
-    //    'message' => 'Record updated'
-    //  ]);
+    $location = InventoryLocation::findOrFail($id);
+    $location->fill($this->inputLocation($request));
+    $location->save();
+    return response()->json(
+      [
+        'newLocation' => $this->getLocation($location),
+        'message' => 'Record updated'
+      ]
+    );
 
   }
 
-	public function removeLocation($id)
+	public function deleteLocation($id)
 	{
-		// if(!request()->has('locId'))
-		// 	return response()->json(['errors' => ['Location id parameter required']]);
-
-		// $inventory = Inventory::findOrFail($id);
-		// $inventory->locations()->detach(request()->locId);
-		// $newItem = $this->getInventoryItem($inventory);
-
-		// return response()->json(
-		// 	[
-		// 		'newItem' => $newItem,
-		// 		'message' => 'Record deleted'
-		// 	]);
+    $location = InventoryLocation::findOrFail($id);
+    $location->delete();
+		return response()->json(
+      [
+        'message' => 'Record deleted'
+      ]
+    );
 	}
+
+  public function updateLocationMapDetails(Request $request)
+  {
+    $updatedLocations = array();
+    foreach($request->locations as $location) {
+      $loc = InventoryLocation::find($location['id']);
+
+      if(!$loc) continue;
+
+      $loc->fill([
+        'loc_x' => $location['x_position'],
+        'loc_y' => $location['y_position'],
+        'loc_width' => $location['width'],
+        'loc_height' => $location['height'],
+      ]);
+      $loc->save();
+      array_push($updatedLocations, $this->getLocation($loc));
+
+    }
+    return response()->json(
+      [
+        'locations' => $updatedLocations,
+        'message' => 'Map updated'
+      ]
+    );
+  }
 
 }
