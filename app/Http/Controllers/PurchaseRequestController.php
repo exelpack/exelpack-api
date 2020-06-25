@@ -191,13 +191,16 @@ class PurchaseRequestController extends LogsController
 	public function getPrItems($item)
 	{
     $delivered = 0;
+    $pricing = $item->pr->prpricing;
 
-    if($item->pr->prpricing)
-      $delivered = $item->pr->prpricing->po->poitems()
-        ->where('spoi_mspecs', $item->pri_mspecs)
-        ->first()
-        ->invoice()
-        ->sum('ssi_receivedquantity');
+    if($pricing)
+      $delivered = $pricing->po 
+          ? $pricing->po->poitems()
+              ->where('spoi_mspecs', $item->pri_mspecs)
+              ->first()
+              ->invoice()
+              ->sum('ssi_receivedquantity')
+          : 0;
 
 		return array(
 			'id' => $item->id,
@@ -346,7 +349,6 @@ class PurchaseRequestController extends LogsController
 				'pr_series' => $this->fetchPrSeries(),
 				'prItemList' => $prItems,
 				'items' => $items,
-        'outgoingList' => $outgoingList,
 			]);
 	}
 

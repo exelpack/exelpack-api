@@ -60,7 +60,6 @@ class UserController extends Controller
      return response()->json(['message' => 'Login Success', 'access_token' => $token,'token_type' => 'Bearer',
       'expires_in' => auth('api')->factory()->getTTL() * 60 ]);
    }
-
    return response()->json(['message' => 'Invalid username or password'],401);
 
  }

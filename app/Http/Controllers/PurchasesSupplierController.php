@@ -26,6 +26,8 @@ use App\SupplierInvoice;
 use App\Masterlist;
 use App\Supplier;
 use App\User;
+use App\JobOrder;
+use App\PurchaseOrderItems;
 
 use App\Exports\ExportSupplierPurchaseOrder;
 use App\Exports\ExportSupplierPurchaseOrderItems;
@@ -673,10 +675,8 @@ class PurchasesSupplierController extends LogsController
     if($list){
       return array(
         'id' => $list->id,
-        'key' => $list->pra_key,
         'approver' => $list->pra_approver_user,
         'otherInfo' => $list->pra_otherinfo,
-        'method' => $list->pra_approvalType,
         'isApproved' => $list->pra_approved,
         'isRejected' => $list->pra_rejected,
         'remarks' => $list->pra_remarks,
@@ -704,23 +704,11 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  private function generateRandomString() {
-    $input = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $input_length = strlen($input);
-    $random_string = '';
-    for($i = 0; $i < 100; $i++) {
-        $random_character = $input[mt_rand(0, $input_length - 1)];
-        $random_string .= $random_character;
-    }
-    return $random_string;
-  }
-
   public function addApprovalRequest(Request $request){
     $validator = Validator::make($request->all(),
       array(
         'price_id' => 'required|int',
         'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_id,null,id,pra_prs_id,'.$request->price_id,
-        'method' => 'required|string|in:LAN,ONLINE',
       ));
     if($validator->fails()){
       return response()->json(['errors' => $validator->errors()->all()],422);
@@ -733,16 +721,13 @@ class PurchasesSupplierController extends LogsController
 
     $approval = new PurchaseRequestApproval();
     $user = User::findOrFail($request->approver);
-    $key = $this->generateRandomString();
 
     $pr = $prSupplierDetails->pr;
     $approval->fill([
       'pra_prs_id' => $request->price_id,
-      'pra_key' => $key,
       'pra_approver_id' => $request->approver,
       'pra_approver_user' => $user->username,
       'pra_otherinfo' => $pr->jo->jo_joborder." - ". $pr->pr_prnum,
-      'pra_approvalType' => $request->method,
     ]);
     $approval->save();
     $this->logCreateAndRemovalOfApprovalRequest($pr->pr_prnum,
@@ -769,7 +754,6 @@ class PurchasesSupplierController extends LogsController
 
   //approval on pr
   public function getPendingPrList(){
-    $limit = request()->has('recordCount') ? request()->recordCount : 500;
     $userId = Auth()->user()->id;
     $pr = DB::table('prms_prlist')
       ->select('id','pr_jo_id','pr_prnum')
@@ -835,7 +819,7 @@ class PurchasesSupplierController extends LogsController
         'psms_prapprovaldetails.pra_remarks as remarks',
       ]);
 
-      $prList = $q->latest('id')->limit($limit)->get();
+      $prList = $q->latest('psms_prapprovaldetails.id')->get();
 
       return response()->json([
         'prList' => $prList,
@@ -844,10 +828,11 @@ class PurchasesSupplierController extends LogsController
 
   public function getPrDetails($id){
 
-    $prsd = PurchaseRequestSupplierDetails::findOrFail($id);
+    $prsd = PurchaseRequestSupplierDetails::whereHas('pr.jo.poitems.po')->findOrFail($id);
     $pr = $prsd->pr;
     $po = $pr->jo->poitems->po;
     $poitemId = $pr->jo->poitems->id;
+    $po_id = $po->id;
     $prItems = array();
     $poItems = array();
     $poDetails = array(
@@ -855,6 +840,7 @@ class PurchasesSupplierController extends LogsController
       'customerName' => $po->customer->companyname,
       'poDate' => $po->po_date,
     );
+
     foreach($pr->pritems as $item){
       $masterlist = Masterlist::where('m_code',$item->pri_code)->first();
       $costing = 'No match record';
@@ -882,6 +868,16 @@ class PurchasesSupplierController extends LogsController
 
     foreach($po->poitems as $row){
       $totalAmt = $row->poi_unitprice * $row->poi_quantity;
+      $masterlist = Masterlist::where('m_code',$row->poi_code)->first();
+
+      $budgetPriceTotal = 0;
+      $budgetPrice = 'No match record';
+
+      if($masterlist){
+        $budgetPrice = $masterlist->m_budgetprice != null ? $masterlist->m_budgetprice : 0;
+        $budgetPriceTotal = $budgetPrice * $row->poi_quantity;
+      }
+
       array_push($poItems, array(
         'id' => $row->id,
         'code' => $row->poi_code,
@@ -890,14 +886,56 @@ class PurchasesSupplierController extends LogsController
         'currency' => $row->po->po_currency,
         'unitPrice' => $row->poi_unitprice,
         'totalAmount' => strtoupper($po->po_currency) == 'USD' ? $totalAmt * 50 : $totalAmt,
-        'isMatchItem' => $poitemId == $row->id ? true : false,
+        'budgetPrice' => $budgetPrice,
+        'budgetPriceTotal' => strtoupper($po->po_currency) == 'USD' ? $budgetPriceTotal * 50 : $budgetPriceTotal,
+        'isMatchItem' => $poitemId == $row->id,
       ));
     }
+    $poPurchasesHistory = PurchaseOrderSupplier::whereHas('prprice.pr.jo.poitems.po',
+        function($q) use ($po_id) {
+          $q->where('id', $po_id);
+        })
+        ->get()
+        ->map(function($po) {
+          $joNumbers = JobOrder::whereHas('pr.prpricing.po', function($q) use ($po) {
+              $q->where('id', $po->id);
+            })
+            ->get()
+            ->pluck('jo_joborder')
+            ->implode(',');
+
+          $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q) use ($po) {
+              $q->where('id', $po->id);
+            })
+            ->get()
+            ->pluck('pr_prnum')
+            ->implode(',');
+
+          $itemDescription = PurchaseOrderItems::whereHas('jo.pr.prpricing.po', function($q) use ($po) {
+              $q->where('id', $po->id);
+            })
+            ->get()
+            ->pluck('poi_itemdescription')
+            ->implode(',');
+
+          return array( 
+            'supplierName' => $po->prprice()->first()->supplier->sd_supplier_name,
+            'joNumber' => $joNumbers,
+            'prNumbers' => $prNumbers,
+            'poNumber' => $po->spo_ponum,
+            'itemDescription' => $itemDescription,
+            'totalAmount' => $po->poitems()->sum(Db::raw('spoi_quantity * spoi_unitprice')),
+            'isSent' => $po->spo_sentToSupplier ? "YES" : "NO",
+          );
+          return $po;
+        })
+        ->values();
 
     return response()->json([
       'prItems' => $prItems,
       'poDetails' => $poDetails,
       'poItems' => $poItems,
+      'poHistory' => $poPurchasesHistory,
     ]);
 
   }

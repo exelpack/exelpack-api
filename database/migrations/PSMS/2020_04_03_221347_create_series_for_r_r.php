@@ -27,6 +27,6 @@ class CreateSeriesForRR extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('wrms_rrseries');
+        Schema::dropIfExists('psms_rrseries');
     }
 }
