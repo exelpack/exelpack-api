@@ -446,9 +446,12 @@ class PurchasesSupplierController extends LogsController
   public function getPrInfo($id)
   {
 
-    $pr = PurchaseRequest::findOrFail($id);
+    $pr = PurchaseRequest::whereHas('jo.poitems.po')->findOrFail($id);
     $jo = $pr->jo;
+    $po = $jo->poitems->po;
+    $po_id = $po->id;
     $prItems = array();
+    $poItems = array();
 
     $poJoDetails = array(
       'po' => $jo->poitems->po->po_ponum,
@@ -488,8 +491,73 @@ class PurchasesSupplierController extends LogsController
       ));
     }
 
+    $poPurchasesHistory = PurchaseOrderSupplier::whereHas('prprice.pr.jo.poitems.po',
+      function($q) use ($po_id) {
+        $q->where('id', $po_id);
+      })
+      ->get()
+      ->map(function($po) {
+        $joNumbers = JobOrder::whereHas('pr.prpricing.po', function($q) use ($po) {
+            $q->where('id', $po->id);
+          })
+          ->get()
+          ->pluck('jo_joborder')
+          ->implode(',');
+
+        $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q) use ($po) {
+            $q->where('id', $po->id);
+          })
+          ->get()
+          ->pluck('pr_prnum')
+          ->implode(',');
+
+        $itemDescription = PurchaseOrderItems::whereHas('jo.pr.prpricing.po', function($q) use ($po) {
+            $q->where('id', $po->id);
+          })
+          ->get()
+          ->pluck('poi_itemdescription')
+          ->implode(',');
+
+        return array( 
+          'supplierName' => $po->prprice()->first()->supplier->sd_supplier_name,
+          'joNumber' => $joNumbers,
+          'prNumbers' => $prNumbers,
+          'poNumber' => $po->spo_ponum,
+          'itemDescription' => $itemDescription,
+          'totalAmount' => $po->poitems()->sum(Db::raw('spoi_quantity * spoi_unitprice')),
+          'isSent' => $po->spo_sentToSupplier ? "YES" : "NO",
+        );
+        return $po;
+      })
+      ->values();
+    foreach($po->poitems as $row){
+      $totalAmt = $row->poi_unitprice * $row->poi_quantity;
+      $masterlist = Masterlist::where('m_code',$row->poi_code)->first();
+
+      $budgetPriceTotal = 0;
+      $budgetPrice = 'No match record';
+
+      if($masterlist){
+        $budgetPrice = $masterlist->m_budgetprice != null ? $masterlist->m_budgetprice : 0;
+        $budgetPriceTotal = $budgetPrice * $row->poi_quantity;
+      }
+
+      array_push($poItems, array(
+        'id' => $row->id,
+        'code' => $row->poi_code,
+        'itemDescription' => $row->poi_itemdescription,
+        'currency' => $row->po->po_currency,
+        'totalAmount' => strtoupper($po->po_currency) == 'USD' ? $totalAmt * 50 : $totalAmt,
+        'budgetPrice' => $budgetPrice,
+        'budgetPriceTotal' => strtoupper($po->po_currency) == 'USD' ? $budgetPriceTotal * 50 : $budgetPriceTotal,
+        'isMatchItem' => $jo->poitems->id == $row->id,
+      ));
+    }
+
     return response()->json([
+      'poPurchasesHistory' => $poPurchasesHistory,
       'poJoDetails' => $poJoDetails,
+      'poItems' => $poItems,
       'prItems' => $prItems,
       'supplierList' => $this->getSupplier(),
     ]);
@@ -819,11 +887,40 @@ class PurchasesSupplierController extends LogsController
         'psms_prapprovaldetails.pra_remarks as remarks',
       ]);
 
-      $prList = $q->latest('psms_prapprovaldetails.id')->get();
+      if(request()->has('status')) {
+        $status = strtoupper(request()->status);
+        if($status == "APPROVED")
+          $q->whereRaw('pra_approved > 0 and pra_rejected = 0');
+        else if($status == "REJECTED")
+          $q->whereRaw('pra_rejected > 0 and pra_approved = 0');
+        else if($status == "PENDING")
+          $q->whereRaw('pra_rejected = 0 and pra_approved = 0');
+      }
 
-      return response()->json([
-        'prList' => $prList,
-      ]);
+      if(request()->has('search')) {
+        $search = "%".request()->search."%";
+        $q->whereRaw('jo_joborder LIKE ?',array($search))
+          ->orWhereRaw('pr_prnum LIKE ?',array($search))
+          ->orWhereRaw('po_ponum LIKE?',array($search));
+      }
+
+      $sort = strtolower(request()->sort);
+      if($sort == "asc")
+        $q->oldest("psms_prapprovaldetails.created_at");
+      else
+        $q->latest("psms_prapprovaldetails.created_at");
+ 
+
+      $isFullLoad = request()->has('start') && request()->has('end');
+      if($isFullLoad)
+        $list = $q->offset(request()->start)->limit(request()->end)->get();
+      else 
+        $list = $q->paginate(1000);
+
+    return response()->json([
+      'prListLength' => $isFullLoad ? intval(request()->end) : $list->total(),
+      'prList' => $isFullLoad ? $list : $list->items(),
+    ]);
   }
 
   public function getPrDetails($id){
