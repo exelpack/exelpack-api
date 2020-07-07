@@ -73,7 +73,7 @@ class PurchaseOrderController extends LogsController
 			'date' => $date
 		];
 
-		$pdf = PDF::loadView('cposms.itemDailySChedule', $data)->setPaper('a4','landscape');
+		$pdf = PDF::loadView('cposms.itemDailySchedule', $data)->setPaper('a4','landscape');
 		return $pdf->download('Schedule_for_'.$date.'.pdf');
 
 	}

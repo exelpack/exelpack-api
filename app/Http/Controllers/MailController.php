@@ -90,7 +90,7 @@ class MailController extends Controller
 			'customerLabel' => 'string|required',
       'po_num' => 'string|required',
 			'date' => 'date|required',
-		],[],['customer_label' => 'customer']);
+		],[],['customerLabel' => 'customer']);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
