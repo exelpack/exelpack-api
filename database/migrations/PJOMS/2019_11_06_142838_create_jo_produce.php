@@ -13,7 +13,7 @@ class CreateJoProduce extends Migration
      */
     public function up()
     {
-        Schema::create('pjoms_joProduced', function (Blueprint $table) {
+        Schema::create('pjoms_joproduced', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('jop_jo_id')->unsigned();
             $table->date('jop_date');

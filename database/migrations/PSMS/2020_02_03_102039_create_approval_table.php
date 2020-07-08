@@ -13,7 +13,7 @@ class CreateApprovalTable extends Migration
      */
     public function up()
     {
-      Schema::create('psms_prApprovalDetails', function (Blueprint $table) {
+      Schema::create('psms_prapprovaldetails', function (Blueprint $table) {
         $table->bigIncrements('id');
         $table->integer('pra_prs_id');
         $table->integer('pra_approver_id')->unsigned();

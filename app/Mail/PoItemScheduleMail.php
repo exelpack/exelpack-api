@@ -33,7 +33,7 @@ class PoItemScheduleMail extends Mailable
      */
     public function build()
     {
-        return $this->view('mail.PoItemScheduleMail')
+        return $this->view('mail.poItemScheduleMail')
             ->subject($this->subj)
             ->with([    
                 'schedules' => $this->schedules,

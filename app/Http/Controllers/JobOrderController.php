@@ -116,8 +116,8 @@ class JobOrderController extends LogsController
       'poi_unitprice as unitprice',
       'poi_deliverydate as deliverydate',
       'poi_kpi as kpi',
-      Db::raw('CAST(IFNULL(totalJoQty,0) as int) as totalJoQty'),
-      Db::raw('CAST(poi_quantity - IFNULL(totalJoQty,0) as int) as qtyWithoutJo')
+      Db::raw('cast(IFNULL(totalJoQty,0) as UNSIGNED) as totalJoQty'),
+      Db::raw('cast(poi_quantity - IFNULL(totalJoQty,0) as UNSIGNED) as qtyWithoutJo')
     );
 
       //search filter

@@ -13,7 +13,7 @@ class CreateIncomingInvetory extends Migration
      */
     public function up()
     {
-        Schema::create('wims_inventoryIncoming', function (Blueprint $table) {
+        Schema::create('wims_inventoryincoming', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->integer('inc_inventory_id')->unsigned();
             $table->integer('inc_quantity')->unsigned();
