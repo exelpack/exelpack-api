@@ -65,14 +65,14 @@
   });
 
   $url = asset('api/storage/signature').'?filepath=';
-  $defaultImg = asset('storage/img/defaultsign.jpg');
+  $defaultImg = url('img/defaultsign.jpg');
   
 @endphp
 
 <table style="width: 100%;">
   <tr>
     <td style="width: 30%">
-      <img src="{{ asset('storage/img/logo.png') }}" width="200px" />
+      <img src="{{ url('img/logo.png') }}" width="200px" />
     </td>
     <td align="center" style="width: 30%">
     </td>
@@ -211,7 +211,7 @@
     <td style="width: 20%;">Prepared by:
       <br/>
       <div class="signature">
-        @if($preparedBySig)
+        @if($preparedBySig && $preparedBySigFile)
           <img 
             src="{{ $url.$prepareBySigFile.'&token='.$token }}"
             alt="Cannot load signature"

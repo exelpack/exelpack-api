@@ -123,26 +123,26 @@ class PurchasesSupplierController extends LogsController
     $checkByName = NULL;
     $approvedByName = NULL;
     $preparedBySig = false;
-    $prepareBySigFile = '';
+    $preparedBySigFile = null;
     if($user){
       $preparedByName = strtoupper($this->getTitle($user->gender)." ".
         SUBSTR($user->firstname,0,1).$user->middleinitial." ".$user->lastname);
-      $prepareBySigFile = $user->id.'/'.$user->signature;
+      if($user->signature)
+        $preparedBySigFile = $user->id.'/'.$user->signature;
+
       $preparedBySig = Storage::disk('local')
-        ->exists('/users/signature/'.$prepareBySigFile);
+        ->exists('/users/signature/'.$preparedBySigFile);
     }
     $getOm = User::where('department','om')->where('position','Manager')->first();
     $getGm = User::where('department','gm')->where('position','Manager')->first();
 
-    if($getOm){
+    if($getOm)
       $checkByName = strtoupper($this->getTitle($getOm->gender)." ".
         SUBSTR($getOm->firstname,0,1).$getOm->middleinitial." ".$getOm->lastname);
-    }
 
-    if($getGm){
+    if($getGm)
       $approvedByName = strtoupper($this->getTitle($getGm->gender)." ".
         SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
-    }
 
     $pdf =  PDF::loadView('psms.printPurchaseOrder', compact(
       'poDetails',
@@ -151,7 +151,7 @@ class PurchasesSupplierController extends LogsController
       'checkByName',
       'approvedByName',
       'preparedBySig',
-      'prepareBySigFile',
+      'preparedBySigFile',
       'token'
     ))->setPaper('a4','portrait');
     return $pdf->stream($po->spo_ponum);
@@ -196,8 +196,14 @@ class PurchasesSupplierController extends LogsController
         'supplier' => $prs->supplier->sd_supplier_name,
       );
     })->toArray();
-    $prFileName = $prs->pr->pr_user_id.'/'.$prs->pr->user->signature;
-    $prsFileName = $prs->prsd_user_id.'/'.$prs->user->signature;
+    $prFileName = null;
+    $prsFileName = null;
+
+    if($prs->pr->user->signature)
+      $prFileName = $prs->pr->pr_user_id.'/'.$prs->pr->user->signature;
+
+    if($prs->pr->user->signature)
+      $prsFileName = $prs->prsd_user_id.'/'.$prs->user->signature;
     
     $prSignature = Storage::disk('local')
       ->exists('/users/signature/'.$prFileName);
@@ -207,26 +213,31 @@ class PurchasesSupplierController extends LogsController
 
     $isApproved = false;
     $approvalSig = false;
-    $approvalFileName = '';
+    $approvalFileName = NULL;
     $gmName = NULL;
     $gmSig = NULL;
     $gmSigExist = false;
     $approvalReq = $prs->prApproval;
     $getGm = User::where('department','gm')->where('position','Manager')->first();
+
     if($getGm){
       $gmName = strtoupper($this->getTitle($getGm->gender)." ".
         SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
 
-      $gmSig = $user->id.'/'.$user->signature;
+      if($getGm->signature)
+        $gmSig = $getGm->id.'/'.$getGm->signature;
+
       $gmSigExist = Storage::disk('local')
-        ->exists('/users/signature/'.$prepareBySigFile);
+        ->exists('/users/signature/'.$gmSig);
     }
 
     if($approvalReq){
-      if($approvalReq->pra_approved > 0){
+      if($approvalReq->pra_approved > 0 && $approvalReq->pra_rejected < 1){
         $isApproved = true;
-        $approvalFileName = $approvalReq->pra_approver_id.'/'.
-            $approvalReq->user->signature;
+
+        if($approvalReq->user->signature)
+          $approvalFileName = $approvalReq->pra_approver_id.'/'.$approvalReq->user->signature;
+
         $approvalSig = Storage::disk('local')
           ->exists('/users/signature/'.$approvalFileName);
       }

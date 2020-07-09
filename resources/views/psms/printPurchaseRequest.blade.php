@@ -56,7 +56,7 @@
 @php
   
   $url = asset('api/storage/signature').'?filepath=';
-  $defaultImg = asset('storage/img/defaultsign.jpg');
+  $defaultImg = url('img/defaultsign.jpg');
 
 @endphp
 <!-- {{ $token }} -->
@@ -64,7 +64,7 @@
 <table style="width: 100%;">
   <tr>
     <td style="width: 30%">
-      <img src="{{ asset('storage/img/logo.png') }}" width="200px" />
+      <img src="{{ url('img/logo.png') }}" width="200px" />
     </td>
     <td align="center" style="width: 40%">
       <i class="small">EXELPACK CORPORATION</i><br>
@@ -146,14 +146,14 @@
     <td >Requested by:
       <br/>
       <div class="signature">
-        @if($prSignature)
+        @if($prSignature && $prFileName)
           <img 
             src="{{ $url.$prFileName.'&token='.$token }}"
             alt="Cannot load signature"
           />
         @else
           <img 
-            src="{{ asset('storage/img/defaultsign.jpg') }}"
+            src="{{ $defaultImg }}"
             alt="Cannot load signature"
           />
         @endif
@@ -165,14 +165,14 @@
     <td>Checked by:
       <br/>
       <div class="signature">
-        @if($prpriceSignature)
+        @if($prpriceSignature && $prsFileName)
           <img 
             src="{{ $url.$prsFileName.'&token='.$token }}"
             alt="Cannot load signature"
           />
         @else
           <img 
-            src="{{ asset('storage/img/defaultsign.jpg') }}"
+            src="{{ $defaultImg }}"
             alt="Cannot load signature"
           />
         @endif
@@ -185,14 +185,14 @@
       <br/>
       <div class="signature">
       @if($isApproved)
-        @if($approvalSig && $approvalFileName != '')
+        @if($approvalSig && $approvalFileName)
         <img 
           src="{{ $url.$approvalFileName.'&token='.$token }}"
           alt="Cannot load signature"
         />
         @else
           <img 
-            src="{{ asset('storage/img/defaultsign.jpg') }}"
+            src="{{ $defaultImg }}"
             alt="Cannot load signature"
           />
         @endif
@@ -215,7 +215,7 @@
           />
           @else
             <img 
-              src="{{ asset('storage/img/defaultsign.jpg') }}"
+              src="{{ $defaultImg }}"
               alt="Cannot load signature"
             />
           @endif
