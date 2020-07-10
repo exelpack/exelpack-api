@@ -322,11 +322,11 @@ class ReceivingController extends LogsController
     $invoice = SupplierInvoice::findOrFail($id);
     $rrSeries = $invoice->ssi_rrnum;
     $invoice->update([
-      'ssi_rrnum' => ,
+      'ssi_rrnum' => NULL,
       'ssi_receivedquantity' => 0,
       'ssi_inspectedquantity' => 0,
-      'ssi_rejectquantity' => ,
-      'ssi_rejectionremarks' => ,
+      'ssi_rejectquantity' => NULL,
+      'ssi_rejectionremarks' => NULL,
     ]);
     $this->logDeleteingReceivedReport($rrSeries, $invoice->poitem->spo->spo_ponum);
     return response()->json([

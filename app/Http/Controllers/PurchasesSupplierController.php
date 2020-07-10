@@ -1058,7 +1058,7 @@ class PurchasesSupplierController extends LogsController
     if($request->pra_approved > 0 || $request->pra_rejected > 0)
       return response()->json(['errors' => ['Request already approved or rejected'] ], 422); 
 
-    if(strtolower($data->type) != 'approved' && strtolower($data->type) != 'reject')
+    if(strtolower($data->type) != 'approved' && strtolower($data->type) != 'rejected')
       return response()->json(['errors' => ['Type not valid']], 422); 
 
     $request->fill([

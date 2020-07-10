@@ -69,6 +69,12 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/mail/schedule', 'MailController@sendEmailSchedule');
 		Route::post('/mail/endorsepo', 'MailController@endorsePo');
 
+    //custoer
+    Route::get('/cposms/customers', 'CustomerController@getCustomers');
+    Route::post('/cposms/customers', 'CustomerController@addCustomer');
+    Route::put('/cposms/customers/{id}', 'CustomerController@updateCustomer');
+    Route::delete('/cposms/customers/{id}', 'CustomerController@deleteCustomer');
+
 	});
 
 	Route::group(['middleware' => ['pjoms']], function() {

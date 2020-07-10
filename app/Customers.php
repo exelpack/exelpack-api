@@ -8,6 +8,7 @@ class Customers extends Model
 {
     //
 	protected $table = 'customer_information';
+  protected $guarded = ['id'];
 
 	public function po()
 	{

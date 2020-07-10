@@ -26,6 +26,6 @@ class SupplierInvoice extends Model
   }
 
   public function setSsiRrnumAttribute($value){
-    $this->attributes['ssi_rrnum'] = strtoupper($value); 
+    $this->attributes['ssi_rrnum'] = $value ? strtoupper($value) : null; 
   }
 }
