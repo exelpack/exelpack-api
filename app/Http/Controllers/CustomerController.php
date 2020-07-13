@@ -153,4 +153,29 @@ class CustomerController extends Controller
     ]);
   }
 
+  public function recommendCustomer(Request $request, $id) {
+
+    $method = strtolower($request->method);
+    $approval_status = 'PENDING APPROVAL';
+    if($method === 'approved')
+        $approval_status = 'APPROVED';
+    else if($method === 'rejected')
+        $approval_status = 'REJECTED';
+
+    $customer = Customer::findOrFail($id);
+    $username = auth()->user()->username;
+    $customer->fill([
+      'approval_status' => $approval_status,
+      'recommended_by' => $username,
+      'recommended_date' => date('Y-m-d'),
+      'approved_by' => $username,
+      'approval_date' => date('Y-m-d'),
+    ]);
+    $customer->save();
+
+    return response()->json([
+      'newCustomer' => $getCustomer,
+    ]);
+  }
+
 }

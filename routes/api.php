@@ -275,10 +275,12 @@ Route::group(['middleware' => ['auth:api']], function() {
   });
 
   Route::group(['middleware' => ['approvalpr']], function() {
-    Route::get('/psms/prapproval','PurchasesSupplierController@getPendingPrList');
-    Route::get('/psms/prapproval/{id}','PurchasesSupplierController@getPrDetails');
-    Route::put('/psms/prapproval/{id}','PurchasesSupplierController@addRemarks');
-    Route::put('/psms/prapproval/action/{id}','PurchasesSupplierController@approvedRejectRequest');
+    Route::get('/odash/prapproval','OperationController@getPendingPrList');
+    Route::get('/odash/prapproval/{id}','OperationController@getPrDetails');
+    Route::put('/odash/prapproval/{id}','OperationController@addRemarks');
+    Route::put('/odash/prapproval/action/{id}','OperationController@requestionAction');
+    Route::get('/odash/customer', 'CustomerController@getCustomers');
+    Route::post('/odash/customer/{id}', 'CustomerController@recommendCustomer');
 
   });
 
