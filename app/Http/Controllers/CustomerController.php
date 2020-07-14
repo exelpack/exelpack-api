@@ -155,17 +155,24 @@ class CustomerController extends Controller
 
   public function recommendCustomer(Request $request, $id) {
 
-    $method = strtolower($request->method);
-    $approval_status = 'PENDING APPROVAL';
-    if($method === 'approved')
-        $approval_status = 'APPROVED';
-    else if($method === 'rejected')
-        $approval_status = 'REJECTED';
+    $validator = Validator::make($request->all(), [
+      'method' => 'string|in:approved,rejected,APPROVED,REJECTED|required',
+    ]);
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()] ,422);
 
-    $customer = Customer::findOrFail($id);
+    $customer = Customers::findOrFail($id);
+
+    $method = strtolower($request->method);
+    $approvalStatus = 'PENDING APPROVAL';
+    if($method === 'approved')
+        $approvalStatus = 'APPROVED';
+    else if($method === 'rejected')
+        $approvalStatus = 'REJECTED';
+
     $username = auth()->user()->username;
     $customer->fill([
-      'approval_status' => $approval_status,
+      'approval_status' => $approvalStatus,
       'recommended_by' => $username,
       'recommended_date' => date('Y-m-d'),
       'approved_by' => $username,
@@ -174,7 +181,8 @@ class CustomerController extends Controller
     $customer->save();
 
     return response()->json([
-      'newCustomer' => $getCustomer,
+      'newCustomer' => $this->getCustomer($customer),
+      'message' => 'Customer successfully marked as '.$approvalStatus,
     ]);
   }
 
