@@ -34,14 +34,14 @@ class CustomerController extends Controller
 
   public function fillCustomer($request){
     return array(
-      'companyname' => $request->bi_name,
-      'companyaddress' => $request->bi_address,
+      'companyname' => strtoupper($request->bi_name),
+      'companyaddress' => strtoupper($request->bi_address),
       'companynature' => $request->bi_nature,
       'companypremises' => $request->bi_premises,
       'companyoperationyears' => $request->bi_yearsBusiness,
       'companybusinesstype' => $request->bi_type,
-      'companycontactperson' => $request->bi_contact,
-      'companycontactposition' => $request->bi_contactposition,
+      'companycontactperson' => ucwords($request->bi_contact),
+      'companycontactposition' => ucwords($request->bi_contactposition),
       'companytelephone' => $request->bi_tel,
       'companyfax' => $request->bi_fax,
       'companysss' => $request->bi_sss,
@@ -93,7 +93,7 @@ class CustomerController extends Controller
     if($validator->fails())
       return response()->json(['errors' => $validator->errors()->all()]);
 
-    $cinfo = new Customers();
+    $cinfo = new Customers;
     $cinfo->fill($this->fillCustomer($request));
     $cinfo->save();
     $cinfo->refresh();

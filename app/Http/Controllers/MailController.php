@@ -23,6 +23,41 @@ use Carbon\Carbon;
 class MailController extends Controller
 {
 
+  public function getEmailReceiptients()
+  {
+    $email = EmailListCposms::all();
+
+    return response()->json([
+      'emailReceiptients' => $email,
+    ]);
+  }
+
+  public function addEmail(Request $request)
+  {
+    $validator  = Validator::make($request->all(),[
+      'email' => 'email|required|unique:cposms_mail,email'
+    ]);
+
+    if($validator->fails())
+      return response()->json(['errors' => $validator->errors()->all()],422);
+
+    $email = EmailListCposms::create(['email' => $request->email]);
+
+    return response()->json([
+      'message' => 'Email successfully added',
+      'newEmail' => $request->email,
+    ]);
+  }
+
+  public function deleteEmail($id)
+  { 
+    EmailListCposms::findOrFail($id)->delete();
+
+    return response()->json([
+      'message' => 'Email deleted',
+    ]);
+  }
+
 	public function sendEmailSchedule(Request $request)
 	{
 		$validator = Validator::make($request->all(),

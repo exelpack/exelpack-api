@@ -379,10 +379,10 @@ class PurchaseOrderController extends LogsController
 
     if(request()->has('search')){
       $search = "%".request()->search."%";
-      $q->whereRaw('po.po_ponum like ?', array($search))
-        ->whereRaw('poi_code like ?', array($search))
-        ->whereRaw('poi_itemdescription like ?', array($search))
-        ->whereRaw('poi_partnum like ?', array($search));
+      $q->whereRaw('po.po_ponum LIKE ?', array($search))
+        ->orWhereRaw('poi_code LIKE ?', array($search))
+        ->orWhereRaw('poi_itemdescription LIKE ?', array($search))
+        ->orWhereRaw('poi_partnum LIKE ?', array($search));
     }
 
     if(request()->has('deliveryDue')){

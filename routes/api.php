@@ -25,6 +25,12 @@ Route::group(['middleware' => ['auth:api']], function() {
 	// ['error' => 'Unauthorized'],
 
 	Route::group(['middleware' => ['cposms']], function() {
+
+    //mail
+    Route::get('/cposms/emails', 'MailController@getEmailReceiptients');
+    Route::post('/cposms/emails', 'MailController@addEmail');
+    Route::delete('/cposms/emails/{id}', 'MailController@deleteEmail');
+
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
 		Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
 
