@@ -29,6 +29,6 @@ class CreateJoProduce extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('pjoms_joProduced');
+        Schema::dropIfExists('pjoms_joproduced');
     }
 }
