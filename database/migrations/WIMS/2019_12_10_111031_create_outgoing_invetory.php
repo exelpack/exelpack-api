@@ -33,6 +33,6 @@ class CreateOutgoingInvetory extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('wims_inventoryOutgoing');
+        Schema::dropIfExists('wims_inventoryoutgoing');
     }
 }

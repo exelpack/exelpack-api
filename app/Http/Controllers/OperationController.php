@@ -12,7 +12,7 @@ use App\JobOrder;
 use App\PurchaseOrder;
 use App\PurchaseOrderItems;
 use App\Customers;
-
+use App\PurchaseRequest;
 use DB;
 class OperationController extends Controller
 {
