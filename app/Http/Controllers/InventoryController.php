@@ -46,8 +46,15 @@ class InventoryController extends LogsController
 	public function getMasterlistItems()
 	{
 
-		$masterlist = Masterlist::select(
-  			'id',
+    $inventory = DB::table('wims_inventory')
+      ->select(Db::raw('sum(i_quantity) as inventoryQty'),'i_mspecs')
+      ->groupBy('i_mspecs');
+
+		$masterlist = Masterlist::leftJoinSub($inventory,'inv', function($join){
+        $join->on('m_mspecs','=','i_mspecs');
+      })
+      ->select(
+  			'pmms_masterlist.id',
   			'm_mspecs as mspecs',
   			'm_projectname as itemdesc',
   			'm_partnumber as partnum',
@@ -56,9 +63,10 @@ class InventoryController extends LogsController
   			'm_requiredquantity as requiredQty',
   			'm_outs as outs',
   			'm_unitprice as unitprice',
-  			'm_remarks as remarks')
+  			'm_remarks as remarks',
+        Db::raw('CAST(IFNULL(inventoryQty,0) as integer) as inventoryQty')
+      )
   		->get();
-
 		return response()->json(
 			[
 				'masterlistOpt' => $masterlist

@@ -21,6 +21,7 @@ use App\Masterlist;
 use App\PurchaseOrderItems;
 use App\PurchaseOrder;
 use App\Customers;
+use App\Inventory;
 
 class PurchaseRequestController extends LogsController
 {
@@ -332,12 +333,14 @@ class PurchaseRequestController extends LogsController
   			return $countDash < 2;
   		})
   		->map(function($data) use($joQty) {
+        $inventory_qty = Inventory::where('i_mspecs',$data->m_mspecs)->sum('i_quantity');
   			return array(
   				'id' => $data->id,
   				'code' => $data->m_code,
   				'mspecs' => $data->m_mspecs,
   				'quantity' => number_format(($joQty * $data->m_requiredquantity) / $data->m_outs, 2, '.',''),
   				'requiredQty' => $data->m_requiredquantity,
+          'inventoryQty' => intval($inventory_qty),
   				'unit' => $data->m_unit,
   				'outs' => $data->m_outs,
   				'remarks' => $data->m_remarks,

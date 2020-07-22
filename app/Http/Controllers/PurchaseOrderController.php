@@ -673,7 +673,7 @@ class PurchaseOrderController extends LogsController
 				'underrun' => 'integer|nullable|required_if:quantity,null,0',
 				'date' => 'required|before_or_equal:'.date('Y-m-d'),
 				'dr' => 'string|max:70|nullable',
-				'invoice' => 'string|max:70|nullable',
+				'invoice' => 'string|max:70|required',
 				'remarks' => 'string|max:150|nullable',
 			],[],['totalQty' => 'Total delivered quantity & underrun']);
 
