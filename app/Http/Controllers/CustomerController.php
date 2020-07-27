@@ -26,6 +26,7 @@ class CustomerController extends Controller
       'bi_sss' => $customer->companysss,
       'bi_tin' => $customer->companytin,
       'bi_email' => $customer->companyemail,
+      'bi_nationality' => $customer->ownernationality,
       'isApproved' => $customer->approval_status,
       'approvedBy' => $customer->approved_by,
       'comment' => $customer->comment
@@ -47,6 +48,7 @@ class CustomerController extends Controller
       'companysss' => $request->bi_sss,
       'companytin' => $request->bi_tin,
       'companyemail' => $request->bi_email,
+      'ownernationality' => $request->bi_nationality,
     );
   }
 
@@ -76,6 +78,7 @@ class CustomerController extends Controller
         'bi_yearsBusiness' => 'required|integer',
         'bi_fax' => 'nullable|regex:/^[0-9-]+$/',
         'bi_tel' => 'nullable|regex:/^[0-9-]+$/',
+        'bi_nationality' => 'string|required'
       ), [],
       array(
         'bi_name' => 'company name',
@@ -117,6 +120,7 @@ class CustomerController extends Controller
         'bi_yearsBusiness' => 'required|integer',
         'bi_fax' => 'string|nullable|regex:/^[0-9-]+$/',
         'bi_tel' => 'string|nullable|regex:/^[0-9-]+$/',
+        'bi_nationality' => 'string|required'
       ), [],
       array(
         'bi_name' => 'company name',
