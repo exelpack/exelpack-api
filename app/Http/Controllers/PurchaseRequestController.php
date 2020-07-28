@@ -174,17 +174,7 @@ class PurchaseRequestController extends LogsController
 			'item_no' => $items->count(),
 			'items' => $items->map(function($data){
   				return $this->getPrItems($data);
-  			}),
-      'outgoingList' => $pr->jo->outgoing()->get()->map(function($outgoing) {
-        return array(
-          'id' => $outgoing->id,
-          'materialSpecs' => $outgoing->inventory->i_mspecs,
-          'code' => $outgoing->inventory->i_code,
-          'date' => $outgoing->out_date,
-          'mrNum' => $outgoing->out_mr_num,
-          'quantity' => $outgoing->out_quantity,
-        );
-      }),
+			 })
     );
       
 	}
@@ -248,14 +238,12 @@ class PurchaseRequestController extends LogsController
 		}
 
 		if(trim($showRecord) != ''){
-
 			if($showRecord == 'with')
 				$q->where('pr_hasPrice',1);
 			else if($showRecord == 'Pending')
 				$q->where('pr_forPricing',1);
 			else if($showRecord == 'not-forwarded')
 				$q->where('pr_forPricing',0);
-
 		}
 
 		if($sort == 'desc'){
@@ -267,7 +255,6 @@ class PurchaseRequestController extends LogsController
 		}else if($sort == 'date-asc'){
 			$q->orderBy('pr_date','ASC');
 		}
-
 
 		$prResult = $q->paginate($pageSize);
 		$prList = $prResult->map(function ($pr) {
@@ -354,6 +341,53 @@ class PurchaseRequestController extends LogsController
 				'items' => $items,
 			]);
 	}
+
+  public function getPrItemDeliveryAndIssuance($id){
+    $item = PurchaseRequestItems::findOrFail($id);
+    $pricing = $item->pr->prpricing;
+
+    //get delivery details
+    if($pricing && $pricing->po){
+      $delivered = $pricing->po->poitems()
+        ->where('spoi_mspecs', $item->pri_mspecs)
+        ->first()
+        ->invoice()
+        ->where('ssi_receivedquantity','>',0)
+        ->where('ssi_rrnum','!=',NULL)
+        ->get()
+        ->map(function($del){
+          return array(
+            'id' => $del->id,
+            'invoice' => $del->ssi_invoice,
+            'dr' => $del->ssi_dr,
+            'rr' => $del->ssi_rrnum,
+            'date' => $del->ssi_date,
+            'receivedQuantity' => $del->ssi_receivedquantity,
+          );
+        })
+        ->toArray();
+    }else
+      $delivered = array();
+
+    $issuance = $item->pr->jo
+      ->outgoing()->whereHas('inventory', function($on) use ($item){
+        $on->where('i_mspecs', $item->pri_mspecs);
+      })->get()->map(function($outgoing) {
+        return array(
+          'id' => $outgoing->id,
+          'mrNum' => $outgoing->out_mr_num,
+          'date' => $outgoing->out_date,
+          'quantity' => $outgoing->out_quantity,
+          'remarks' => $outgoing->out_remarks,
+        );
+      });
+
+    return response()->json([
+      'delivered' => $delivered,
+      'issuance' => $issuance,
+    ]);
+ 
+  }
 
 	public function addPr(Request $request)
 	{
