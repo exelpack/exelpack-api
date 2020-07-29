@@ -285,7 +285,7 @@ class InventoryController extends LogsController
 		$incoming = $q->paginate($pageSize);
 		
 		$incomingList = $incoming->map(function($incoming, $key) {
-			$diffInHrs = $incoming->created_at->diffInMinutes(Carbon::now());
+			$diffInHrs = $incoming->created_at->diffInHours(Carbon::now());
 
 			return array(
 				'id' => $incoming->id,
@@ -296,7 +296,7 @@ class InventoryController extends LogsController
 				'date' => $incoming->inc_date,
 				'remarks' => $incoming->inc_remarks,
 				'details' => '',
-				'isDeletable' => $diffInHrs > 480 ? false : true
+				'isDeletable' => $diffInHrs > 168 ? false : true
 			);
 		})->all();
 
@@ -314,13 +314,13 @@ class InventoryController extends LogsController
 	{
 
 		$incoming = InventoryIncoming::findOrFail($id);
-		$diffInHrs = $incoming->created_at->diffInMinutes(Carbon::now());
+		$diffInHrs = $incoming->created_at->diffInHours(Carbon::now());
 		$inv_qty = $incoming->inventory->i_quantity;
 		$code = $incoming->inventory->i_code;
 		$spec = $incoming->inventory->i_mspecs;
 		$quantity = $incoming->inc_quantity;
 
-		if($diffInHrs > 480){
+		if($diffInHrs > 168){
 			return response()->json(
 				[
 					'errors' => ['Record cannot be deleted']
@@ -433,7 +433,7 @@ class InventoryController extends LogsController
 
 		$outgoingList = $outgoing->map(function ($outgoing, $key){
 
-			$diffInHrs = $outgoing->created_at->diffInMinutes(Carbon::now());
+			$diffInHrs = $outgoing->created_at->diffInHours(Carbon::now());
 			$jo = $outgoing->jo;
 			$details = $outgoing->out_mr_num;
 			$details .= $jo ? " / ".$jo->jo_joborder ." / ".$jo->poitems->po->po_ponum : '';
@@ -446,7 +446,7 @@ class InventoryController extends LogsController
 				'date' => $outgoing->out_date,
 				'remarks' => $outgoing->out_remarks,
 				'details' => $details,
-				'isDeletable' => $diffInHrs > 480 ? false : true
+				'isDeletable' => $diffInHrs > 168 ? false : true
 			);
 
 		})->all();
@@ -465,14 +465,14 @@ class InventoryController extends LogsController
 	{
 
 		$outgoing = InventoryOutgoing::findOrFail($id);
-		$diffInHrs = $outgoing->created_at->diffInMinutes(Carbon::now());
+		$diffInHrs = $outgoing->created_at->diffInHours(Carbon::now());
 		$inv_qty = $outgoing->inventory->i_quantity;
 		$code = $outgoing->inventory->i_code;
 		$spec = $outgoing->inventory->i_mspecs;
 		$quantity = $outgoing->out_quantity;
 
 
-		if($diffInHrs > 480){
+		if($diffInHrs > 168){
 			return response()->json(
 				[
 					'errors' => ['Record cannot be deleted']

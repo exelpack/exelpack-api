@@ -154,7 +154,7 @@ class OperationController extends Controller
         'dateNeeded' => $item->pr->jo->jo_dateneeded,
         'costing' => $costing,
         'budgetPrice' => $budgetPrice."(".number_format((((
-          $budgetPrice - $item->pri_unitprice) / $budgetPrice) * 100),2,'.','')."%)" ,
+          $budgetPrice - $item->pri_unitprice) / ($budgetPrice > 0 ? $budgetPrice : 1)) * 100),2,'.','')."%)" ,
       ));
     }
 

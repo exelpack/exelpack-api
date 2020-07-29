@@ -23,6 +23,10 @@ use App\Supplier;
 use App\User;
 use App\PurchaseOrderSupplierItems;
 use App\JobOrder;
+use App\Inventory;
+use App\InventoryIncoming;
+use App\InventoryOutgoing;
+use App\Masterlist;
 
 class ReceivingController extends LogsController
 {
@@ -207,10 +211,44 @@ class ReceivingController extends LogsController
       'ssi_rejectquantity' => $request->rejectQty,
       'ssi_rejectionremarks' => $request->rejectRemarks,
     ]);
+    $poitem = $invoice->poitem;
+    $inventory =  Inventory::where('i_code',$poitem->spoi_code)->first();
+    if($inventory){
+      $inventory->update([
+        'i_quantity' => $inventory->i_quantity + $request->receivedQty,
+      ]);
+      $inventory->incoming()->create([
+        'inc_quantity' => $request->receivedQty,
+        'inc_newQuantity' => $inventory->i_quantity + $request->receivedQty,
+        'inc_date' => date('Y-m-d'),
+        'inc_remarks' => $request->rrseries,
+        'inc_spoi_id' => $invoice->poitem->id,
+      ]);
+    }else {
+      $masterlistItemDetails = Masterlist::where('m_code',$poitem->spoi_code)->first();
+      $newInventory = new Inventory;
+      $newInventory->create([
+        'i_mspecs' => $poitem->spoi_mspecs,
+        'i_projectname' => $masterlistItemDetails->m_projectname,
+        'i_partnumber' => $masterlistItemDetails->m_partnumber,
+        'i_code' => $poitem->spoi_code,
+        'i_unit' => $poitem->spoi_uom,
+        'i_quantity' => $request->receivedQty,
+        'i_min' => 1,
+        'i_max' => 1,
+      ]);
+      $newInventory->save();
+      $newInventory->incoming()->create([
+        'inc_quantity' => $request->receivedQty,
+        'inc_newQuantity' => $request->receivedQty,
+        'inc_date' => date('Y-m-d'),
+        'inc_remarks' => $request->rrseries,
+        'inc_spoi_id' => $invoice->poitem->id,
+      ]);
+    }
 
     ReceivingReportSeries::first()
       ->update(['series_number' => DB::raw('series_number + 1')]); //update series
-
 
     $po = $invoice->poitem->spo;
     $id = $po->id;
@@ -343,11 +381,11 @@ class ReceivingController extends LogsController
       return response()->json(['errors' => ['No receiving report available!']], 422);
 
     $jobOrders = JobOrder::whereHas('pr.prpricing.po.poitems.invoice', function($q) use ($id){
-      $q->where('id', $id);
-    })
-    ->get()
-    ->pluck('jo_joborder')
-    ->toArray();
+        $q->where('id', $id);
+      })
+      ->get()
+      ->pluck('jo_joborder')
+      ->toArray();
 
     $rrDetails = (object) array(
       'rrNum' => $rr->ssi_rrnum,

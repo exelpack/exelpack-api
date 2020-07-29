@@ -1284,7 +1284,6 @@ class PurchaseOrderController extends LogsController
 			$salesAmount+= $sales;
 
 		}
-
 		return array(
 			'openAmt' => $openAmount,
 			'salesAmt' => $salesAmount,
@@ -1292,7 +1291,6 @@ class PurchaseOrderController extends LogsController
 			'newCustomerAmt' => $newCustomerAmount,
 			'increaseAmt' => $increaseAmount,
 		);
-
 	}
 
 }

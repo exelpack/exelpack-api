@@ -243,6 +243,9 @@ class PurchasesSupplierController extends LogsController
       }
     }
 
+    if(!$isApproved)
+      return response()->json(['errors' => ['Purchase request is not printable']], 422);
+
     $pdf =  PDF::loadView('psms.printPurchaseRequest', compact(
       'items',
       'details',
@@ -1184,6 +1187,7 @@ class PurchasesSupplierController extends LogsController
   {
     $po = PurchaseOrderSupplier::findOrFail($id);
     $hasDelivery = PurchaseOrderSupplierItems::has('invoice')
+      ->where('spoi_po_id', $po->id)
       ->count();
     if($hasDelivery > 0)
       return response()->json(['errors' =>
