@@ -70,9 +70,9 @@ class SmsSalesSummary implements FromView
                'dr_num' => $invoice->sitem_drnum,
                'po_num' => $invoice->sitem_ponum,
                'part_num' => $invoice->sitem_partnum,
-               'usd' => number_format($usd,2),
-               'php' => number_format($php,2),
-               'totalamount' => number_format($total_amt,2)));
+               'usd' => number_format($usd,4),
+               'php' => number_format($php,4),
+               'totalamount' => number_format($total_amt,4)));
 
         }
         ///if loop is in middle
@@ -86,9 +86,9 @@ class SmsSalesSummary implements FromView
                'dr_num' => $invoice->sitem_drnum,
                'po_num' => $invoice->sitem_ponum,
                'part_num' => $invoice->sitem_partnum,
-               'usd' => number_format($usd,2),
-               'php' => number_format($php,2),
-               'totalamount' => number_format($total_amt,2)));
+               'usd' => number_format($usd,4),
+               'php' => number_format($php,4),
+               'totalamount' => number_format($total_amt,4)));
 
           }else{//obviously if not
             $total_usd = doubleval($total_usd) - doubleval($usd);
@@ -100,9 +100,9 @@ class SmsSalesSummary implements FromView
                'dr_num' => '',
                'po_num' => '',
                'part_num' => '',
-               'usd' =>  number_format($total_usd,2),
-               'php' => number_format($total_php,2),
-               'totalamount' => number_format($total_all,2) ));
+               'usd' =>  number_format($total_usd,4),
+               'php' => number_format($total_php,4),
+               'totalamount' => number_format($total_all,4) ));
             $total_usd = 0;
             $total_php = 0;
             $total_all = 0;
@@ -112,9 +112,9 @@ class SmsSalesSummary implements FromView
                'dr_num' => $invoice->sitem_drnum,
                'po_num' => $invoice->sitem_ponum,
                'part_num' => $invoice->sitem_partnum,
-               'usd' => number_format($usd,2),
-               'php' => number_format($php,2),
-               'totalamount' => number_format($total_amt,2)) );
+               'usd' => number_format($usd,4),
+               'php' => number_format($php,4),
+               'totalamount' => number_format($total_amt,4)) );
 
             $total_all+= $total_amt;
             $total_php+= $php;
@@ -133,9 +133,9 @@ class SmsSalesSummary implements FromView
                  'dr_num' => $invoice->sitem_drnum,
                  'po_num' => $invoice->sitem_ponum,
                  'part_num' => $invoice->sitem_partnum,
-                 'usd' => number_format($usd,2),
-                 'php' => number_format($php,2),
-                 'totalamount' => number_format($total_amt,2)) );
+                 'usd' => number_format($usd,4),
+                 'php' => number_format($php,4),
+                 'totalamount' => number_format($total_amt,4)) );
 
               array_push($data, array('company' => $invoice->sales->customer->c_customername." Total",
                  'delivery_date' => '',
@@ -143,9 +143,9 @@ class SmsSalesSummary implements FromView
                  'dr_num' => '',
                  'po_num' => '',
                  'part_num' => '',
-                 'usd' => number_format($total_usd,2),
-                 'php' => number_format($total_php,2),
-                 'totalamount' => number_format($total_all,2) ));
+                 'usd' => number_format($total_usd,4),
+                 'php' => number_format($total_php,4),
+                 'totalamount' => number_format($total_all,4) ));
               $total_usd = 0;
               $total_php = 0;
               $total_all = 0;
@@ -156,9 +156,9 @@ class SmsSalesSummary implements FromView
                'dr_num' => $invoice->sitem_drnum,
                'po_num' => $invoice->sitem_ponum,
                'part_num' => $invoice->sitem_partnum,
-               'usd' => number_format($usd,2),
-               'php' => number_format($php,2),
-               'totalamount' => number_format($total_amt,2)));
+               'usd' => number_format($usd,4),
+               'php' => number_format($php,4),
+               'totalamount' => number_format($total_amt,4)));
 
             array_push($data, array('company' => $invoice->sales->customer->c_customername." Total",
                'delivery_date' => '',
@@ -166,9 +166,9 @@ class SmsSalesSummary implements FromView
                'dr_num' => '',
                'po_num' => '',
                'part_num' => '',
-               'usd' => number_format($total_usd,2),
-               'php' => number_format($total_php,2),
-               'totalamount' => number_format($total_all,2) ) );
+               'usd' => number_format($total_usd,4),
+               'php' => number_format($total_php,4),
+               'totalamount' => number_format($total_all,4) ) );
             $total_usd = 0;
             $total_php = 0;
             $total_all = 0;

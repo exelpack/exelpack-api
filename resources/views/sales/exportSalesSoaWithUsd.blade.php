@@ -245,7 +245,7 @@ for($i = 0; $i <= 5; $i++){
         <td style="text-align:left;  border:1px solid black;" >{{ $row->sitem_partnum }}</td>
         <td style=" border:1px solid black;" class="bg-col">{{ $due }}</td>
         <td style="text-align:right;border:1px solid black;" class="bg-col">{{ number_format($__usd,4) }}</td>
-        <td style="text-align:right;border:1px solid black;" class="bg-col">{{ number_format($__php,2) }}</td>
+        <td style="text-align:right;border:1px solid black;" class="bg-col">{{ number_format($__php,4) }}</td>
         <td style="text-align:center;border:1px solid black;" class="bg-col">{{ $diff }}</td>
       </tr>
     @endforeach
@@ -253,7 +253,7 @@ for($i = 0; $i <= 5; $i++){
     <tr>
       <td class="bg-col" colspan="6">Grand Total</td>
       <td style="text-align:right" class="bg-col">{{ number_format($total_usd,4) }}</td>
-      <td style="text-align:right" class="bg-col">{{ number_format($total_php,2) }}</td>
+      <td style="text-align:right" class="bg-col">{{ number_format($total_php,4) }}</td>
       <td class="bg-col"></td>
     </tr>
   </tbody> 
@@ -287,13 +287,13 @@ for($i = 0; $i <= 5; $i++){
   <tbody>
     <tr>
       <td style="border:1px solid black;">PHP</td>
-      <td style="border:1px solid black;">{{ number_format($aging_0_php,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_60_php,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_90_php,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_120_php,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_190_php,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_280_php,2) }}</td>
-      <td style="text-align: right; border:1px solid black;">{{ number_format($due_total_php,2) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_0_php,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_60_php,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_90_php,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_120_php,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_190_php,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_280_php,4) }}</td>
+      <td style="text-align: right; border:1px solid black;">{{ number_format($due_total_php,4) }}</td>
     </tr>
     <tr>
       <td style="border:1px solid black;">USD</td>

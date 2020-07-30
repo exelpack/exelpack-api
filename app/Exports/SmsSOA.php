@@ -36,6 +36,7 @@ class SmsSOA implements FromView
            $q->where('s_currency',$this->currency);
       })
       ->join('salesms_invoice as si','si.id','=','salesms_invoiceitems.sitem_sales_id')
+      ->orderBy('si.s_invoicenum','ASC')
       ->orderBy('si.s_deliverydate','ASC')
       ->get();  
 

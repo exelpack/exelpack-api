@@ -677,7 +677,7 @@ class SalesController extends Controller
       'po' => $item->sitem_ponum,
       'partnum' => $item->sitem_partnum,
       'quantity' => $item->sitem_quantity,
-      'unitprice' => $item->sitem_unitprice,
+      'unitprice' => number_format($item->sitem_unitprice,4,'.',''),
       'remarks' => $item->sitem_remarks,
       'totalAmount' => $item->sitem_totalamount,
     );
@@ -701,7 +701,7 @@ class SalesController extends Controller
       'sitem_ponum' => $item['po'],
       'sitem_partnum' => $item['partnum'] == '' ? 'NA' : $item['partnum'],
       'sitem_quantity' => $item['quantity'],
-      'sitem_unitprice' => number_format($item['unitprice'],2),
+      'sitem_unitprice' => number_format($item['unitprice'],4,'.',''),
       'sitem_totalamount' => doubleval($item['unitprice']) 
         * intval($item['quantity']),
     );

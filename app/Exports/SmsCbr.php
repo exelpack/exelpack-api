@@ -49,13 +49,13 @@ class SmsCbr implements FromView
           'orNum' => $sales->s_ornumber,
           'customerName' => $sales->customer->c_customername,
           'invoiceNum' => $sales->s_invoicenum,
-          'cwtUsd' => $usdwht == 0 ? '' : number_format($usdwht,2,'.',''),
-          'cwtPhp' => $phpwht == 0 ? '' : number_format($phpwht,2,'.',''),
-          'collectedUsd' => $collectedusd == 0 ? '' : number_format($collectedusd,2,'.',''),
-          'collectedPhp' => $collectedphp == 0 ? '' : number_format($collectedphp,2,'.',''),
+          'cwtUsd' => $usdwht == 0 ? '' : number_format($usdwht,4,'.',''),
+          'cwtPhp' => $phpwht == 0 ? '' : number_format($phpwht,4,'.',''),
+          'collectedUsd' => $collectedusd == 0 ? '' : number_format($collectedusd,4,'.',''),
+          'collectedPhp' => $collectedphp == 0 ? '' : number_format($collectedphp,4,'.',''),
           'receivable' => $collectedphp == 0 
-            ? number_format($collectedusd,2,'.','') 
-            : number_format($collectedphp,2,'.',''),
+            ? number_format($collectedusd,4,'.','') 
+            : number_format($collectedphp,4,'.',''),
         );
       })
       ->values();

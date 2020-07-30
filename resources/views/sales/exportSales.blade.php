@@ -84,9 +84,9 @@
             <td>{{ $row['sitem_partnum'] }}</td>
             <td>{{ $row['sitem_quantity'] }}</td>
             <td>{{ $row['sitem_unitprice'] }}</td>
-            <td class="a-right">{{ number_format($usd,2) }}</td>
-            <td class="a-right">{{ number_format($php,2) }}</td>
-            <td class="a-right">{{ number_format($total,2) }}</td>
+            <td class="a-right">{{ number_format($usd,4) }}</td>
+            <td class="a-right">{{ number_format($php,4) }}</td>
+            <td class="a-right">{{ number_format($total,4) }}</td>
             <td>{{ $sale->customer->c_paymentterms }}</td>
             <td>{{ $sale->s_withholding }}</td>
             <td>{{ $sale->s_ornumber }}</td>

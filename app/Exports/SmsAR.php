@@ -191,19 +191,19 @@ class SmsAR implements FromView
               'companyname' => $row['customer'] ,
               'currency' => $row['currency'] ,
               'payment_terms' => $row['payment_terms'],
-              'overall' => $overall_receivable == 0 ? '' : number_format($overall_receivable,2),
-              'aging_first' => $aging_first == 0 ? '' : number_format($aging_first,2),
-              'aging_second' => $aging_second == 0 ? '' : number_format($aging_second,2),
-              'aging_third' => $aging_third == 0 ? '' : number_format($aging_third,2),
-              'aging_fourth' => $aging_fourth == 0 ? '' : number_format($aging_fourth,2),
-              'aging_fifth' => $aging_fifth == 0 ? '' : number_format($aging_fifth,2),
-              'aging_six' => $aging_six == 0 ? '' : number_format($aging_six,2),
+              'overall' => $overall_receivable == 0 ? '' : number_format($overall_receivable,4),
+              'aging_first' => $aging_first == 0 ? '' : number_format($aging_first,4),
+              'aging_second' => $aging_second == 0 ? '' : number_format($aging_second,4),
+              'aging_third' => $aging_third == 0 ? '' : number_format($aging_third,4),
+              'aging_fourth' => $aging_fourth == 0 ? '' : number_format($aging_fourth,4),
+              'aging_fifth' => $aging_fifth == 0 ? '' : number_format($aging_fifth,4),
+              'aging_six' => $aging_six == 0 ? '' : number_format($aging_six,4),
               'total_collectibles_month' => $total_collectibles_month == 0 
-              ? '' : number_format($total_collectibles_month,2),
+              ? '' : number_format($total_collectibles_month,4),
               'total_remaining_balance' => $remaining <= 0 
-              ? '' : number_format($remaining,2),
-              'amt_collected'  => $amt_collected == 0 ? '' : number_format($amt_collected,2),
-              'perc_collected' => number_format($perc_collected,2)."%"
+              ? '' : number_format($remaining,4),
+              'amt_collected'  => $amt_collected == 0 ? '' : number_format($amt_collected,4),
+              'perc_collected' => number_format($perc_collected,4)."%"
             )
           );
 

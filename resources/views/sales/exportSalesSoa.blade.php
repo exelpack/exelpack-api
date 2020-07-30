@@ -196,7 +196,7 @@ for($i = 0; $i <= 5; $i++){
         <td  style="background: #E5E5E5; border:1px solid black;" class="bg-col">{{ $row->sitem_ponum }}</td>
         <td style="text-align:left;  border:1px solid black;" >{{ $row->sitem_partnum }}</td>
         <td style=" border:1px solid black;" class="bg-col">{{ $due }}</td>
-        <td style="text-align:right; border:1px solid black;" class="bg-col">{{ number_format($row_amount,$decimal) }}</td>
+        <td style="text-align:right; border:1px solid black;" class="bg-col">{{ number_format($row_amount,4) }}</td>
         <td style=" border:1px solid black;" class="bg-col">{{ $diff }}</td>
       </tr>
     @endforeach
@@ -205,7 +205,7 @@ for($i = 0; $i <= 5; $i++){
     </tr>
     <tr>
       <td class="bg-col"  style="text-align:left" colspan="6">Grand Total</td>
-      <td style="text-align:right" class="bg-col">{{ number_format($total,$decimal) }}</td>
+      <td style="text-align:right" class="bg-col">{{ number_format($total,4) }}</td>
       <td class="bg-col"></td>
     </tr>
   </tbody> 
@@ -240,13 +240,13 @@ for($i = 0; $i <= 5; $i++){
   <tbody>
     <tr>
       <td style="border:1px solid black;">Amount</td>
-      <td style="border:1px solid black;">{{ number_format($aging_0,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_60,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_90,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_120,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_190,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($aging_280,2) }}</td>
-      <td style="border:1px solid black;">{{ number_format($due_total,$decimal) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_0,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_60,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_90,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_120,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_190,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($aging_280,4) }}</td>
+      <td style="border:1px solid black;">{{ number_format($due_total,4) }}</td>
     </tr>
   </tbody>
 </table>
