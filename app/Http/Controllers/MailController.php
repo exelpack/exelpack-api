@@ -62,10 +62,10 @@ class MailController extends Controller
 	{
 		$validator = Validator::make($request->all(),
 			[
-				'dates' => 'array|required',
+				'dates' => 'array|required|min:1',
 				'cc' => 'array',
 				'bcc' => 'array',
-				'recipients' => 'array|required',
+				'recipients' => 'array|required|min:1',
 			]);
 
 		if($validator->fails()){
