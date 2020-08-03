@@ -19,6 +19,7 @@ use App\Exports\MasterlistExport;
 
 class MasterlistController extends LogsController
 {
+
 	private $itemValidationRules = array();
 
 	// exports
@@ -84,7 +85,7 @@ class MasterlistController extends LogsController
 			'code' => strtoupper($item->m_code),
 			'regisdate' => $item->m_regisdate,
 			'effectdate' => $item->m_effectdate,
-			'customer_label' => strtoupper($item->customer->companyname),
+			'customer_label' => $item->customer ? strtoupper($item->customer->companyname) : "None",
 			'customer' => $item->m_customer_id,
 			'requiredqty' => $item->m_requiredquantity,
 			'outs' => $item->m_outs,
@@ -126,15 +127,9 @@ class MasterlistController extends LogsController
 	public function getMasterlist()
 	{
 
-		$q = Masterlist::query();
-
-		$list = $q->orderBy('id','desc')->get();
+		$list = Masterlist::with('customer')->orderBy('id','desc')->get();
 		$itemList = $this->getItems($list);
 
-		$responseArray = array(
-			'itemList' => $itemList
-		);
-		
 		return response()->json(
 			[
 				'itemList' => $itemList,
