@@ -35,7 +35,7 @@ class UnitSeeder extends Seeder
     			'unit' => 'pair'
     		],
     		[
-    			'unit' => 'kgs'
+    			'unit' => 'kg'
     		]
     	];
 

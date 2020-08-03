@@ -205,6 +205,7 @@ class ReceivingController extends LogsController
 
     $invoice->update([
       'ssi_rrnum' => $request->rrseries,
+      'ssi_rrdate' => date('Y-m-d'),
       'ssi_inspectedquantity' => $request->inspectedQty,
       'ssi_receivedquantity' => $request->receivedQty,
       'ssi_remarks' => $request->remarks,
@@ -361,6 +362,7 @@ class ReceivingController extends LogsController
     $rrSeries = $invoice->ssi_rrnum;
     $invoice->update([
       'ssi_rrnum' => NULL,
+      'ssi_rrdate' => NULL,
       'ssi_receivedquantity' => 0,
       'ssi_inspectedquantity' => 0,
       'ssi_rejectquantity' => NULL,

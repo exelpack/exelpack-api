@@ -60,6 +60,7 @@ class MailController extends Controller
 
 	public function sendEmailSchedule(Request $request)
 	{
+   
 		$validator = Validator::make($request->all(),
 			[
 				'dates' => 'array|required|min:1',
