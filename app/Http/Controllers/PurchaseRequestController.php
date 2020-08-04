@@ -51,7 +51,8 @@ class PurchaseRequestController extends LogsController
         'poi_po_id',
         'poi_itemdescription',
         'poi_code',
-        'poi_quantity'
+        'poi_quantity',
+        'poi_partnum'
       )->groupBy('id');
 
     $purchaseOrder = PurchaseOrder::select('id', 'po_customer_id','po_ponum', 'po_currency')
@@ -89,6 +90,7 @@ class PurchaseRequestController extends LogsController
       'companyname as customer',
       'poi_code as code',
       'poi_itemdescription as itemDesc',
+      'poi_partnum as partNumber',   
       'jo_dateissued as date_issued',
       'jo_dateneeded as date_needed',
       'jo_quantity as quantity',

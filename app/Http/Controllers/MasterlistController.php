@@ -30,8 +30,8 @@ class MasterlistController extends LogsController
 
 	public function __construct(){
 		$this->itemValidationRules = array(
-			'mspecs' => 'required|max:255|regex:/^[a-zA-Z0-9-_ ()"]+$/',
-			'itemdesc' => 'required|max:255|regex:/^[a-zA-Z0-9-_ (),"]+$/',
+			'mspecs' => 'required|max:255|regex:/^[a-zA-Z0-9-_ ().\/"]+$/',
+			'itemdesc' => 'required|max:255|regex:/^[a-zA-Z0-9-_ (),.\/"]+$/',
 			'regisdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
 			'effectdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
 			'outs' => 'min:0|required',
@@ -206,6 +206,7 @@ class MasterlistController extends LogsController
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
+    return 1;
 
 		$item = new Masterlist();
 		$createdItem = $item->create($this->itemArray($request))->refresh();

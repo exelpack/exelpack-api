@@ -289,7 +289,11 @@ class PurchasesSupplierController extends LogsController
       ->groupBy('id');
 
     $po = DB::table('cposms_purchaseorder')
-      ->select('id','po_ponum')
+      ->select('id','po_ponum', 'po_customer_id')
+      ->groupBy('id');
+
+    $customer = DB::table('customer_information')
+      ->select('id','companyname')
       ->groupBy('id');
 
     $q = PurchaseRequest::has('jo.poitems.po')
@@ -307,11 +311,15 @@ class PurchasesSupplierController extends LogsController
         })
         ->leftJoinSub($po, 'po', function($join){
           $join->on('poitem.poi_po_id','=','po.id');
+        })
+        ->leftJoinSub($customer, 'customer', function($join){
+          $join->on('customer.id', '=', 'po_customer_id');
         });
 
     $q->select([
       'prms_prlist.id as id',
       DB::raw('IF(hasSupplier > 0,"W/ PRICE","NO PRICE") as status'),
+      'companyname as customer',
       'pr_prnum as prNum',
       'jo_joborder as joNum',
       'po_ponum as poNum',
