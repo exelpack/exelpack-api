@@ -103,15 +103,15 @@ class PurchaseOrderController extends LogsController
         'm_code as code',
         'm_unit as unit',
         'm_unitprice as unitprice'
-      )
+      ) 
       ->where('m_customer_id', $id)
-      ->whereRaw('ROUND (   
-        (
-            LENGTH(m_code)
-            - LENGTH( REPLACE ( m_code, "-", "") ) 
-            ) / LENGTH("-")        
-        ) = 1'
-      )/////filter where dash occurence in string is only one meaning the code used is for item not materials
+      // ->whereRaw('ROUND (   
+      //   (
+      //       LENGTH(m_code)
+      //       - LENGTH( REPLACE ( m_code, "-", "") ) 
+      //       ) / LENGTH("-")        
+      //   ) = 1'
+      // )/////filter where dash occurence in string is only one meaning the code used is for item not materials
       ->latest('id')
       ->get();
 
