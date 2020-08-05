@@ -57,8 +57,10 @@ class UserController extends Controller
         'action' => 'Logged in',
         'system' => $sys,
       ]);
-     return response()->json(['message' => 'Login Success', 'access_token' => $token,'token_type' => 'Bearer',
-      'expires_in' => auth('api')->factory()->getTTL() * 60 ]);
+     return response()
+      ->json(['message' => 'Login Success', 'access_token' => $token,'token_type' => 'Bearer',
+      'expires_in' => auth('api')->factory()->getTTL() * 60 ])
+      ->withCookie(cookie('tkn', 'test-cookie', 10));
    }
    return response()->json(['message' => 'Invalid username or password'],401);
 
