@@ -206,7 +206,6 @@ class MasterlistController extends LogsController
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
 		}
-    return 1;
 
 		$item = new Masterlist();
 		$createdItem = $item->create($this->itemArray($request))->refresh();
