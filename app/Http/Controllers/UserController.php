@@ -217,7 +217,7 @@ class UserController extends Controller
       $request->all(),
       [
         'username' => 'min:2|max:12|required|unique:users_account,username,'.$id,
-        'password' => 'min:3|max:12|required',
+        'password' => 'min:3|max:12|nullable',
         'type' => 'min:4|max:20|required|in:default,admin,management',
         'department' => 'min:2|max:20|required',
         'gender' => 'string|max:6|in:male,female|required',
@@ -300,6 +300,27 @@ class UserController extends Controller
     return response()->json(
       [
         'message' => 'User deleted'
+      ]);
+
+  }
+
+  public function updateSignature(Request $request,$id){
+
+    $user = User::findOrFail($id);
+
+    if($request->signature){
+      $name = pathinfo($request->signature->getClientOriginalName(),PATHINFO_FILENAME);
+      $ext = $request->signature->getClientOriginalExtension();
+      $filename =  "sig_".$user->id.".".$ext;
+      Storage::disk('local')->putFileAs('/users/signature/'.$id.'/',$request->signature, $filename);
+      $user->update([
+        'signature' => $filename,
+      ]);
+    }
+
+    return response()->json(
+      [
+        'message' => 'Signature updated'
       ]);
 
   }

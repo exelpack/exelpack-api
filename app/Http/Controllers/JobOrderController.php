@@ -450,12 +450,12 @@ class JobOrderController extends LogsController
 
 		$jo = JobOrder::findOrFail($id);
     if($jo->pr) {
-      return response()->json(['errors' => ['Job order is not deletable!']]);
+      return response()->json(['errors' => ['Job order is not deletable!']] ,422);
     }
 
 		$jo_num = $jo->jo_joborder;
 		$item_id = $jo->jo_po_item_id;
-    $jo->produced->delete();
+    $jo->produced()->delete();
 		$jo->delete();
 		$item = PurchaseOrderItems::findOrFail($item_id);
 		$get_jos = $item->jo()->get();

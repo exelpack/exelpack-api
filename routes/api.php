@@ -296,8 +296,9 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 		Route::get('/users', 'UserController@getAllUser');
 		Route::post('/users', 'UserController@createUser');
-		Route::post('/users/{id}', 'UserController@editUser');
-		Route::delete('/users/{id}','UserController@deleteUser');
+		Route::put('/users/{id}', 'UserController@editUser');
+    Route::delete('/users/{id}','UserController@deleteUser');
+		Route::put('/users/sig/{id}','UserController@updateSignature');
 
 	});
 
