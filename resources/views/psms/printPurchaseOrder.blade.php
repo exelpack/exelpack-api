@@ -213,7 +213,7 @@
       <div class="signature">
         @if($preparedBySig && $preparedBySigFile)
           <img 
-            src="{{ $url.$prepareBySigFile.'&token='.$token }}"
+            src="{{ $url.$preparedBySigFile.'&token='.$token }}"
             alt="Cannot load signature"
           />
         @else
