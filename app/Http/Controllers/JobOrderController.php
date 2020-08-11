@@ -449,7 +449,7 @@ class JobOrderController extends LogsController
 	{
 
 		$jo = JobOrder::findOrFail($id);
-    if($jo->pr) {
+    if($jo->pr()->count() > 0) {
       return response()->json(['errors' => ['Job order is not deletable!']] ,422);
     }
 

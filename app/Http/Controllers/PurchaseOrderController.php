@@ -871,6 +871,9 @@ class PurchaseOrderController extends LogsController
 	public function getMonthItemCountSchedule()
 	{
 
+    if(!request->has('date'))
+      return response()->json(['errors' => ['Date parameter is required']])
+
 		$date = request()->date;
 		$month = Carbon::parse($date)->format('m');
 		$year = Carbon::parse($date)->format('Y');

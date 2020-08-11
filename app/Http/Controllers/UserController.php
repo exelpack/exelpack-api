@@ -36,6 +36,10 @@ class UserController extends Controller
       $access = 'purchasesms_access';
     else if($sys === 'approvalpr')
       $access = 'approval_pr';
+    else if($sys === 'approvalpo')
+      $access = 'approval_po';
+    else if($sys === 'production')
+      $access = 'prod_access';
     else {
       return response()->json(
         [

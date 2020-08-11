@@ -30,8 +30,8 @@ class MasterlistController extends LogsController
 
 	public function __construct(){
 		$this->itemValidationRules = array(
-			'mspecs' => 'required|max:255|regex:/^[a-zA-Z0-9-_ ().\/"]+$/',
-			'itemdesc' => 'required|max:255|regex:/^[a-zA-Z0-9-_ (),.\/"]+$/',
+			'mspecs' => 'required|max:255',//|regex:/^[a-zA-Z0-9-_ ().\/"]+$/',
+			'itemdesc' => 'required|max:255',//|regex:/^[a-zA-Z0-9-_ (),.\/"]+$/',
 			'regisdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
 			'effectdate' => 'nullable|before_or_equal:'.date('Y-m-d'),
 			'outs' => 'min:0|required',

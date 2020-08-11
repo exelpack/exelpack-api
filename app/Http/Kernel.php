@@ -70,6 +70,7 @@ class Kernel extends HttpKernel
         'purchasesms' => \App\Http\Middleware\RestrictPurchasesms::class,
         'checkPrivelege' => \App\Http\Middleware\RestrictAction::class,
         'approvalpr' => \App\Http\Middleware\RestrictPrApproval::class,
+        'production' => \App\Http\Middleware\RestrictProduction::class,
     ];
 
     /**
