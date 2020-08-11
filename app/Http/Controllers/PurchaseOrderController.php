@@ -871,7 +871,7 @@ class PurchaseOrderController extends LogsController
 	public function getMonthItemCountSchedule()
 	{
 
-    if(!request->has('date'))
+    if(!request()->has('date'))
       return response()->json(['errors' => ['Date parameter is required']])
 
 		$date = request()->date;
