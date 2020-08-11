@@ -872,7 +872,7 @@ class PurchaseOrderController extends LogsController
 	{
 
     if(!request()->has('date'))
-      return response()->json(['errors' => ['Date parameter is required']])
+      return response()->json(['errors' => ['Date parameter is required']]);
 
 		$date = request()->date;
 		$month = Carbon::parse($date)->format('m');
