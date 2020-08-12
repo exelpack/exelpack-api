@@ -13,6 +13,7 @@ use App\PurchaseOrderSchedule;
 use App\Masterlist;
 use App\Customers;
 use App\Units;
+use App\PurchaseRequest;
 
 use DB;
 use Excel;
@@ -179,11 +180,14 @@ class PurchaseOrderController extends LogsController
 	{
 		$delivered = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
 		$status = $delivered >= $item->poi_quantity ? 'SERVED' : 'OPEN';
+    $countPr = PurchaseRequest::whereHas('jo.poitems', function($q) use($item){
+      $q->where('id', $item->id);
+    })->count();
 
 		//restrict
     $isEditable = true;
 
-    if ($status === 'SERVED' || $item->jo()->count() > 0 || $delivered > 0)
+    if ($status === 'SERVED' || $countPr > 0 || $delivered > 0)
       $isEditable = false;
 
 		$hasDelivery = $item->delivery()->count() > 0 ? true : false;

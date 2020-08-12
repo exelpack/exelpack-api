@@ -44,7 +44,7 @@ class OperationController extends Controller
       ->groupBy('id');
 
     $prPrice = DB::table('psms_prsupplierdetails')
-      ->select('id','prsd_supplier_id','prsd_pr_id')
+      ->select('id','prsd_supplier_id','prsd_pr_id', 'prsd_currency')
       ->groupBy('id');
 
     $q = PurchaseRequestApproval::where('pra_approver_id',$userId)
@@ -79,6 +79,7 @@ class OperationController extends Controller
         'jo_joborder as joNum',
         'pr_prnum as prNum',
         'po_ponum as poNum',
+        'prsd_currency as currency',
         'psms_prapprovaldetails.created_at as created_at',
         'psms_prapprovaldetails.pra_remarks as remarks',
       ]);
@@ -150,6 +151,7 @@ class OperationController extends Controller
         'unit' => $item->pri_uom,
         'quantity' => $item->pri_quantity,
         'unitPrice' => $item->pri_unitprice,
+        'currency' => $prsd->prsd_currency,
         'amount' => $item->pri_quantity * $item->pri_unitprice,
         'dateNeeded' => $item->pr->jo->jo_dateneeded,
         'costing' => $costing,
