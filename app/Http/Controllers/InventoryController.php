@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Masterlist;
 use App\JobOrder;
 use App\JobOrderProduced;
@@ -106,7 +107,7 @@ class InventoryController extends LogsController
 	public function getInventoryItems()
 	{
 
-		$inventory = Inventory::orderBy('i_quantity','desc')->get();
+		$inventory = Inventory::where('i_quantity','>',0)->orderBy('i_quantity','desc')->get();
 		$inv = $inventory->map(function($item,$key) {
 			return $this->getInventoryItem($item);
 		})->all();
@@ -124,7 +125,14 @@ class InventoryController extends LogsController
 		$validator = Validator::make(
 			$request->all(),
 			array_merge($this->inventoryValidation,[
-				'code' => 'required|string|max:50|unique:wims_inventory,i_code'
+        'code' => array(
+            'required',
+            'string',
+            'max:50',
+            Rule::unique('wims_inventory','i_code')->where(function($q){
+              return $q->where('i_quantity','>',0);
+            })
+          )
 			]),
 			[],
 			$this->inventoryName
@@ -135,20 +143,21 @@ class InventoryController extends LogsController
 		}
 
 		$inventory = new Inventory();
-		$inventory->fill(
-			[
-				'i_mspecs' => $request->mspecs,
-				'i_projectname' => $request->itemdesc,
-				'i_partnumber' => $request->partnum,
-				'i_code' => $request->code,
-				'i_unit' => $request->unit,
-				'i_quantity' => $request->quantity,
-				'i_min' => $request->min,
-				'i_max' => $request->max,
-			]);
-		$inventory->save();
+    $newInventory = $inventory->updateOrCreate(
+      ['i_code' => $request->code],
+      [
+        'i_mspecs' => $request->mspecs,
+        'i_projectname' => $request->itemdesc,
+        'i_partnumber' => $request->partnum,
+        'i_unit' => $request->unit,
+        'i_quantity' => $request->quantity,
+        'i_min' => $request->min,
+        'i_max' => $request->max,
+      ]
+    );
+
 		$this->logAddInventoryItem($request->code,$request->mspecs,$request->quantity);
-		$newItem = $this->getInventoryItem($inventory);
+		$newItem = $this->getInventoryItem($newInventory);
 		return response()->json(
 			[
 				'newItem' => $newItem,

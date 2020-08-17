@@ -26,6 +26,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
   Route::group(['middleware' => ['cposms', 'production']], function () {
     Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
+    Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
   });
 
 	Route::group(['middleware' => ['cposms']], function() {
@@ -61,7 +62,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@getPoItemSchedule');
 		Route::get('/cposms/poitems/schedules/{date}/item', 'PurchaseOrderController@getDailySchedules');
 		Route::post('/cposms/poitems/schedules', 'PurchaseOrderController@addDailySchedule');
-		Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
 		Route::delete('/cposms/poitems/schedules/{ids}', 'PurchaseOrderController@deleteItemSchedule');
 
 		//exports
