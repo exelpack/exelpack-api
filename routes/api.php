@@ -24,6 +24,10 @@ Route::group(['middleware' => ['auth:api']], function() {
   // PurchasesSupplierController@printPurchaseOrder
 	// ['error' => 'Unauthorized'],
 
+  Route::group(['middleware' => ['cposms', 'production']], function () {
+    Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
+  });
+
 	Route::group(['middleware' => ['cposms']], function() {
 
     //mail
@@ -55,7 +59,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/cposms/poitems/delivery', 'PurchaseOrderController@fetchDeliveries');
 
 		Route::get('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@getPoItemSchedule');
-		Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
 		Route::get('/cposms/poitems/schedules/{date}/item', 'PurchaseOrderController@getDailySchedules');
 		Route::post('/cposms/poitems/schedules', 'PurchaseOrderController@addDailySchedule');
 		Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');

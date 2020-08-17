@@ -81,7 +81,7 @@
 
   <table class="rrtable-info" border="1" cellspacing="0" cellpadding="1">
     <tr>
-      <td style="width: 50%">Item Description: {{ $rrDetails->rrNum }}</td>
+      <td style="width: 50%">Item Description: {{ $rrDetails->itemDescription }}</td>
       <td style="width: 50%" colspan="2">
         <table style="width: 100%;" cellspacing="0" cellpadding="2">
           <tr>
