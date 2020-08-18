@@ -40,12 +40,12 @@ class InventoryExport implements FromArray, WithHeadings
           'code' => $item->code,
           'unit' => $item->unit,
           'quantity' => $item->quantity,
-          'price' => $price->pri_unitprice,
+          'price' => $price->pri_unitprice ?? 'No Purchases',
           'min' => $item->min,
           'max' => $item->max,
           'locations' => $item->locations()->get()->pluck('loc_description')->join(','),
-          'priceSupplier' => $price->pr->prpricing->supplier->sd_supplier_name,
-          'amount' => number_format(intval($item->quantity) * $price->pri_unitprice,2)  
+          'priceSupplier' => $price->pr->prpricing->supplier->sd_supplier_name ?? 'No Purchases',
+          'amount' => number_format(intval($item->quantity) * ($price->pri_unitprice ?? 1),2)  
         );
       })->toArray();
 
