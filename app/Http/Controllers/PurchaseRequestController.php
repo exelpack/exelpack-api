@@ -64,10 +64,12 @@ class PurchaseRequestController extends LogsController
     $produced = JobOrderProduced::select(Db::raw('sum(jop_quantity) as producedQty'),
       'jop_jo_id')->groupBy('jop_jo_id');
 
-    $pr = Db::table('prms_prlist')->select(
-        Db::raw('count(*) as prCount'),
-        'pr_jo_id'
-      )->groupBy('pr_jo_id');
+    $pr = Db::table('prms_prlist')
+            ->select(
+              Db::raw('count(*) as prCount'),
+              'pr_jo_id',
+              DB::raw('GROUP_CONCAT(pr_prnum) as prnumbers')
+            )->groupBy('pr_jo_id');
 
     $q = JobOrder::has('poitems.po');
     // join
@@ -97,18 +99,20 @@ class PurchaseRequestController extends LogsController
       'jo_remarks as remarks',
       'jo_others as others',
       Db::raw('IF(jo_quantity > IFNULL(producedQty,0),"OPEN","SERVED" ) as status'),
-      DB::raw('cast(IFNULL(prCount,0) as int) as prCount')
+      DB::raw('cast(IFNULL(prCount,0) as int) as prCount'),
+      'prnumbers'
     );
 
     if(request()->has('search')){
-
       $search = "%".strtolower(request()->search)."%";
-
       $q->whereHas('poitems.po', function($q) use ($search){
         $q->where('po_ponum','LIKE', $search);
       })->orWhereHas('poitems', function($q) use ($search){
         $q->where('poi_itemdescription','LIKE',$search);
-      })->orWhere('jo_joborder','LIKE',$search);
+      })->orWhere('jo_joborder','LIKE',$search)
+        ->orWhereRaw('prnumbers LIKE ?', [$search])
+        ->orWhereRaw('customer LIKE ?', [$search])
+        ->orWhereRaw('code LIKE ?', [$search]);
 
     }
 

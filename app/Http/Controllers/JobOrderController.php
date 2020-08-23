@@ -111,6 +111,7 @@ class JobOrderController extends LogsController
       'po_ponum as po_num',
       'poi_code as code',
       'poi_itemdescription as itemdesc',
+      'poi_partnum as partnumber',
       'poi_quantity as quantity',
       'po_currency as currency',
       'poi_unitprice as unitprice',
