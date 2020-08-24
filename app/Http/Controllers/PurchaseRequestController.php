@@ -111,8 +111,8 @@ class PurchaseRequestController extends LogsController
         $q->where('poi_itemdescription','LIKE',$search);
       })->orWhere('jo_joborder','LIKE',$search)
         ->orWhereRaw('prnumbers LIKE ?', [$search])
-        ->orWhereRaw('customer LIKE ?', [$search])
-        ->orWhereRaw('code LIKE ?', [$search]);
+        ->orWhereRaw('companyname LIKE ?', [$search])
+        ->orWhereRaw('poi_code LIKE ?', [$search]);
 
     }
 
