@@ -27,6 +27,12 @@ Route::group(['middleware' => ['auth:api']], function() {
   Route::group(['middleware' => ['cposms', 'production']], function () {
     Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
     Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
+
+  });
+
+  Route::group(['middleware' => ['customerpoaccess']], function (){
+    Route::get('/overall/po/{id}', 'PurchaseOrderController@getPoOverallDetails');
+    Route::get('/cposms/po','PurchaseOrderController@poIndex'); //fetch po
   });
 
 	Route::group(['middleware' => ['cposms']], function() {
@@ -37,7 +43,8 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::delete('/cposms/emails/{id}', 'MailController@deleteEmail');
 
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
-		Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
+    Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
+
 
 			// cposms
     Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
@@ -48,7 +55,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
     Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
 		Route::get('/cposms/po/{id}','PurchaseOrderController@getPoItems'); //edit po
-		Route::get('/cposms/po','PurchaseOrderController@poIndex'); //fetch po
 		Route::delete('/cposms/po/{id}','PurchaseOrderController@cancelPo'); //cancel po
 		Route::get('/cposms/poitems','PurchaseOrderController@poItemsIndex'); //fetch po items
 

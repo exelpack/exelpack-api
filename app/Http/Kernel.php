@@ -71,6 +71,7 @@ class Kernel extends HttpKernel
         'checkPrivelege' => \App\Http\Middleware\RestrictAction::class,
         'approvalpr' => \App\Http\Middleware\RestrictPrApproval::class,
         'production' => \App\Http\Middleware\RestrictProduction::class,
+        'customerpoaccess' => \App\Http\Middleware\CustomerPoAccess::class,
     ];
 
     /**

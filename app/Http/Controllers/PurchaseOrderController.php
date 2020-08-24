@@ -1104,45 +1104,80 @@ class PurchaseOrderController extends LogsController
     return $pr_arr;
   }
 
+  private function getJoTree($data){
+    $joArray = array();
+    foreach($data as $row){
+      $getProducedQty = $row->produced()->sum('jop_quantity');
+      $getPrCount = $row->pr()->count();
+      $status = $row->jo_quantity > $getProducedQty ? 'OPEN' : 'SERVED';
+
+      // array_push($expandedKeys, $data->jo_joborder);
+      $newData = array(
+        'title' => $row->jo_joborder." (Qty. ".$row->jo_quantity." - Status : ".$status.")",
+        'key' => $row->jo_joborder,
+        'children' => array(
+          array(
+            'title' => 'Produced '."(Qty. ".$getProducedQty.")",
+            'key' => $row->jo_joborder."-p",
+            'children' => $this->getJoProduced($row->produced)
+          ),
+          array(
+            'title' => 'Purchase Requisition ('.$getPrCount.')',
+            'key' => $row->jo_joborder."-pr",
+            'children' => $this->getPrTree($row->pr)
+          )
+        )
+      );
+
+      array_push($joArray, $newData);
+    }
+
+    return $joArray;
+  }
+
+  private function getPoItemTree($data){
+    return $data->map(function($item){
+      $delivered = $item->delivery()->sum(DB::raw('poidel_quantity + poidel_underrun_qty'));
+      $status = $delivered >= $item->poi_quantity ? 'SERVED' : 'OPEN';
+      return array(
+        'title' => "{$item->poi_code} - {$item->poi_itemdescription} - (Qty. {$item->poi_quantity} - Status: {$status})",
+        'key' => "{$item->poi_code}",
+        'children' => $this->getJoTree($item->jo),
+      );
+    });
+  }
+
+  public function getPoOverallDetails($poId){
+    $po = PurchaseOrder::findOrFail($poId);
+
+    $expandedKeys = $po->poitems->map(function($item){
+      return $item->jo_joborder;  
+    });
+
+    $tree_data = $this->getPoItemTree($po->poitems());
+
+    return response()->json(
+    [
+      'treeData' => $tree_data,
+      'treeDataParentKeys' => $expandedKeys
+    ]);
+  }
+
 	public function getItemOverallDetails($itemId)
 	{
-
 		$item = PurchaseOrderItems::findOrFail($itemId);
 
-		$tree_data = array();
-		$expandedKeys = array();
+		$expandedKeys = $item->jo->map(function($jo){
+      return $jo->jo_joborder;  
+    });
 
-		foreach($item->jo as $key => $jo){
-			$getProducedQty = $jo->produced()->sum('jop_quantity');
-      $getPrCount = $jo->pr()->count();
-			$status = $jo->jo_quantity > $getProducedQty ? 'OPEN' : 'SERVED';
-
-			array_push($expandedKeys, $jo->jo_joborder);
-			$data = array(
-				'title' => $jo->jo_joborder." (Qty. ".$jo->jo_quantity." - Status : ".$status.")",
-				'key' => $jo->jo_joborder,
-				'children' => array(
-					array(
-						'title' => 'Produced '."(Qty. ".$getProducedQty.")",
-						'key' => $jo->jo_joborder."-p",
-						'children' => $this->getJoProduced($jo->produced)
-					),
-					array(
-						'title' => 'Purchase Requisition ('.$getPrCount.')',
-						'key' => $jo->jo_joborder."-pr",
-						'children' => $this->getPrTree($jo->pr)
-					)
-				)
-			);
-
-			array_push($tree_data,$data);
-		}
+    $tree_data = $this->getJoTree($item->jo);
 
 		return response()->json(
-			[
-				'treeData' => $tree_data,
-				'treeDataParentKeys' => $expandedKeys
-			]);
+		[
+			'treeData' => $tree_data,
+			'treeDataParentKeys' => $expandedKeys
+		]);
 	}
 
 	//sales report
