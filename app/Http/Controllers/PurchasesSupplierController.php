@@ -1404,9 +1404,16 @@ class PurchasesSupplierController extends LogsController
 
     $poItem = PurchaseOrderSupplierItems::findOrFail($request->item_id);
     $totalRemaining = intval($poItem->spoi_quantity)
-      - intval($poItem->invoice()->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
-      - intval($poItem->invoice()->sum(Db::raw('ssi_drquantity')) );
-
+      - (
+        intval($poItem->invoice()
+          ->where('ssi_rrnum','!=',null)
+          ->where('ssi_receivedquantity','!=',0)
+          ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
+        + intval($poItem->invoice()
+            ->where('ssi_rrnum','=',null)
+            ->where('ssi_receivedquantity','=',0)
+            ->sum(Db::raw('ssi_drquantity')) )
+        );
     $totalQty = array('totalQty' => intval($request->quantity) + intval($request->underrun));
     $validator = Validator::make(array_merge($request->all(),$totalQty),
       $this->purchaseOrderValidationArray($totalRemaining),
@@ -1453,11 +1460,17 @@ class PurchasesSupplierController extends LogsController
   public function updateDeliveryToPo(Request $request, $id){
     $poItem = PurchaseOrderSupplierItems::findOrFail($request->item_id);
     $invoice = SupplierInvoice::findOrFail($id);
-    $totalRemaining = intval($poItem->spoi_quantity)
-      - intval($poItem->invoice()
+    $totalRemaining = (intval($poItem->spoi_quantity)  + $invoice->ssi_drquantity)
+      - (
+        intval($poItem->invoice()
+          ->where('ssi_rrnum','!=',null)
+          ->where('ssi_receivedquantity','!=',0)
           ->sum(Db::raw('ssi_receivedquantity + ssi_underrunquantity')) )
-      - intval($poItem->invoice()
-          ->sum(Db::raw('ssi_drquantity')) ) + $invoice->ssi_drquantity;
+        + intval($poItem->invoice()
+            ->where('ssi_rrnum','=',null)
+            ->where('ssi_receivedquantity','=',0)
+            ->sum(Db::raw('ssi_drquantity')) )
+        );
     $totalQty = array('totalQty' => intval($request->quantity) + intval($request->underrun));
     $validator = Validator::make(array_merge($request->all(),$totalQty),
       $this->purchaseOrderValidationArray($totalRemaining),
