@@ -1092,7 +1092,7 @@ class PurchaseOrderController extends LogsController
               }),
             ),
             array(
-              'title' => 'Purchase Order (0)',
+              'title' => 'Purchase Order (STILL WIP)',
               'key' => $row->jo->jo_joborder."-pr-po-".$row->id,
               'children' => array(),
             ),
@@ -1105,14 +1105,13 @@ class PurchaseOrderController extends LogsController
   }
 
   private function getJoTree($data){
-    $joArray = array();
-    foreach($data as $row){
+    return $data->map(function($row){
       $getProducedQty = $row->produced()->sum('jop_quantity');
       $getPrCount = $row->pr()->count();
       $status = $row->jo_quantity > $getProducedQty ? 'OPEN' : 'SERVED';
 
       // array_push($expandedKeys, $data->jo_joborder);
-      $newData = array(
+      return array(
         'title' => $row->jo_joborder." (Qty. ".$row->jo_quantity." - Status : ".$status.")",
         'key' => $row->jo_joborder,
         'children' => array(
@@ -1128,11 +1127,7 @@ class PurchaseOrderController extends LogsController
           )
         )
       );
-
-      array_push($joArray, $newData);
-    }
-
-    return $joArray;
+    });
   }
 
   private function getPoItemTree($data){
@@ -1151,10 +1146,10 @@ class PurchaseOrderController extends LogsController
     $po = PurchaseOrder::findOrFail($poId);
 
     $expandedKeys = $po->poitems->map(function($item){
-      return $item->jo_joborder;  
+      return $item->poi_code;  
     });
 
-    $tree_data = $this->getPoItemTree($po->poitems());
+    $tree_data = $this->getPoItemTree($po->poitems);
 
     return response()->json(
     [

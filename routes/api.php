@@ -24,7 +24,7 @@ Route::group(['middleware' => ['auth:api']], function() {
   // PurchasesSupplierController@printPurchaseOrder
 	// ['error' => 'Unauthorized'],
 
-  Route::group(['middleware' => ['cposms', 'production']], function () {
+  Route::group(['middleware' => ['cposms']], function () {
     Route::get('/cposms/poitems/schedules', 'PurchaseOrderController@getMonthItemCountSchedule');
     Route::put('/cposms/poitems/schedules/{id}', 'PurchaseOrderController@updateItemSchedule');
 
