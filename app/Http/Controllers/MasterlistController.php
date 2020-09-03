@@ -129,7 +129,6 @@ class MasterlistController extends LogsController
 
 		$list = Masterlist::with('customer')->orderBy('id','desc')->get();
 		$itemList = $this->getItems($list);
-    return $itemList;
 		return response()->json(
 			[
 				'itemList' => $itemList,
