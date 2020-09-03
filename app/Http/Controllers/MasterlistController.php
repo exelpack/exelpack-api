@@ -79,9 +79,9 @@ class MasterlistController extends LogsController
 		return array(
 			'id' => $item->id,
 			'moq' => $item->m_moq,
-			'mspecs' => strtoupper($item->m_mspecs),
-			'itemdesc' => strtoupper($item->m_projectname),
-			'partnum' => strtoupper($item->m_partnumber),
+			'mspecs' => $item->m_mspecs,
+			'itemdesc' => $item->m_projectname,
+			'partnum' => $item->m_partnumber,
 			'code' => strtoupper($item->m_code),
 			'regisdate' => $item->m_regisdate,
 			'effectdate' => $item->m_effectdate,
@@ -129,7 +129,7 @@ class MasterlistController extends LogsController
 
 		$list = Masterlist::with('customer')->orderBy('id','desc')->get();
 		$itemList = $this->getItems($list);
-
+    return $itemList;
 		return response()->json(
 			[
 				'itemList' => $itemList,

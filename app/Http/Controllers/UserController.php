@@ -24,6 +24,8 @@ class UserController extends Controller
       $access = 'pjoms_access';
     else if($sys === 'pmms')
       $access = 'pmms_access';
+    else if($sys === 'mainboard')
+      $access = 'mainboard_access';
     else if($sys === 'cims')
       $access = 'cims_access';
     else if($sys === 'wims')
@@ -43,11 +45,11 @@ class UserController extends Controller
     else {
       return response()->json(
         [
-          'error' => ['Invalid access']
+          'errors' => ['Invalid access']
         ],422);
     }
 
-    if($sys === 'pmms')
+    if($sys === 'pmms' || $sys === 'mainboard')
       $user = User::where('username', $username)->first();
     else
       $user = User::where([ [$access,1] , ['username', $username] ])->first();

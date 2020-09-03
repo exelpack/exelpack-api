@@ -20,6 +20,8 @@ Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/me','UserController@me');
   Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
   Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
+  Route::get('/pjoms/jo', 'JobOrderController@fetchJo');
+  Route::get('/pjoms/jo/{id}', 'JobOrderController@getJobOrderDetails');
   
   // PurchasesSupplierController@printPurchaseOrder
 	// ['error' => 'Unauthorized'],
@@ -99,7 +101,6 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/pjoms/option/series', 'JobOrderController@fetchJoSeries');
 		Route::post('/pjoms/jo', 'JobOrderController@createJo');
 		Route::put('/pjoms/jo/{id}', 'JobOrderController@updateJo');
-		Route::get('/pjoms/jo', 'JobOrderController@fetchJo');
 		Route::delete('/pjoms/jo/{id}', 'JobOrderController@deleteJo');
 
 		Route::get('/pjoms/jo/produced/{id}','JobOrderController@getJoProducedQty');

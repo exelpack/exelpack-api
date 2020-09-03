@@ -16,7 +16,10 @@ use App\JobOrder;
 use App\JobOrderProduced;
 use App\JobOrderSeries;
 use App\Inventory;
+use App\PurchaseRequest;
+use App\PurchaseOrderSupplier;
 use App\PurchaseOrderSupplierItems;
+use App\SupplierInvoice;
 
 use DB;
 use Excel;
@@ -256,8 +259,14 @@ class JobOrderController extends LogsController
 
     $pr = Db::table('prms_prlist')->select(
         Db::raw('count(*) as prCount'),
-        'pr_jo_id'
+        'pr_jo_id',
+        'pr_prnum',
+        'id'
       )->groupBy('pr_jo_id');
+
+    $prsd = Db::table('psms_prsupplierdetails')
+      ->select('prsd_pr_id', 'prsd_spo_id')
+      ->groupBy('prsd_pr_id');
 
 		$q = JobOrder::has('poitems.po');
     // join
@@ -273,6 +282,8 @@ class JobOrderController extends LogsController
       $join->on('customer.id','=','po.po_customer_id');
     })->leftJoinSub($pr, 'pr', function($join){
       $join->on('pr.pr_jo_id','=','pjoms_joborder.id');
+    })->leftJoinSub($prsd, 'prsd', function($join){
+      $join->on('prsd.prsd_pr_id','=','pr.id');
     });
     //select
     $q->select(
@@ -292,7 +303,8 @@ class JobOrderController extends LogsController
       Db::raw('IFNULL(producedQty,0) as producedQty'),
       'jo_forwardToWarehouse as forwardToWarehouse',
       DB::raw('(poi_quantity - totalJobOrderQty) + jo_quantity as qtyWithoutJo'),
-      DB::raw('IF(IFNULL(prCount,0) > 0,true,false) as hasPr')
+      DB::raw('IF(IFNULL(prCount,0) > 0,true,false) as hasPr'),
+      Db::raw('IF(IFNULL(prsd_spo_id,0) > 0,true,false) as hasPo')
     );
 
 		if(request()->has('search')){
@@ -350,6 +362,98 @@ class JobOrderController extends LogsController
       'customers' => $this->getCustomers(),
     ]);
 	}
+
+  //get job order details
+  public function getJobOrderDetails($id) {
+    $joborder = JobOrder::findOrFail($id);
+    // $prItems = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
+    //   $q->where('id', $id);
+    // })->get();
+    $pr = PurchaseRequest::whereHas('jo', function($q) use ($id) {
+        $q->where('id', $id);
+      })
+      ->get()
+      ->map(function($pr) {
+
+        return array(
+          'id' => $pr->id,
+          'prNumber' => $pr->pr_prnum,
+          'date' => $pr->pr_date,
+          'items' => $pr->pritems->map(function($item) {
+            return array(
+              'itemId' => $item->id,
+              'code' => $item->pri_code,
+              'materialSpecs' => $item->pri_mspecs,
+              'uom' => $item->pri_uom,
+              'quantity' => $item->pri_quantity,
+            );
+          })
+        );
+      });
+
+    $po = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
+        $q->where('id', $id);
+      })
+      ->get()
+      ->map(function($po) {
+        return array(
+          'id' => $po->id,
+          'date' => $po->spo_date,
+          'poNumber' => $po->spo_ponum,
+          'items' => $po->poitems->map(function($item) {
+            return array(
+              'itemId' => $item->id,
+              'code' => $item->spoi_code,
+              'materialSpecs' => $item->spoi_mspecs,
+              'uom' => $item->spoi_uom,
+              'quantity' => $item->spoi_quantity,
+              'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
+              'deliverydate' => $item->spoi_deliverydate,
+            );
+          })
+        );
+      });
+
+
+    $deliveredItems = SupplierInvoice::whereHas('poitem.spo.prprice.pr.jo', function($jo) use ($id){
+        return $jo->where('id', $id);
+      })
+      ->where('ssi_receivedquantity','>', 0)
+      ->where('ssi_rrnum', '!=', null)
+      ->get()
+      ->map(function($delivered) {
+        return array(
+          'id' => $delivered->id,
+          'code' => $delivered->poitem->spoi_code,
+          'materialSpecs' => $delivered->poitem->spoi_mspecs,
+          'invoice' => $delivered->ssi_invoice,
+          'dr' => $delivered->ssi_dr,
+          'date' => $delivered->ssi_date,
+          'quantity' => $delivered->ssi_receivedquantity,
+        );
+      });
+
+
+    $releasedRm = $joborder->outgoing->map(function($out) {
+      $inventory = $out->inventory ?? (Object) array();
+      return array(
+        'id' => $out->id,
+        'code' => $inventory->i_code ?? '',
+        'materialSpecs' => $inventory->i_mspecs ?? '',
+        'code' => $inventory->i_code ?? '',
+        'quantity' => $out->out_quantity,
+        'date' => $out->out_date,
+        'remarks' => $out->out_remarks,
+      );
+    });
+
+    return response()->json([
+      'pr' => $pr,
+      'po' => $po,
+      'deliveredItems' => $deliveredItems,
+      'releasedRm' => $releasedRm,
+    ]);
+  }
 
 	public function fetchJoSeries()
 	{
