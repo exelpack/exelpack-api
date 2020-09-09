@@ -26,4 +26,9 @@ class PurchaseOrderSupplier extends Model
   public function poitems(){
     return $this->hasMany('App\PurchaseOrderSupplierItems', 'spoi_po_id');
   }
+
+  public function poApproval()
+  {
+    return $this->hasOne('App\PurchaseOrderApproval','poa_po_id');
+  }
 }

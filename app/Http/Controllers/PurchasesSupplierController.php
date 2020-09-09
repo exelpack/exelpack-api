@@ -28,6 +28,7 @@ use App\Supplier;
 use App\User;
 use App\JobOrder;
 use App\PurchaseOrderItems;
+use App\PurchaseOrderApproval;
 
 use App\Exports\ExportSupplierPurchaseOrder;
 use App\Exports\ExportSupplierPurchaseOrderItems;
@@ -761,16 +762,16 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  public function approvalArray($list){
+  public function approvalArray($list, $type = "PR"){
     if($list){
       return array(
         'id' => $list->id,
-        'approver' => $list->pra_approver_user,
-        'otherInfo' => $list->pra_otherinfo,
-        'isApproved' => $list->pra_approved,
-        'isRejected' => $list->pra_rejected,
-        'remarks' => $list->pra_remarks,
-        'date' => $list->pra_date,
+        'approver' => $type == "PR" ? $list->pra_approver_user : $list->poa_approver_user,
+        'otherInfo' => $type == "PR" ? $list->pra_otherinfo : $list->poa_otherinfo,
+        'isApproved' => $type == "PR" ? $list->pra_approved : $list->poa_approved,
+        'isRejected' => $type == "PR" ? $list->pra_rejected : $list->poa_rejected,
+        'remarks' => $type == "PR" ? $list->pra_remarks : $list->poa_remarks,
+        'date' => $type == "PR" ? $list->pra_date : $list->poa_date,
       );
     }else
       return (object)[];
@@ -784,10 +785,6 @@ class PurchasesSupplierController extends LogsController
       ->get();
 
     $approvalList = $this->approvalArray($prsd->prApproval);
-    // $approvalList = $prsd->prApproval
-    //   ->map(function($list){
-    //     return $this->approvalArray($prsd->prApproval);
-    //   });
     return response()->json([
       'approvalList' => $approvalList,
       'approverList' => $users, 
@@ -841,6 +838,69 @@ class PurchasesSupplierController extends LogsController
       'newPr' => $pr,
     ]);
   }
+  //purchase order approval
+  public function getApprovalListForPo($id){
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $users = User::select('id','username')
+      ->where('id', '!=', Auth()->user()->id)
+      ->where('approval_po', 1)
+      ->get();
+
+    $approvalList = $this->approvalArray($po->poApproval, "PO");
+    return response()->json([
+      'approvalList' => $approvalList,
+      'approverList' => $users, 
+    ]);
+  }
+
+  public function addPoApprovalRequest(Request $request){
+    $validator = Validator::make($request->all(),
+      array(
+        'id' => 'required|int',
+        'approver' => 'required|int|unique:psms_prapprovaldetails,pra_approver_id,null,id,pra_prs_id,'.$request->id,
+      ));
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+    $poSupplier = PurchaseOrderSupplier::findOrFail($request->id);
+
+    if($poSupplier->poApproval){
+      return response()->json(['errors' => ['Cannot add more requests']],422);
+    }
+
+    $approval = new PurchaseOrderApproval();
+    $user = User::findOrFail($request->approver);
+
+    $approval->fill([
+      'poa_po_id' => $request->id,
+      'poa_approver_id' => $request->approver,
+      'poa_approver_user' => $user->username,
+      'poa_otherinfo' => $poSupplier->spo_ponum,
+    ]);
+    $approval->save();
+    $poSupplier->refresh();
+    $this->logCreateAndRemovalOfApprovalRequest($poSupplier->spo_ponum,
+      $request->method, "Added");
+    return response()->json([
+      'message' => 'Record added',
+      'newApprovalRequest' => $this->approvalArray($approval),
+      'newPo' => $this->getSinglePurchaseOrder($poSupplier),
+    ]);
+  }
+
+  // public function deletePoApprovalRequest($id){
+  //   $approval = PurchaseRequestApproval::findOrFail($id);
+  //   $prsd = PurchaseRequestSupplierDetails::findOrFail($approval->pra_prs_id);
+  //   $this->logCreateAndRemovalOfApprovalRequest($prsd->pr->pr_prnum,
+  //     $approval->pra_approvalType, "Deleted");
+  //   $approval->delete();
+  //   $pr = $this->prWithPriceArray($prsd->pr);
+  //   return response()->json([
+  //     'message' => 'Record deleted',
+  //     'newPr' => $pr,
+  //   ]);
+  // }
+
 
   public function getAllDetailsForPr(Request $request){
 
@@ -1135,17 +1195,8 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  public function markAsSentToSupplier($id){
-    $po = PurchaseOrderSupplier::findOrFail($id);
-
-    if($po->spo_sentToSupplier)
-      return response()->json(['errors' =>
-          ['Purchase order already mark as OPEN'] ],422);
-
-    $po->update([
-      'spo_sentToSupplier' => 1,
-    ]);
-
+  public function getSinglePurchaseOrder($po){
+    $id = $po->id;
     $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q)
       use ($id){
         return $q->where('id', $id);
@@ -1171,8 +1222,6 @@ class PurchasesSupplierController extends LogsController
     }else 
       $status = "PENDING";
 
-    $this->logSentPOToSupplier($po->po_ponum, $status);
-      
     $newPo = array(
       'id' => $po->id,
       'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
@@ -1185,9 +1234,29 @@ class PurchasesSupplierController extends LogsController
       'status' => $status,
       'date' => $po->spo_date
     );
+
+    return (object) array(
+      'newPo' => $newPo,
+      'status' => $status,
+    );
+  }
+
+  public function markAsSentToSupplier($id){
+    $po = PurchaseOrderSupplier::findOrFail($id);
+
+    if($po->spo_sentToSupplier)
+      return response()->json(['errors' =>
+          ['Purchase order already mark as OPEN'] ],422);
+    $po->update([
+      'spo_sentToSupplier' => 1,
+    ]);
+
+    $poDetails = $this->getSinglePurchaseOrder($po);
+    $this->logSentPOToSupplier($po->po_ponum, $poDetails->status);
+    
     return response()->json([
       'message' => 'Record updated',
-      'newPo' => $newPo,
+      'newPo' => $poDetails->newPo,
     ]);
   }
 

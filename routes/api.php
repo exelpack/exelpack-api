@@ -218,6 +218,7 @@ Route::group(['middleware' => ['auth:api']], function() {
   Route::group(['middleware' => ['psms']], function() {
 
     Route::get('/psms/approval/{id}','PurchasesSupplierController@getApprovalList');
+    Route::get('/psms/po/approval/{id}','PurchasesSupplierController@getApprovalListForPo');
     // Route::get('/psms/supplier','PurchasesSupplierController@getSupplier');
     Route::get('/psms/pr','PurchasesSupplierController@getPrList');
     Route::get('/psms/prprice','PurchasesSupplierController@getPrListWithPrice');
@@ -235,6 +236,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 
     Route::post('/psms/pr','PurchasesSupplierController@addPriceForItems');
     Route::post('/psms/approval','PurchasesSupplierController@addApprovalRequest');
+    Route::post('/psms/po/approval','PurchasesSupplierController@addPoApprovalRequest');
     Route::post('/psms/po/invoice','PurchasesSupplierController@addDeliveryToPO');
     Route::post('/psms/supplier','PurchasesSupplierController@addSupplier');
     Route::post('/psms/purchasesreport', 'PurchasesSupplierController@getPurchasesReport');

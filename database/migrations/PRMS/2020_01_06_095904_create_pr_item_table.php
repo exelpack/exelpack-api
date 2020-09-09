@@ -15,7 +15,7 @@ class CreatePrItemTable extends Migration
     {
         Schema::create('prms_pritems', function (Blueprint $table) {
           $table->bigIncrements('id');
-          $table->boolean('pri_pr_id')->unsigned();
+          $table->integer('pri_pr_id')->unsigned();
           $table->string('pri_code',50);
           $table->string('pri_mspecs',255);
           $table->string('pri_uom',50);
