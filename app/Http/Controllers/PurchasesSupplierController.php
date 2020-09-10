@@ -884,22 +884,22 @@ class PurchasesSupplierController extends LogsController
     return response()->json([
       'message' => 'Record added',
       'newApprovalRequest' => $this->approvalArray($approval),
-      'newPo' => $this->getSinglePurchaseOrder($poSupplier),
+      'newPo' => $this->getSinglePurchaseOrder($poSupplier)->newPo,
     ]);
   }
 
-  // public function deletePoApprovalRequest($id){
-  //   $approval = PurchaseRequestApproval::findOrFail($id);
-  //   $prsd = PurchaseRequestSupplierDetails::findOrFail($approval->pra_prs_id);
-  //   $this->logCreateAndRemovalOfApprovalRequest($prsd->pr->pr_prnum,
-  //     $approval->pra_approvalType, "Deleted");
-  //   $approval->delete();
-  //   $pr = $this->prWithPriceArray($prsd->pr);
-  //   return response()->json([
-  //     'message' => 'Record deleted',
-  //     'newPr' => $pr,
-  //   ]);
-  // }
+  public function deletePoApprovalRequest($id){
+    $approval = PurchaseOrderApproval::findOrFail($id);
+    $po = PurchaseRequestSupplierDetails::findOrFail($approval->poa_po_id);
+    $this->logCreateAndRemovalOfApprovalRequest($prsd->pr->pr_prnum,
+      $approval->poa_approvalType, "Deleted");
+    $approval->delete();
+    $pr = $this->getSinglePurchaseOrder($po);
+    return response()->json([
+      'message' => 'Record deleted',
+      'newPo' => $this->getSinglePurchaseOrder($poSupplier)->newPo,
+    ]);
+  }
 
 
   public function getAllDetailsForPr(Request $request){
@@ -1048,7 +1048,12 @@ class PurchasesSupplierController extends LogsController
       )
       ->groupBy('spoi_po_id');
 
-    
+    $approval = DB::table('psms_poapprovaldetails')
+      ->select('poa_po_id',
+        DB::raw('count(*) as approvalRequestCount'),
+        DB::raw('poa_approved as isApproved'),
+        DB::raw('poa_rejected as isRejected'))
+      ->groupBy('poa_po_id');
 
     $q = PurchaseOrderSupplier::has('prprice.pr.jo.poitems.po')
       ->leftJoinSub($joinQry,'pr', function($join){
@@ -1057,9 +1062,11 @@ class PurchasesSupplierController extends LogsController
       ->leftJoinSub($spoItems, 'spoi', function($join){
         $join->on('spoi.spoi_po_id','=','psms_spurchaseorder.id');
       })
-      
       ->leftJoinSub($supplier,'supplier', function($join){
         $join->on('supplier.id','=','pr.supplier_id');
+      })
+      ->leftJoinSub($approval, 'approval', function($join){
+        $join->on('approval.poa_po_id','=','psms_spurchaseorder.id');
       })
       ->select(
         'psms_spurchaseorder.id',
@@ -1070,6 +1077,9 @@ class PurchasesSupplierController extends LogsController
         'itemCount',
         'quantityDelivered',
         'totalPoQuantity',
+        'approvalRequestCount',
+        Db::raw('IF(approvalRequestCount > 0,
+          IF( IFNULL(isApproved,0) > 0,"APPROVED", IF( IFNULL(isRejected,0) > 0,"REJECTED","PENDING")),"NO REQUEST") as requestStatus'),
         Db::raw('IF(spo_sentToSupplier = 0 && quantityDelivered < 1,
           "PENDING",
           IF(quantityDelivered > 0,
@@ -1222,6 +1232,15 @@ class PurchasesSupplierController extends LogsController
     }else 
       $status = "PENDING";
 
+    $requestStatus = 'NO REQUEST';
+    $approval = $po->poApproval;
+    if($approval){
+      $requestStatus = "PENDING";
+      if($approval->poa_approved > 0)
+        $requestStatus = "APPROVED";
+      if($approval->poa_rejected > 0)
+        $requestStatus = "REJECTED";
+    }
     $newPo = array(
       'id' => $po->id,
       'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
@@ -1231,6 +1250,7 @@ class PurchasesSupplierController extends LogsController
       'itemCount' => $itemCount,
       'quantityDelivered' => $quantityDelivered,
       'totalPoQuantity' => $totalPoQuantity,
+      'requestStatus' => $requestStatus,
       'status' => $status,
       'date' => $po->spo_date
     );
