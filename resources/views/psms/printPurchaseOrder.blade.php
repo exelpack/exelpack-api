@@ -187,7 +187,7 @@
     border: 1px solid black;
     border-bottom: 0;
     font-size: 12px;"
-  >CONTIONS &amp; INSTRUCTIONS</p>
+  >CONDITIONS &amp; INSTRUCTIONS</p>
 
   <pre
     style="
