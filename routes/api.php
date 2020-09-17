@@ -141,7 +141,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/inventory/option/masterlist', 'InventoryController@getMasterlistItems');
 		Route::get('/inventory/option/joborder', 'InventoryController@getJobOrders');
 
-    Route::get('/inventory', 'InventoryController@getInventoryItems');
+        Route::get('/inventory', 'InventoryController@getInventoryItems');
 		Route::get('/inventory/export', 'InventoryController@exportInventory');
 		Route::post('/inventory', 'InventoryController@createInvetoryItem');
 		Route::put('/inventory/{id}', 'InventoryController@editInventoryItem');
@@ -156,16 +156,16 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::delete('/inventory/outgoing/{id}','InventoryController@deleteOutgoing');
 
 		Route::get('/inventory/locations', 'InventoryController@getLocations');
-    Route::post('/inventory/locations', 'InventoryController@addLocation');
-    Route::post('/inventory/locations/map', 'InventoryController@updateLocationMapDetails');
-    Route::put('/inventory/locations/{id}', 'InventoryController@updateLocation');
-    Route::delete('/inventory/locations/{id}', 'InventoryController@deleteLocation');
+        Route::post('/inventory/locations', 'InventoryController@addLocation');
+        Route::post('/inventory/locations/map', 'InventoryController@updateLocationMapDetails');
+        Route::put('/inventory/locations/{id}', 'InventoryController@updateLocation');
+        Route::delete('/inventory/locations/{id}', 'InventoryController@deleteLocation');
 
 		Route::post('/inventory/item/locations', 'InventoryController@addLocationToInventory');
 		Route::delete('/inventory/item/locations/{id}', 'InventoryController@removeLocationToInventory');
 		//prms(wh)
 		Route::get('/prms/jolist', 'PurchaseRequestController@getJobOrders');
-    Route::get('/prms/pr/{id}', 'PurchaseRequestController@getPrItemDetails');
+        Route::get('/prms/pr/{id}', 'PurchaseRequestController@getPrItemDetails');
 		Route::get('/prms/pr/item/{id}', 'PurchaseRequestController@getPrItemDeliveryAndIssuance');
 		Route::get('/prms/pr', 'PurchaseRequestController@getPrList');
 		Route::post('/prms/pr', 'PurchaseRequestController@addPr');
@@ -174,44 +174,44 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 		Route::get('/prms/logs', 'PurchaseRequestController@getprmsLogs');
 
-    //po receiving
-    Route::get('/wrms/polist', 'ReceivingController@getPurchaseOrder');
-    Route::get('/wrms/polist/{id}', 'ReceivingController@viewPurchaseOrderItems');
-    Route::get('/wrms/invoices/{id}', 'ReceivingController@getItemInvoices');
-    Route::post('/wrms/invoices', 'ReceivingController@addReceivingReport');
-    Route::get('/wrms/receivingreport', 'ReceivingController@getRRList');
-    Route::delete('/wrms/receivingreport/{id}', 'ReceivingController@removeRRfromInvoice');
+        //po receiving
+        Route::get('/wrms/polist', 'ReceivingController@getPurchaseOrder');
+        Route::get('/wrms/polist/{id}', 'ReceivingController@viewPurchaseOrderItems');
+        Route::get('/wrms/invoices/{id}', 'ReceivingController@getItemInvoices');
+        Route::post('/wrms/invoices', 'ReceivingController@addReceivingReport');
+        Route::get('/wrms/receivingreport', 'ReceivingController@getRRList');
+        Route::delete('/wrms/receivingreport/{id}', 'ReceivingController@removeRRfromInvoice');
 
-    Route::get('/wrms/receivingreport/exports/{id}', 'ReceivingController@printRR');
-    Route::get('/wrms/rtv/exports/{id}', 'ReceivingController@printRTV');
+        Route::get('/wrms/receivingreport/exports/{id}', 'ReceivingController@printRR');
+        Route::get('/wrms/rtv/exports/{id}', 'ReceivingController@printRTV');
 
 	});
 
 		//sales
 	Route::group(['middleware' => ['salesms']], function() {
 
-    Route::get('/salesms/invoice','SalesController@getSales');
+        Route::get('/salesms/invoice','SalesController@getSales');
 		Route::get('/salesms/invoice/{customerId}','SalesController@getInvoicesForCustomer');
-    Route::get('/salesms/customer','SalesController@getCustomers');
-    Route::get('/salesms/export/soa','SalesController@exportSoa');
-    Route::get('/salesms/export/sales','SalesController@exportSales');
-    Route::get('/salesms/export/summary','SalesController@exportSalesSummary');
-    Route::get('/salesms/export/summaryExt','SalesController@exportSalesSummaryExternal');
-    Route::get('/salesms/export/ar','SalesController@exportAR');
-    Route::get('/salesms/export/crb','SalesController@exportCRB');
-    Route::get('/salesms/or','SalesController@searchOR');
+        Route::get('/salesms/customer','SalesController@getCustomers');
+        Route::get('/salesms/export/soa','SalesController@exportSoa');
+        Route::get('/salesms/export/sales','SalesController@exportSales');
+        Route::get('/salesms/export/summary','SalesController@exportSalesSummary');
+        Route::get('/salesms/export/summaryExt','SalesController@exportSalesSummaryExternal');
+        Route::get('/salesms/export/ar','SalesController@exportAR');
+        Route::get('/salesms/export/crb','SalesController@exportCRB');
+        Route::get('/salesms/or','SalesController@searchOR');
 
-    Route::post('/salesms/invoice','SalesController@createSales');
-    Route::post('/salesms/customer','SalesController@addCustomer');
+        Route::post('/salesms/invoice','SalesController@createSales');
+        Route::post('/salesms/customer','SalesController@addCustomer');
 
-    Route::put('/salesms/invoice/{id}','SalesController@updateSales');
-    Route::put('/salesms/customer/{id}','SalesController@updateCustomer');
+        Route::put('/salesms/invoice/{id}','SalesController@updateSales');
+        Route::put('/salesms/customer/{id}','SalesController@updateCustomer');
 
-    Route::put('/salesms/invoice','SalesController@markInvoicesCollected');
+        Route::put('/salesms/invoice','SalesController@markInvoicesCollected');
 
-    Route::delete('/salesms/customer/{id}','SalesController@deleteCustomer');
-    Route::delete('/salesms/invoice/{id}/revised','SalesController@reviseSales');
-    Route::delete('/salesms/invoice/{id}','SalesController@deleteSales');
+        Route::delete('/salesms/customer/{id}','SalesController@deleteCustomer');
+        Route::delete('/salesms/invoice/{id}/revised','SalesController@reviseSales');
+        Route::delete('/salesms/invoice/{id}','SalesController@deleteSales');
 
 	});
 
@@ -300,19 +300,26 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::put('/odash/prapproval/action/{id}','OperationController@requestionAction');
     Route::get('/odash/customer', 'CustomerController@getCustomers');
     Route::post('/odash/customer/{id}', 'CustomerController@recommendCustomer');
-
   });
 
-	//user management
-	Route::group(['middleware' => ['checkPrivelege']], function() {
+  Route::group(['middleware' => ['approvalpo']], function() {
+    Route::get('/gdash/po','GeneralController@getPendingPrList');
+    // Route::get('/odash/prapproval/{id}','GeneralController@getPrDetails');
+    // Route::put('/odash/prapproval/{id}','GeneralController@addRemarks');
+    // Route::put('/odash/prapproval/action/{id}','GeneralController@requestionAction');
+    // Route::get('/odash/customer', 'GeneralController@getCustomers');
+    // Route::post('/odash/customer/{id}', 'GeneralController@recommendCustomer');
+  });
 
-		Route::get('/users', 'UserController@getAllUser');
-		Route::post('/users', 'UserController@createUser');
-		Route::put('/users/{id}', 'UserController@editUser');
-    Route::delete('/users/{id}','UserController@deleteUser');
-		Route::put('/users/sig/{id}','UserController@updateSignature');
 
-	});
+    //user management
+    Route::group(['middleware' => ['checkPrivelege']], function() {
+    	Route::get('/users', 'UserController@getAllUser');
+    	Route::post('/users', 'UserController@createUser');
+    	Route::put('/users/{id}', 'UserController@editUser');
+        Route::delete('/users/{id}','UserController@deleteUser');
+    	Route::put('/users/sig/{id}','UserController@updateSignature');
+    });
 
 });
 

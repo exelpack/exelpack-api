@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 
 
 use Validator;
+use Auth;
 use App\Customers;
 
 class CustomerController extends Controller
@@ -158,10 +159,15 @@ class CustomerController extends Controller
   }
 
   public function recommendCustomer(Request $request, $id) {
+    $auth = Auth::user();
+    $om = $auth->approval_pr;
+    $gm = $auth->approval_po;
 
     $validator = Validator::make($request->all(), [
       'method' => 'string|in:approved,rejected,APPROVED,REJECTED|required',
+      'src' => 'string|required',
     ]);
+
     if($validator->fails())
       return response()->json(['errors' => $validator->errors()->all()] ,422);
 
@@ -169,18 +175,37 @@ class CustomerController extends Controller
 
     $method = strtolower($request->method);
     $approvalStatus = 'PENDING APPROVAL';
-    if($method === 'approved')
-        $approvalStatus = 'APPROVED';
-    else if($method === 'rejected')
+    if($method === 'rejected')
         $approvalStatus = 'REJECTED';
 
-    $username = auth()->user()->username;
+    if($om > 0 && $request->src === "om") {
+      if($customer->approval_status !== "PENDING APPROVAL")
+        return response()->json(['errors' =>['Cannot recommend customer']] ,422);
+
+      if($method === 'approved')
+        $approvalStatus = 'RECOMMENDED';
+
+      $customer->fill([
+        'recommended_by' => $username,
+        'recommended_date' => date('Y-m-d')
+      ]);
+    }
+
+    if($gm > 0 && $request->src === "gm") {
+      if($customer->approval_status !== "RECOMMENDED")
+        return response()->json(['errors' =>['Cannot approve customer']] ,422);
+
+      if($method === 'approved')
+        $approvalStatus = 'APPROVED';
+
+      $customer->fill([
+        'approved_by' => $username,
+        'approval_date' => date('Y-m-d'),
+      ]);
+    }
+
     $customer->fill([
-      'approval_status' => $approvalStatus,
-      'recommended_by' => $username,
-      'recommended_date' => date('Y-m-d'),
-      'approved_by' => $username,
-      'approval_date' => date('Y-m-d'),
+      'approval_status' => $approvalStatus
     ]);
     $customer->save();
 
