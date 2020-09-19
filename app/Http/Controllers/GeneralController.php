@@ -106,7 +106,8 @@ class GeneralController extends Controller
         $search = "%".request()->search."%";
         $q->whereRaw('jo_joborder LIKE ?',array($search))
           ->orWhereRaw('pr_prnum LIKE ?',array($search))
-          ->orWhereRaw('po_ponum LIKE?',array($search));
+          ->orWhereRaw('po_ponum LIKE?',array($search))
+          ->orWhereRaw('spo_ponum LIKE?',array($search));
       }
 
       $sort = strtolower(request()->sort);
@@ -125,6 +126,189 @@ class GeneralController extends Controller
     return response()->json([
       'poListLength' => $isFullLoad ? intval(request()->end) : $list->total(),
       'poList' => $isFullLoad ? $list : $list->items(),
+    ]);
+  }
+
+
+  public function getPrDetails($id){
+    $spo = PurchaseOrderSupplier::whereHas('prprice.pr.jo.poitems.po')->findOrFail($id);
+    $po = $spo->prprice()->first()->pr->jo->poitems->po;
+    $poitemId = $spo->prprice()->first()->pr->jo->poitems->id;
+    $po_id = $po->id;
+    $spoItems = array();
+    $poItems = array();
+    $poDetails = array(
+      'poNumber' => $po->po_ponum,
+      'customerName' => $po->customer->companyname,
+      'poDate' => $po->po_date,
+    );
+
+    foreach($spo->poitems as $item){
+      $masterlist = Masterlist::where('m_code',$item->spoi_code)->first();
+      $costing = 'No match record';
+      $budgetPrice = 'No match record';
+
+      if($masterlist){
+        $budgetPrice = $masterlist->m_budgetprice != null ? $masterlist->m_budgetprice : 0;
+      }
+
+      $bpPercent = "";
+      if($budgetPrice > 0) {
+				$bpPercent = "(".number_format(((($budgetPrice - $item->spoi_unitprice) / $budgetPrice) * 100),2,'.','')."%)";
+      }
+
+       array_push($spoItems, array(
+        'id' => $item->id,
+        'code' => $item->spoi_code,
+        'mspecs' => $item->spoi_mspecs,
+        'unit' => $item->spoi_uom,
+        'quantity' => $item->spoi_quantity,
+        'unitPrice' => $item->spoi_unitprice,
+        'currency' => $spo->prprice()->first()->prsd_currency,
+        'amount' => $item->spoi_quantity * $item->spoi_unitprice,
+        'dateNeeded' => $item->spoi_deliverydate,
+        'budgetPrice' => $budgetPrice.$bpPercent
+      ));
+    }
+
+    foreach($po->poitems as $row){
+      $totalAmt = $row->poi_unitprice * $row->poi_quantity;
+      $masterlist = Masterlist::where('m_code',$row->poi_code)->first();
+
+      $budgetPriceTotal = 0;
+      $budgetPrice = 'No match record';
+
+      if($masterlist){
+        $budgetPrice = $masterlist->m_budgetprice != null ? $masterlist->m_budgetprice : 0;
+        $budgetPriceTotal = $budgetPrice * $row->poi_quantity;
+      }
+
+      array_push($poItems, array(
+        'id' => $row->id,
+        'code' => $row->poi_code,
+        'itemDescription' => $row->poi_itemdescription,
+        'quantity' => $row->poi_quantity,
+        'currency' => $row->po->po_currency,
+        'unitPrice' => $row->poi_unitprice,
+        'totalAmount' => strtoupper($po->po_currency) == 'USD' ? $totalAmt * 50 : $totalAmt,
+        'budgetPrice' => $budgetPrice,
+        'budgetPriceTotal' => strtoupper($po->po_currency) == 'USD' ? $budgetPriceTotal * 50 : $budgetPriceTotal,
+        'isMatchItem' => $poitemId == $row->id,
+      ));
+    }
+
+    $poPurchasesHistory = PurchaseOrderSupplier::whereHas('prprice.pr.jo.poitems.po',
+        function($q) use ($po_id) {
+          $q->where('id', $po_id);
+        })
+    		->where('id', '!=', $id)
+        ->get()
+        ->map(function($po) {
+          $joNumbers = JobOrder::whereHas('pr.prpricing.po', function($q) use ($po) {
+              $q->where('id', $po->id);
+            })
+            ->get()
+            ->pluck('jo_joborder')
+            ->implode(',');
+
+          $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q) use ($po) {
+              $q->where('id', $po->id);
+            })
+            ->get()
+            ->pluck('pr_prnum')
+            ->implode(',');
+
+          $itemDescription = PurchaseOrderItems::whereHas('jo.pr.prpricing.po', function($q) use ($po) {
+              $q->where('id', $po->id);
+            })
+            ->get()
+            ->pluck('poi_itemdescription')
+            ->implode(',');
+
+          return array( 
+            'supplierName' => $po->prprice()->first()->supplier->sd_supplier_name,
+            'joNumber' => $joNumbers,
+            'prNumbers' => $prNumbers,
+            'poNumber' => $po->spo_ponum,
+            'itemDescription' => $itemDescription,
+            'totalAmount' => $po->poitems()->sum(Db::raw('spoi_quantity * spoi_unitprice')),
+            'isSent' => $po->spo_sentToSupplier ? "YES" : "NO",
+          );
+          return $po;
+        })
+        ->values();
+
+    return response()->json([
+      'spoItems' => $spoItems,
+      'poDetails' => $poDetails,
+      'poItems' => $poItems,
+      'poHistory' => $poPurchasesHistory,
+    ]);
+  }
+
+  private function getRequestInformation($request) {
+  	$status = "PENDING";
+    if($request->poa_approved > 0)
+      $status = "APPROVED";
+
+    if($request->poa_rejected > 0)
+        $status = "REJECTED";
+
+    $prprice = $request->po->prprice()->first();
+    $updatedRequest = array(
+      'status' => $status,
+      'id' => $request->id,
+      'po_id' => $request->po->id,
+      'supplier' => $prprice->supplier->sd_supplier_name,
+      'joNum' => $prprice->pr->jo->jo_joborder,
+      'prNum' => $prprice->pr->pr_prnum,
+      'poNum' => $prprice->pr->jo->poitems->po->po_ponum,
+      'created_at' => $request->created_at,
+      'remarks' => $request->poa_remarks,
+    );
+
+    return $updatedRequest;
+  }
+
+
+  public function requestionAction(Request $data, $id)
+  {
+    $request = PurchaseOrderApproval::findOrFail($id);
+
+    if(Auth()->user()->id !== $request->poa_approver_id)
+      return response()->json(['errors' => ['Permission denied']], 422);
+
+    if($request->poa_approved > 0 || $request->poa_rejected > 0)
+      return response()->json(['errors' => ['Request already approved or rejected'] ], 422); 
+
+    if(strtolower($data->type) != 'approved' && strtolower($data->type) != 'rejected')
+      return response()->json(['errors' => ['Type not valid']], 422); 
+
+    $request->fill([
+      'poa_approved' => strtolower($data->type) == 'approved' ? 1 : 0,
+      'poa_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
+      'poa_date' => date('Y-m-d'),
+    ]);
+    $request->save();
+    $request->refresh();
+    
+    
+    return response()->json([
+      'updatedRequest' => $this->getRequestInformation($request),
+      'message' => 'Record '.strtoupper($data->type)
+    ]);
+  }
+
+  public function addRemarks(Request $data, $id)
+  {
+    $request = PurchaseOrderApproval::findOrFail($id);
+    $request->update([
+      'poa_remarks' => $data->remarks,
+    ]);
+    $request->refresh();
+    return response()->json([
+      'updatedRequest' => $this->getRequestInformation($request),
+      'message' => 'Record updated',
     ]);
   }
 }

@@ -172,6 +172,7 @@ class CustomerController extends Controller
       return response()->json(['errors' => $validator->errors()->all()] ,422);
 
     $customer = Customers::findOrFail($id);
+    $username = $auth->username;
 
     $method = strtolower($request->method);
     $approvalStatus = 'PENDING APPROVAL';

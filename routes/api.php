@@ -304,11 +304,11 @@ Route::group(['middleware' => ['auth:api']], function() {
 
   Route::group(['middleware' => ['approvalpo']], function() {
     Route::get('/gdash/po','GeneralController@getPendingPrList');
-    // Route::get('/odash/prapproval/{id}','GeneralController@getPrDetails');
-    // Route::put('/odash/prapproval/{id}','GeneralController@addRemarks');
-    // Route::put('/odash/prapproval/action/{id}','GeneralController@requestionAction');
-    // Route::get('/odash/customer', 'GeneralController@getCustomers');
-    // Route::post('/odash/customer/{id}', 'GeneralController@recommendCustomer');
+    Route::get('/gdash/po/{id}','GeneralController@getPrDetails');
+    Route::put('/gdash/po/{id}','GeneralController@addRemarks');
+    Route::put('/gdash/po/action/{id}','GeneralController@requestionAction');
+    Route::get('/gdash/customer', 'CustomerController@getCustomers');
+    Route::post('/gdash/customer/{id}', 'CustomerController@recommendCustomer');
   });
 
 
