@@ -179,7 +179,7 @@ class CustomerController extends Controller
     if($method === 'rejected')
         $approvalStatus = 'REJECTED';
 
-    if($om > 0 && $request->src === "om") {
+    if($om > 0 && $request->src === "om" && $approvalStatus !== 'REJECTED') {
       if($customer->approval_status !== "PENDING APPROVAL")
         return response()->json(['errors' =>['Cannot recommend customer']] ,422);
 
@@ -192,7 +192,7 @@ class CustomerController extends Controller
       ]);
     }
 
-    if($gm > 0 && $request->src === "gm") {
+    if($gm > 0 && $request->src === "gm" && $approvalStatus !== 'REJECTED') {
       if($customer->approval_status !== "RECOMMENDED")
         return response()->json(['errors' =>['Cannot approve customer']] ,422);
 

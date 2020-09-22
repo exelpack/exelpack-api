@@ -248,6 +248,7 @@ Route::group(['middleware' => ['auth:api']], function() {
     Route::put('/psms/supplier/{id}','PurchasesSupplierController@updateSupplier');
 
     Route::delete('/psms/approval/{id}','PurchasesSupplierController@deleteApprovalRequest');
+    Route::delete('/psms/po/approval/{id}','PurchasesSupplierController@deletePoApprovalRequest');
     Route::delete('/psms/pr/{id}','PurchasesSupplierController@deletePriceOnPr');
     Route::delete('/psms/supplier/{id}','PurchasesSupplierController@deleteSupplier');
 

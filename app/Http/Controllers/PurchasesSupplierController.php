@@ -890,14 +890,13 @@ class PurchasesSupplierController extends LogsController
 
   public function deletePoApprovalRequest($id){
     $approval = PurchaseOrderApproval::findOrFail($id);
-    $po = PurchaseRequestSupplierDetails::findOrFail($approval->poa_po_id);
-    $this->logCreateAndRemovalOfApprovalRequest($prsd->pr->pr_prnum,
+    $po = $approval->po;
+    $this->logCreateAndRemovalOfApprovalRequest($po->spo_ponum,
       $approval->poa_approvalType, "Deleted");
     $approval->delete();
-    $pr = $this->getSinglePurchaseOrder($po);
     return response()->json([
       'message' => 'Record deleted',
-      'newPo' => $this->getSinglePurchaseOrder($poSupplier)->newPo,
+      'newPo' => $this->getSinglePurchaseOrder($po)->newPo,
     ]);
   }
 

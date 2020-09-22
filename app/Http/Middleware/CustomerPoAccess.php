@@ -15,7 +15,7 @@ class CustomerPoAccess
      */
     public function handle($request, Closure $next)
     {
-      if(auth()->user()->cposms_access == 1 || auth()->user()->approval_pr === 1){
+      if(auth()->user()->cposms_access == 1 || auth()->user()->approval_pr === 1 || auth()->user()->approval_po === 1){
           return $next($request);
         }
 
