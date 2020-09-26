@@ -7,7 +7,11 @@ use Illuminate\Http\Request;
 
 use Validator;
 use Auth;
+use Mail;
+use App\User;
 use App\Customers;
+
+use App\Mail\CustomerApprovalNotification;
 
 class CustomerController extends Controller
 {
@@ -51,6 +55,19 @@ class CustomerController extends Controller
       'companyemail' => $request->bi_email,
       'ownernationality' => $request->bi_nationality,
     );
+  }
+
+  public function sendEmail($customer, $approver) {
+    $emails = User::where('department', $approver)
+      ->where('position', 'Manager')
+      ->get()
+      ->pluck('email')
+      ->toArray();
+
+    $mail = Mail::to($emails);
+
+    $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+    $mail->send(new CustomerApprovalNotification($customer, $approver));
   }
 
   public function getCustomers()
@@ -99,6 +116,8 @@ class CustomerController extends Controller
 
     $cinfo = new Customers;
     $cinfo->fill($this->fillCustomer($request));
+    $this->sendEmail($cinfo,"om");
+
     $cinfo->save();
     $cinfo->refresh();
     return response()->json([
@@ -190,6 +209,8 @@ class CustomerController extends Controller
         'recommended_by' => $username,
         'recommended_date' => date('Y-m-d')
       ]);
+
+      $this->sendEmail($customer,"gm");
     }
 
     if($gm > 0 && $request->src === "gm" && $approvalStatus !== 'REJECTED') {

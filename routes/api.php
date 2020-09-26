@@ -39,23 +39,23 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	Route::group(['middleware' => ['cposms']], function() {
 
-    //mail
-    Route::get('/cposms/emails', 'MailController@getEmailReceiptients');
-    Route::post('/cposms/emails', 'MailController@addEmail');
-    Route::delete('/cposms/emails/{id}', 'MailController@deleteEmail');
+        //mail
+        Route::get('/cposms/emails', 'MailController@getEmailReceiptients');
+        Route::post('/cposms/emails', 'MailController@addEmail');
+        Route::delete('/cposms/emails/{id}', 'MailController@deleteEmail');
 
 		Route::get('/cposms/logs', 'LogsController@getcposmsLogs');
-    Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
+        Route::get('/cposms/poitems/overall/{id}', 'PurchaseOrderController@getItemOverallDetails');
 
 
 			// cposms
-    Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
+        Route::get('/cposms/option/poselect', 'PurchaseOrderController@getOptionsPOSelect'); // fetch option for po
 		Route::get('/cposms/option/customeritems', 'PurchaseOrderController@getCustomerItemsOptions'); // fetch option for po
 		Route::get('/cposms/option/openitems', 'PurchaseOrderController@getOpenItems'); //fetch all open items
 		Route::get('/cposms/option/scheduledates', 'PurchaseOrderController@getScheduleDates'); //fetch all open items
 
 		Route::post('/cposms/po','PurchaseOrderController@createPurchaseOrder'); //add po
-    Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
+        Route::put('/cposms/po/{id}','PurchaseOrderController@editPurchaseOrder'); //edit po
 		Route::get('/cposms/po/{id}','PurchaseOrderController@getPoItems'); //edit po
 		Route::delete('/cposms/po/{id}','PurchaseOrderController@cancelPo'); //cancel po
 		Route::get('/cposms/poitems','PurchaseOrderController@poItemsIndex'); //fetch po items
@@ -86,11 +86,11 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::post('/mail/schedule', 'MailController@sendEmailSchedule');
 		Route::post('/mail/endorsepo', 'MailController@endorsePo');
 
-    //custoer
-    Route::get('/cposms/customers', 'CustomerController@getCustomers');
-    Route::post('/cposms/customers', 'CustomerController@addCustomer');
-    Route::put('/cposms/customers/{id}', 'CustomerController@updateCustomer');
-    Route::delete('/cposms/customers/{id}', 'CustomerController@deleteCustomer');
+        //custoer
+        Route::get('/cposms/customers', 'CustomerController@getCustomers');
+        Route::post('/cposms/customers', 'CustomerController@addCustomer');
+        Route::put('/cposms/customers/{id}', 'CustomerController@updateCustomer');
+        Route::delete('/cposms/customers/{id}', 'CustomerController@deleteCustomer');
 
 	});
 

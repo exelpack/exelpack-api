@@ -13,6 +13,7 @@ use PDF;
 use Storage;
 use File;
 use Response;
+use Mail;
 use Carbon\Carbon;
 
 use App\PurchaseRequestApproval;
@@ -33,6 +34,9 @@ use App\PurchaseOrderApproval;
 use App\Exports\ExportSupplierPurchaseOrder;
 use App\Exports\ExportSupplierPurchaseOrderItems;
 use App\Exports\PurchasesReportExport;
+
+use App\Mail\PrApprovalNotification;
+use App\Mail\PoApprovalNotification;
 
 class PurchasesSupplierController extends LogsController
 {
@@ -817,6 +821,23 @@ class PurchasesSupplierController extends LogsController
       'pra_otherinfo' => $pr->jo->jo_joborder." - ". $pr->pr_prnum,
     ]);
     $approval->save();
+
+    //send email
+    if($user->email) {
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $prDetails = (object) array(
+        'customerPo' => $pr->jo->poitems->po->po_ponum,
+        'prDate' => $pr->pr_date,
+        'prNumber' => $pr->pr_prnum,
+        'supplier' => $prSupplierDetails->supplier->sd_supplier_name,
+        'requestee' => $fullname,
+        'items' => $pr->pritems,
+      );
+      $mail = Mail::to([$user->email]);
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $mail->send(new PrApprovalNotification($prDetails));
+    }
+
     $this->logCreateAndRemovalOfApprovalRequest($pr->pr_prnum,
       $request->method, "Added");
     return response()->json([
@@ -879,6 +900,25 @@ class PurchasesSupplierController extends LogsController
     ]);
     $approval->save();
     $poSupplier->refresh();
+
+    //send email
+    if($user->email) {
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $poDetails = (object) array(
+        'poNumber' => $poSupplier->spo_ponum,
+        'prNumbers' => $poSupplier->prprice->map(function($row){
+            return $row->pr->pr_prnum;
+          })->join(','),
+        'date' => $poSupplier->spo_date,
+        'supplier' => $poSupplier->prprice()->first()->supplier->sd_supplier_name,
+        'requestee' => $fullname,
+        'items' => $poSupplier->poitems,
+      );
+      $mail = Mail::to([$user->email]);
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $mail->send(new PoApprovalNotification($poDetails));
+    }
+
     $this->logCreateAndRemovalOfApprovalRequest($poSupplier->spo_ponum,
       $request->method, "Added");
     return response()->json([

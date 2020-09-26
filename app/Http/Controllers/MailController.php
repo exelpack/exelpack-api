@@ -123,10 +123,8 @@ class MailController extends Controller
 	public function endorsePo(Request $request){
 
 		$validator = Validator::make($request->all(),[
-			'customerLabel' => 'string|required',
-      'po_num' => 'string|required',
-			'date' => 'date|required',
-		],[],['customerLabel' => 'customer']);
+      'id' => 'integer|required',
+		],[]);
 
 		if($validator->fails()){
 			return response()->json(['errors' => $validator->errors()->all()],422);
@@ -135,9 +133,9 @@ class MailController extends Controller
 		$emails = EmailListCposms::all()->pluck('email')->toArray();
 		$po = PurchaseOrder::find($request->id);
     $poDetails = (object) array(
-      'customer' => $request->customerLabel,
-      'po_num' => $request->po_num,
-      'date' => $request->date,
+      'customer' => $po->customer->companyname,
+      'po_num' => $po->po_ponum,
+      'date' => $po->date,
       'itemCount' => $po->poitems()->count(),
       'items' => $po->poitems->map(function($item){
         return array(
@@ -174,7 +172,6 @@ class MailController extends Controller
 				'message' => 'Endorsement email sent'
 			]);
 
-		
 	}
 
 }
