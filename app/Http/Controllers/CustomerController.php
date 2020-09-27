@@ -6,7 +6,12 @@ use Illuminate\Http\Request;
 
 
 use Validator;
+use Auth;
+use Mail;
+use App\User;
 use App\Customers;
+
+use App\Mail\CustomerApprovalNotification;
 
 class CustomerController extends Controller
 {
@@ -50,6 +55,19 @@ class CustomerController extends Controller
       'companyemail' => $request->bi_email,
       'ownernationality' => $request->bi_nationality,
     );
+  }
+
+  public function sendEmail($customer, $approver) {
+    $emails = User::where('department', $approver)
+      ->where('position', 'Manager')
+      ->get()
+      ->pluck('email')
+      ->toArray();
+
+    $mail = Mail::to($emails);
+
+    $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+    $mail->send(new CustomerApprovalNotification($customer, $approver));
   }
 
   public function getCustomers()
@@ -98,6 +116,8 @@ class CustomerController extends Controller
 
     $cinfo = new Customers;
     $cinfo->fill($this->fillCustomer($request));
+    $this->sendEmail($cinfo,"om");
+
     $cinfo->save();
     $cinfo->refresh();
     return response()->json([
@@ -158,29 +178,56 @@ class CustomerController extends Controller
   }
 
   public function recommendCustomer(Request $request, $id) {
+    $auth = Auth::user();
+    $om = $auth->approval_pr;
+    $gm = $auth->approval_po;
 
     $validator = Validator::make($request->all(), [
       'method' => 'string|in:approved,rejected,APPROVED,REJECTED|required',
+      'src' => 'string|required',
     ]);
+
     if($validator->fails())
       return response()->json(['errors' => $validator->errors()->all()] ,422);
 
     $customer = Customers::findOrFail($id);
+    $username = $auth->username;
 
     $method = strtolower($request->method);
     $approvalStatus = 'PENDING APPROVAL';
-    if($method === 'approved')
-        $approvalStatus = 'APPROVED';
-    else if($method === 'rejected')
+    if($method === 'rejected')
         $approvalStatus = 'REJECTED';
 
-    $username = auth()->user()->username;
+    if($om > 0 && $request->src === "om" && $approvalStatus !== 'REJECTED') {
+      if($customer->approval_status !== "PENDING APPROVAL")
+        return response()->json(['errors' =>['Cannot recommend customer']] ,422);
+
+      if($method === 'approved')
+        $approvalStatus = 'RECOMMENDED';
+
+      $customer->fill([
+        'recommended_by' => $username,
+        'recommended_date' => date('Y-m-d')
+      ]);
+
+      $this->sendEmail($customer,"gm");
+    }
+
+    if($gm > 0 && $request->src === "gm" && $approvalStatus !== 'REJECTED') {
+      if($customer->approval_status !== "RECOMMENDED")
+        return response()->json(['errors' =>['Cannot approve customer']] ,422);
+
+      if($method === 'approved')
+        $approvalStatus = 'APPROVED';
+
+      $customer->fill([
+        'approved_by' => $username,
+        'approval_date' => date('Y-m-d'),
+      ]);
+    }
+
     $customer->fill([
-      'approval_status' => $approvalStatus,
-      'recommended_by' => $username,
-      'recommended_date' => date('Y-m-d'),
-      'approved_by' => $username,
-      'approval_date' => date('Y-m-d'),
+      'approval_status' => $approvalStatus
     ]);
     $customer->save();
 

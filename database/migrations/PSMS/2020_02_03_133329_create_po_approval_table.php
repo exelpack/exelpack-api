@@ -13,7 +13,7 @@ class CreatePoApprovalTable extends Migration
      */
     public function up()
     {
-      Schema::create('psms_poApprovalDetails', function (Blueprint $table) {
+      Schema::create('psms_poapprovaldetails', function (Blueprint $table) {
         $table->bigIncrements('id');
         $table->integer('poa_po_id');
         $table->string('poa_approver_user',50);
@@ -33,6 +33,6 @@ class CreatePoApprovalTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('psms_poApprovalDetails');
+        Schema::dropIfExists('psms_poapprovaldetails');
     }
 }

@@ -13,6 +13,7 @@ use PDF;
 use Storage;
 use File;
 use Response;
+use Mail;
 use Carbon\Carbon;
 
 use App\PurchaseRequestApproval;
@@ -28,10 +29,14 @@ use App\Supplier;
 use App\User;
 use App\JobOrder;
 use App\PurchaseOrderItems;
+use App\PurchaseOrderApproval;
 
 use App\Exports\ExportSupplierPurchaseOrder;
 use App\Exports\ExportSupplierPurchaseOrderItems;
 use App\Exports\PurchasesReportExport;
+
+use App\Mail\PrApprovalNotification;
+use App\Mail\PoApprovalNotification;
 
 class PurchasesSupplierController extends LogsController
 {
@@ -761,16 +766,16 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  public function approvalArray($list){
+  public function approvalArray($list, $type = "PR"){
     if($list){
       return array(
         'id' => $list->id,
-        'approver' => $list->pra_approver_user,
-        'otherInfo' => $list->pra_otherinfo,
-        'isApproved' => $list->pra_approved,
-        'isRejected' => $list->pra_rejected,
-        'remarks' => $list->pra_remarks,
-        'date' => $list->pra_date,
+        'approver' => $type == "PR" ? $list->pra_approver_user : $list->poa_approver_user,
+        'otherInfo' => $type == "PR" ? $list->pra_otherinfo : $list->poa_otherinfo,
+        'isApproved' => $type == "PR" ? $list->pra_approved : $list->poa_approved,
+        'isRejected' => $type == "PR" ? $list->pra_rejected : $list->poa_rejected,
+        'remarks' => $type == "PR" ? $list->pra_remarks : $list->poa_remarks,
+        'date' => $type == "PR" ? $list->pra_date : $list->poa_date,
       );
     }else
       return (object)[];
@@ -784,10 +789,6 @@ class PurchasesSupplierController extends LogsController
       ->get();
 
     $approvalList = $this->approvalArray($prsd->prApproval);
-    // $approvalList = $prsd->prApproval
-    //   ->map(function($list){
-    //     return $this->approvalArray($prsd->prApproval);
-    //   });
     return response()->json([
       'approvalList' => $approvalList,
       'approverList' => $users, 
@@ -820,6 +821,23 @@ class PurchasesSupplierController extends LogsController
       'pra_otherinfo' => $pr->jo->jo_joborder." - ". $pr->pr_prnum,
     ]);
     $approval->save();
+
+    //send email
+    if($user->email) {
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $prDetails = (object) array(
+        'customerPo' => $pr->jo->poitems->po->po_ponum,
+        'prDate' => $pr->pr_date,
+        'prNumber' => $pr->pr_prnum,
+        'supplier' => $prSupplierDetails->supplier->sd_supplier_name,
+        'requestee' => $fullname,
+        'items' => $pr->pritems,
+      );
+      $mail = Mail::to([$user->email]);
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $mail->send(new PrApprovalNotification($prDetails));
+    }
+
     $this->logCreateAndRemovalOfApprovalRequest($pr->pr_prnum,
       $request->method, "Added");
     return response()->json([
@@ -841,6 +859,87 @@ class PurchasesSupplierController extends LogsController
       'newPr' => $pr,
     ]);
   }
+  //purchase order approval
+  public function getApprovalListForPo($id){
+    $po = PurchaseOrderSupplier::findOrFail($id);
+    $users = User::select('id','username')
+      ->where('id', '!=', Auth()->user()->id)
+      ->where('approval_po', 1)
+      ->get();
+
+    $approvalList = $this->approvalArray($po->poApproval, "PO");
+    return response()->json([
+      'approvalList' => $approvalList,
+      'approverList' => $users, 
+    ]);
+  }
+
+  public function addPoApprovalRequest(Request $request){
+    $validator = Validator::make($request->all(),
+      array(
+        'id' => 'required|int',
+        'approver' => 'required|int|unique:psms_prapprovaldetails,pra_approver_id,null,id,pra_prs_id,'.$request->id,
+      ));
+    if($validator->fails()){
+      return response()->json(['errors' => $validator->errors()->all()],422);
+    }
+    $poSupplier = PurchaseOrderSupplier::findOrFail($request->id);
+
+    if($poSupplier->poApproval){
+      return response()->json(['errors' => ['Cannot add more requests']],422);
+    }
+
+    $approval = new PurchaseOrderApproval();
+    $user = User::findOrFail($request->approver);
+
+    $approval->fill([
+      'poa_po_id' => $request->id,
+      'poa_approver_id' => $request->approver,
+      'poa_approver_user' => $user->username,
+      'poa_otherinfo' => $poSupplier->spo_ponum,
+    ]);
+    $approval->save();
+    $poSupplier->refresh();
+
+    //send email
+    if($user->email) {
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $poDetails = (object) array(
+        'poNumber' => $poSupplier->spo_ponum,
+        'prNumbers' => $poSupplier->prprice->map(function($row){
+            return $row->pr->pr_prnum;
+          })->join(','),
+        'date' => $poSupplier->spo_date,
+        'supplier' => $poSupplier->prprice()->first()->supplier->sd_supplier_name,
+        'requestee' => $fullname,
+        'items' => $poSupplier->poitems,
+      );
+      $mail = Mail::to([$user->email]);
+      $fullname = Auth()->user()->firstname." ".auth()->user()->lastname;
+      $mail->send(new PoApprovalNotification($poDetails));
+    }
+
+    $this->logCreateAndRemovalOfApprovalRequest($poSupplier->spo_ponum,
+      $request->method, "Added");
+    return response()->json([
+      'message' => 'Record added',
+      'newApprovalRequest' => $this->approvalArray($approval),
+      'newPo' => $this->getSinglePurchaseOrder($poSupplier)->newPo,
+    ]);
+  }
+
+  public function deletePoApprovalRequest($id){
+    $approval = PurchaseOrderApproval::findOrFail($id);
+    $po = $approval->po;
+    $this->logCreateAndRemovalOfApprovalRequest($po->spo_ponum,
+      $approval->poa_approvalType, "Deleted");
+    $approval->delete();
+    return response()->json([
+      'message' => 'Record deleted',
+      'newPo' => $this->getSinglePurchaseOrder($po)->newPo,
+    ]);
+  }
+
 
   public function getAllDetailsForPr(Request $request){
 
@@ -988,7 +1087,12 @@ class PurchasesSupplierController extends LogsController
       )
       ->groupBy('spoi_po_id');
 
-    
+    $approval = DB::table('psms_poapprovaldetails')
+      ->select('poa_po_id',
+        DB::raw('count(*) as approvalRequestCount'),
+        DB::raw('poa_approved as isApproved'),
+        DB::raw('poa_rejected as isRejected'))
+      ->groupBy('poa_po_id');
 
     $q = PurchaseOrderSupplier::has('prprice.pr.jo.poitems.po')
       ->leftJoinSub($joinQry,'pr', function($join){
@@ -997,9 +1101,11 @@ class PurchasesSupplierController extends LogsController
       ->leftJoinSub($spoItems, 'spoi', function($join){
         $join->on('spoi.spoi_po_id','=','psms_spurchaseorder.id');
       })
-      
       ->leftJoinSub($supplier,'supplier', function($join){
         $join->on('supplier.id','=','pr.supplier_id');
+      })
+      ->leftJoinSub($approval, 'approval', function($join){
+        $join->on('approval.poa_po_id','=','psms_spurchaseorder.id');
       })
       ->select(
         'psms_spurchaseorder.id',
@@ -1010,6 +1116,9 @@ class PurchasesSupplierController extends LogsController
         'itemCount',
         'quantityDelivered',
         'totalPoQuantity',
+        'approvalRequestCount',
+        Db::raw('IF(approvalRequestCount > 0,
+          IF( IFNULL(isApproved,0) > 0,"APPROVED", IF( IFNULL(isRejected,0) > 0,"REJECTED","PENDING")),"NO REQUEST") as requestStatus'),
         Db::raw('IF(spo_sentToSupplier = 0 && quantityDelivered < 1,
           "PENDING",
           IF(quantityDelivered > 0,
@@ -1135,17 +1244,8 @@ class PurchasesSupplierController extends LogsController
     ]);
   }
 
-  public function markAsSentToSupplier($id){
-    $po = PurchaseOrderSupplier::findOrFail($id);
-
-    if($po->spo_sentToSupplier)
-      return response()->json(['errors' =>
-          ['Purchase order already mark as OPEN'] ],422);
-
-    $po->update([
-      'spo_sentToSupplier' => 1,
-    ]);
-
+  public function getSinglePurchaseOrder($po){
+    $id = $po->id;
     $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q)
       use ($id){
         return $q->where('id', $id);
@@ -1171,8 +1271,15 @@ class PurchasesSupplierController extends LogsController
     }else 
       $status = "PENDING";
 
-    $this->logSentPOToSupplier($po->po_ponum, $status);
-      
+    $requestStatus = 'NO REQUEST';
+    $approval = $po->poApproval;
+    if($approval){
+      $requestStatus = "PENDING";
+      if($approval->poa_approved > 0)
+        $requestStatus = "APPROVED";
+      if($approval->poa_rejected > 0)
+        $requestStatus = "REJECTED";
+    }
     $newPo = array(
       'id' => $po->id,
       'supplier' => $po->prprice()->first()->supplier->sd_supplier_name,
@@ -1182,12 +1289,33 @@ class PurchasesSupplierController extends LogsController
       'itemCount' => $itemCount,
       'quantityDelivered' => $quantityDelivered,
       'totalPoQuantity' => $totalPoQuantity,
+      'requestStatus' => $requestStatus,
       'status' => $status,
       'date' => $po->spo_date
     );
+
+    return (object) array(
+      'newPo' => $newPo,
+      'status' => $status,
+    );
+  }
+
+  public function markAsSentToSupplier($id){
+    $po = PurchaseOrderSupplier::findOrFail($id);
+
+    if($po->spo_sentToSupplier)
+      return response()->json(['errors' =>
+          ['Purchase order already mark as OPEN'] ],422);
+    $po->update([
+      'spo_sentToSupplier' => 1,
+    ]);
+
+    $poDetails = $this->getSinglePurchaseOrder($po);
+    $this->logSentPOToSupplier($po->po_ponum, $poDetails->status);
+    
     return response()->json([
       'message' => 'Record updated',
-      'newPo' => $newPo,
+      'newPo' => $poDetails->newPo,
     ]);
   }
 
