@@ -17,7 +17,8 @@ Route::get('/options/units','LogsController@getUnits');
 
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout/{sys}','UserController@logout');
-	Route::post('/me','UserController@me');
+    Route::post('/me','UserController@me');
+	Route::get('/test','SalesController@test');
   Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
   Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
   Route::get('/pjoms/jo', 'JobOrderController@fetchJo');

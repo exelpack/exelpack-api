@@ -137,73 +137,52 @@ class SalesController extends Controller
   public function test()
   {
 
-    // $items = DB::table('test_table')->get()
-    //           ->map(function ($item) {
+    if(!request()->has('week') || !request()->has('year') || !request()->has('conversion')){
+      return response()->json([
+        'errors' => ['Week, year & conversion parameters are required.']
+      ],422); 
+    }
+    $week = request()->week;
+    $year = request()->year;
+    $conversion = request()->conversion;
 
-    //             $si = SalesInvoice::where('s_invoicenum',$item->si)->first();
-    //             $i = array(
-    //               'sitem_sales_id' => $si->id,
-    //               'sitem_drnum' => $item->dr,
-    //               'sitem_ponum' => $item->po,
-    //               'sitem_partnum' => $item->pn == '' ? 'NA' : $item->pn,
-    //               'sitem_quantity' => $item->qty,
-    //               'sitem_unitprice' => $item->un,
-    //               'sitem_totalamount' => doubleval($item->un) 
-    //                 * intval($item->qty),
-    //             );
+    $weekDate = Carbon::now()->setISODate($year,$week);
+    $weekStartDate = $weekDate->startOfWeek()->format('Y-m-d');
+    $weekEndDate = $weekDate->endOfWeek()->format('Y-m-d');
 
-    //             SalesInvoiceItems::create($i);
-    //             return $i;
-    //           });
-    // return $items;
+    $sales =  SalesInvoice::whereHas('customer', function($q){
+      $q->where('c_customername','NOT LIKE','%NO CUSTOMER%');
+    })
+    ->groupBy('s_customer_id','s_currency')
+    ->get();
+    $customers = array();
+    $amounts = array();
 
-    // $sales = DB::table('salesms_invoicecopy')
-    //           ->groupBy('s_invoicenum')
-    //           ->get()
-    //           ->map(function ($invoice){
-
-    //             $wht = $invoice->s_withholding;
-    //             $or = trim($invoice->s_ornumber);
-    //             $date = $invoice->s_datecollected;
-    //             $deleted = null;
-    //             $remarks = $invoice->s_remarks;
-
-    //             if($invoice->s_withholding == 0)
-    //               $wht = null;
-
-    //             if($date == "0000-00-00"){
-    //               $wht = null;
-    //               $or = null;
-    //               $date = null;
-    //             }
-
-    //             if($invoice->s_remarks == 'cancelled')
-    //               $deleted = date('Y-m-d H:i:s');
-
-    //             if($remarks == ""){
-    //               $remarks =  null;
-    //             }
-
-    //             $s = array(
-    //               's_customer_id' => $invoice->s_customer_id,
-    //               's_invoicenum' => trim($invoice->s_invoicenum),
-    //               's_deliverydate' => $invoice->s_deliverydate,
-    //               's_currency' => trim($invoice->s_currency),
-    //               's_ornumber' => $or,
-    //               's_datecollected' => $date,
-    //               's_withholding' => $wht,
-    //               's_remarks' => trim($invoice->s_remarks),
-    //               's_isRevised' => $invoice->s_isRevised,
-    //               'deleted_at' => $deleted
-    //             );
-    //             // SalesInvoice::insert($s);   
-    //             return $s;
+    foreach($sales as $row){
+      array_push($customers,array('customer' => $row->customer->c_customername, 
+        'customer_id' => $row->s_customer_id,
+        'currency' => $row->s_currency,
+        'payment_terms' => $row->customer->c_paymentterms));
+    }
 
 
-    //           })
-    //           ->toArray();
-    // return $sales;
-    //   return count($sales);
+    foreach($customers as $row) {
+
+      $salesitems = SalesInvoiceItems::whereHas('sales',function ($q) use($row){
+          $q->where('s_currency',$row['currency'])
+          ->where('s_customer_id',$row['customer_id'])
+          ->where('s_isRevised',0);
+        })
+        ->get()
+        ->filter(function ($val) use ($weekEndDate) {
+
+        })
+
+      return $salesitems;
+      
+    }
+
+    return $customers;
   }
 
   private $salesRules = array();

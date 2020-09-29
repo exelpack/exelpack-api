@@ -29,7 +29,6 @@ class SmsAR implements FromView
       ->get();
       $customers = array();
       $amounts = array();
-     
 
       foreach($sales as $row){
         array_push($customers,array('customer' => $row->customer->c_customername, 
