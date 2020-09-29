@@ -17,6 +17,6 @@ class PurchaseOrderApproval extends Model
 
   public function user()
   {
-    return $this->belongsTo('App\User','pra_approver_id')->withTrashed();
+    return $this->belongsTo('App\User','poa_approver_id')->withTrashed();
   }
 }

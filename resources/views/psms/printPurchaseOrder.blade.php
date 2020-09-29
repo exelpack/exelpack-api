@@ -227,18 +227,50 @@
         {{ $preparedByName ?? "Purchasing Officer" }}
       </p>
     </td>
-    <td style="width: 20%;">Checked by:
+    <td>Checked by:
       <br/>
-      <div style="padding: 12.8px 0;">&nbsp;</div>
+      <div class="signature">
+      @if($isApproved)
+        @if($omSigExist && $omSig)
+        <img 
+          src="{{ $url.$omSig.'&token='.$token }}"
+          alt="Cannot load signature"
+        />
+        @else
+          <img 
+            src="{{ $defaultImg }}"
+            alt="Cannot load signature"
+          />
+        @endif
+      @else
+        <div style="padding: 12.8px 0;">&nbsp;</div>
+      @endif
+      </div>
       <p class="signature-text">
-        {{ $checkByName ?? "Operations Manager" }}
+        {{ $checkByName ?? 'Operations Manager' }}
       </p>
     </td>
-    <td style="width: 20%;">Approved by:
+    <td>Approved by:
       <br/>
-      <div style="padding: 12.8px 0;">&nbsp;</div>
+      <div class="signature">
+        @if($isApproved)
+          @if($approvalSigExist && $approvalFileName)
+          <img 
+            src="{{ $url.$approvalFileName.'&token='.$token }}"
+            alt="Cannot load signature"
+          />
+          @else
+            <img 
+              src="{{ $defaultImg }}"
+              alt="Cannot load signature"
+            />
+          @endif
+        @else
+          <div style="padding: 12.8px 0;">&nbsp;</div>
+        @endif
+      </div>
       <p class="signature-text">
-        {{ $approvedByName ?? "General Manager" }}
+        {{ $approvedByName ?? 'General Manager' }}
       </p>
     </td>
     <td style="width: 40%;">Supplier's Confirmation:

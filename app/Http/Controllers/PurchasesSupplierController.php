@@ -125,10 +125,24 @@ class PurchasesSupplierController extends LogsController
     $poItems = $getDetails->poItems;
     $poDetails = $getDetails->poDetails;
     $preparedByName = NULL;
-    $checkByName = NULL;
-    $approvedByName = NULL;
     $preparedBySig = false;
     $preparedBySigFile = null;
+
+    //gm
+    $approvalReq = $po->poApproval;
+    $approvalFileName = NULL;
+    $approvedByName = NULL;
+    $approvalSigExist = false;
+    $isApproved = false;
+
+    //om
+    $checkByName = NULL;
+    $omSig = NULL;
+    $omSigExist = false;
+
+    $getOm = User::where('department','om')->where('position','Manager')->first();
+    $getGm = User::where('department','gm')->where('position','Manager')->first();
+
     if($user){
       $preparedByName = strtoupper($this->getTitle($user->gender)." ".
         SUBSTR($user->firstname,0,1).$user->middleinitial." ".$user->lastname);
@@ -138,16 +152,39 @@ class PurchasesSupplierController extends LogsController
       $preparedBySig = Storage::disk('local')
         ->exists('/users/signature/'.$preparedBySigFile);
     }
-    $getOm = User::where('department','om')->where('position','Manager')->first();
-    $getGm = User::where('department','gm')->where('position','Manager')->first();
 
-    if($getOm)
+    if($approvalReq){
+      if($approvalReq->poa_approved > 0 && $approvalReq->poa_rejected < 1){
+        $isApproved = true;
+
+        if($approvalReq->user->signature)
+          $approvalFileName = $approvalReq->poa_approver_id.'/'.$approvalReq->user->signature;
+
+        $approvedByName = strtoupper($this->getTitle($getGm->gender)." ".
+          SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
+
+        $approvalSigExist = Storage::disk('local')
+          ->exists('/users/signature/'.$approvalFileName);
+      }
+    }
+
+    if($getOm){
       $checkByName = strtoupper($this->getTitle($getOm->gender)." ".
         SUBSTR($getOm->firstname,0,1).$getOm->middleinitial." ".$getOm->lastname);
 
-    if($getGm)
+      if($isApproved){
+        if($getGm->signature)
+          $omSig = $getOm->id.'/'.$getOm->signature;
+
+        $omSigExist = Storage::disk('local')
+          ->exists('/users/signature/'.$omSig);
+      }
+    }
+
+    if($getGm && !$isApproved){
       $approvedByName = strtoupper($this->getTitle($getGm->gender)." ".
         SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
+    }
 
     $pdf =  PDF::loadView('psms.printPurchaseOrder', compact(
       'poDetails',
@@ -157,7 +194,12 @@ class PurchasesSupplierController extends LogsController
       'approvedByName',
       'preparedBySig',
       'preparedBySigFile',
-      'token'
+      'token',
+      'omSig',
+      'omSigExist',
+      'approvalFileName',
+      'approvalSigExist',
+      'isApproved'
     ))->setPaper('a4','portrait');
     return $pdf->stream($po->spo_ponum);
   }
