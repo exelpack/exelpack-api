@@ -21,6 +21,7 @@ use App\Exports\SmsSalesSummaryExternal;
 use App\Exports\SmsSOA;
 use App\Exports\SmsAR;
 use App\Exports\SmsCbr;
+use App\Exports\SmsSalesWeeklyAR;
 
 class SalesController extends Controller
 {
@@ -134,55 +135,35 @@ class SalesController extends Controller
     return Excel::download(new SmsSOA($cid,$currency), 'SmsSOA.xlsx');
   }
 
-  public function test()
+  public function exportArWeekly()
   {
-
     if(!request()->has('week') || !request()->has('year') || !request()->has('conversion')){
       return response()->json([
         'errors' => ['Week, year & conversion parameters are required.']
       ],422); 
     }
+
     $week = request()->week;
     $year = request()->year;
     $conversion = request()->conversion;
 
-    $weekDate = Carbon::now()->setISODate($year,$week);
-    $weekStartDate = $weekDate->startOfWeek()->format('Y-m-d');
-    $weekEndDate = $weekDate->endOfWeek()->format('Y-m-d');
+    return Excel::download(new SmsSalesWeeklyAR($week,$year,$conversion), 'weeklyAR.xlsx');
+  }
 
-    $sales =  SalesInvoice::whereHas('customer', function($q){
-      $q->where('c_customername','NOT LIKE','%NO CUSTOMER%');
-    })
-    ->groupBy('s_customer_id','s_currency')
-    ->get();
-    $customers = array();
-    $amounts = array();
+  public function test()
+  {
 
-    foreach($sales as $row){
-      array_push($customers,array('customer' => $row->customer->c_customername, 
-        'customer_id' => $row->s_customer_id,
-        'currency' => $row->s_currency,
-        'payment_terms' => $row->customer->c_paymentterms));
-    }
+    // if(!request()->has('week') || !request()->has('year') || !request()->has('conversion')){
+    //   return response()->json([
+    //     'errors' => ['Week, year & conversion parameters are required.']
+    //   ],422); 
+    // }
 
+    // $week = request()->week;
+    // $year = request()->year;
+    // $conversion = request()->conversion;
 
-    foreach($customers as $row) {
-
-      $salesitems = SalesInvoiceItems::whereHas('sales',function ($q) use($row){
-          $q->where('s_currency',$row['currency'])
-          ->where('s_customer_id',$row['customer_id'])
-          ->where('s_isRevised',0);
-        })
-        ->get()
-        ->filter(function ($val) use ($weekEndDate) {
-
-        })
-
-      return $salesitems;
-      
-    }
-
-    return $customers;
+    // return Excel::download(new SmsSalesWeeklyAR($week,$year,$conversion), 'weeklyAR.xlsx');
   }
 
   private $salesRules = array();
