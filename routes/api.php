@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Http\Request;
 
 /*
@@ -17,7 +16,8 @@ Route::get('/options/units','LogsController@getUnits');
 
 Route::group(['middleware' => ['auth:api']], function() {
 	Route::post('/logout/{sys}','UserController@logout');
-	Route::post('/me','UserController@me');
+    Route::post('/me','UserController@me');
+	Route::get('/test','SalesController@test');
   Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
   Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
   Route::get('/pjoms/jo', 'JobOrderController@fetchJo');
@@ -198,8 +198,9 @@ Route::group(['middleware' => ['auth:api']], function() {
         Route::get('/salesms/export/summary','SalesController@exportSalesSummary');
         Route::get('/salesms/export/summaryExt','SalesController@exportSalesSummaryExternal');
         Route::get('/salesms/export/ar','SalesController@exportAR');
+        Route::get('/salesms/export/arweekly','SalesController@exportArWeekly');
         Route::get('/salesms/export/crb','SalesController@exportCRB');
-        Route::get('/salesms/or','SalesController@searchOR');
+        Route::get('/salesms/or','SalesControllerer@searchOR');
 
         Route::post('/salesms/invoice','SalesController@createSales');
         Route::post('/salesms/customer','SalesController@addCustomer');

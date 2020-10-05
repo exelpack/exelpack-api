@@ -14,7 +14,7 @@ class SmsAR implements FromView
     private $year = '';
     private $conversion = '';
 
-    public function __construct($month = 1,$year = 2020,$conversion = 50){
+    public function __construct($month = 1,$year = date('Y'),$conversion = 50){
       $this->month = $month;
       $this->year = $year;
       $this->conversion = $conversion;
@@ -29,7 +29,6 @@ class SmsAR implements FromView
       ->get();
       $customers = array();
       $amounts = array();
-     
 
       foreach($sales as $row){
         array_push($customers,array('customer' => $row->customer->c_customername, 
