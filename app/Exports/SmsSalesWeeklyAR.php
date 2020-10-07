@@ -55,6 +55,8 @@ class SmsSalesWeeklyAR implements FromView
 	          ->whereNotBetween('s_deliverydate',
 	            [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
 	          ->where('s_isRevised',0)
+	          ->where('s_ornumber','=',NULL)
+		        ->where('s_datecollected','=',NULL)
 	          ->get();
 
 	      $due = $sales->filter(function ($val) use ($weekEndDate) {
