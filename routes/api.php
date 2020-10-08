@@ -200,7 +200,7 @@ Route::group(['middleware' => ['auth:api']], function() {
         Route::get('/salesms/export/ar','SalesController@exportAR');
         Route::get('/salesms/export/arweekly','SalesController@exportArWeekly');
         Route::get('/salesms/export/crb','SalesController@exportCRB');
-        Route::get('/salesms/or','SalesControllerer@searchOR');
+        Route::get('/salesms/or','SalesController@searchOR');
 
         Route::post('/salesms/invoice','SalesController@createSales');
         Route::post('/salesms/customer','SalesController@addCustomer');
