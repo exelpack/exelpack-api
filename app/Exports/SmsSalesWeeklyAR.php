@@ -69,10 +69,6 @@ class SmsSalesWeeklyAR implements FromView
 	        ->map(function($inv) use ($conversion) {
 
 	          $total = $inv->items()->sum(Db::raw('sitem_quantity * sitem_unitprice'));
-
-	          if(strtoupper($inv->s_currency) === "USD")
-	            $total = $total * $conversion;
-
 	          return array(
 	            'total' => $total
 	          );
@@ -92,10 +88,6 @@ class SmsSalesWeeklyAR implements FromView
 	        ->map(function($inv) use ($conversion) {
 
 	          $total = $inv->items()->sum(Db::raw('sitem_quantity * sitem_unitprice'));
-
-	          if(strtoupper($inv->s_currency) === "USD")
-	            $total = $total * $conversion;
-
 	          return array(
 	            'total' => $total
 	          );
@@ -114,10 +106,6 @@ class SmsSalesWeeklyAR implements FromView
 	        ->map(function($inv) use ($conversion) {
 
 	          $total = $inv->items()->sum(Db::raw('sitem_quantity * sitem_unitprice'));
-
-	          if(strtoupper($inv->s_currency) === "USD")
-	            $total = $total * $conversion;
-
 	          return array(
 	            'total' => $total
 	          );
@@ -135,10 +123,6 @@ class SmsSalesWeeklyAR implements FromView
 	        ->map(function($inv) use ($conversion) {
 
 	          $total = $inv->items()->sum(Db::raw('sitem_quantity * sitem_unitprice'));
-
-	          if(strtoupper($inv->s_currency) === "USD")
-	            $total = $total * $conversion;
-
 	          return array(
 	            'total' => $total
 	          );

@@ -34,10 +34,10 @@
 			<tr>
 				<td style="text-align: center">{{ $amount['customer'] }}</td>
 				<td style="text-align: center">{{ $amount['terms'] }}</td>
-				<td style="text-align: right">{{ strtoupper($amount['currency']) === "USD" ? "$" : '' }}  {{ $amount['due'] }}</td>
-				<td style="text-align: right">{{ strtoupper($amount['currency']) === "USD" ? "$" : '' }}  {{ $amount['overdue'] }}</td>
-				<td style="text-align: right">{{ strtoupper($amount['currency']) === "USD" ? "$" : '' }}  {{ $amount['delinquent'] }}</td>
-				<td style="text-align: right">{{ strtoupper($amount['currency']) === "USD" ? "$" : '' }}  {{ $amount['collectibles'] }}</td>
+				<td style="text-align: right">{{ $amount['due'] }}</td>
+				<td style="text-align: right">{{ $amount['overdue'] }}</td>
+				<td style="text-align: right">{{ $amount['delinquent'] }}</td>
+				<td style="text-align: right">{{ $amount['collectibles'] }}</td>
 			</tr>
 		@endforeach
 		
