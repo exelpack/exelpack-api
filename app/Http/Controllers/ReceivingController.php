@@ -228,10 +228,10 @@ class ReceivingController extends LogsController
     }else {
       $masterlistItemDetails = Masterlist::where('m_code',$poitem->spoi_code)->first();
       $newInventory = new Inventory;
-      $newInventory->create([
+      $newInventory->fill([
         'i_mspecs' => $poitem->spoi_mspecs,
-        'i_projectname' => $masterlistItemDetails->m_projectname,
-        'i_partnumber' => $masterlistItemDetails->m_partnumber,
+        'i_projectname' => $masterlistItemDetails->m_projectname ?? 'No Record On Materlist',
+        'i_partnumber' => $masterlistItemDetails->m_partnumber ?? 'No Record On Materlist',
         'i_code' => $poitem->spoi_code,
         'i_unit' => $poitem->spoi_uom,
         'i_quantity' => $request->receivedQty,
@@ -359,7 +359,34 @@ class ReceivingController extends LogsController
 
   public function removeRRfromInvoice($id) {
     $invoice = SupplierInvoice::findOrFail($id);
+    $poitem = $invoice->poitem;
+    $inventory =  Inventory::where('i_code',$poitem->spoi_code)->first();
+    $jo = JobOrder::whereHas('pr.prpricing.po.poitems.invoice', function($q) use ($id){
+      return $q->where('id', $id);
+    })->first();  
+    if($invoice->ssi_receivedquantity < 1 || $invoice->ssi_rrnum === null || $invoice->ssi_rrdate == null)
+      return response()->json([
+        'errors' => ['Receiving report does not exist']
+      ]);
+
+    if(!$inventory || $inventory->i_quantity < $invoice->ssi_receivedquantity) {
+      return response()->json([
+        'errors' => ["Cannot remove RR because the item doesn't exist in inventory or inventory quantity is low"]
+      ]);
+    }
+
     $rrSeries = $invoice->ssi_rrnum;
+    $inventory->update([
+      'i_quantity' => $inventory->i_quantity - $invoice->ssi_receivedquantity,
+    ]);
+
+    $inventory->outgoing()->create([
+      'out_quantity' => $invoice->ssi_receivedquantity,
+      'out_newQuantity' => $inventory->i_quantity - $invoice->ssi_receivedquantity,
+      'out_date' => date('Y-m-d'),
+      'out_remarks' => $invoice->ssi_rrnum,
+      'out_jo_id' => $jo->id ?? 0,
+    ]);
     $invoice->update([
       'ssi_rrnum' => NULL,
       'ssi_rrdate' => NULL,
