@@ -252,36 +252,89 @@ class UserController extends Controller
     }
 
     $user = User::findOrFail($id);
-    $user->fill([
-      'username' => $request->username,
-      'type' => strtolower($request->type),
-      'gender' => strtolower($request->gender),
-      'department' => strtolower($request->department),
-      'npd_access' => $request->npd,
-      'pmms_access' => $request->pmms,
-      'cposms_access' => $request->cposms,
-      'pjoms_access' => $request->pjoms,
-      'cims_access' => $request->cims,
-      'wims_access' => $request->wims,
-      'psms_access' => $request->psms,
-      'salesms_access' => $request->salesms,
-      'approval_pr' => $request->prapproval,
-      'approval_po' => $request->poapproval,
-      'firstname' => ucwords($request->firstname),
-      'middleinitial' => strtoupper($request->middleinitial),
-      'lastname' => ucwords($request->lastname),
-      'extensionname' => ucwords($request->extensionname),
-      'position' => ucwords($request->position),
-    ]);
 
+    if($request->filled('username')){
+      $user->username = $request->username;
+    }
+
+    if($request->filled('type')){
+      $user->type = trtolower($request->type);
+    }
+
+    if($request->filled('gender')){
+      $user->gender = strtolower($request->gender);
+    }
+
+    if($request->filled('department')){
+      $user->department = strtolower($request->department);
+    }
+
+    if($request->filled('npd')){
+      $user->npd_access = $request->npd;
+    }
+
+    if($request->filled('pmms')){
+      $user->pmms_access = $request->pmms;
+    }
+
+    if($request->filled('cposms')){
+      $user->cposms_access = $request->cposms;
+    }
+
+    if($request->filled('pjoms')){
+      $user->pjoms_access = $request->pjoms;
+    }
+
+    if($request->filled('cims')){
+      $user->cims_access = $request->cims;
+    }
+
+    if($request->filled('wims')){
+      $user->wims_access = $request->wims;
+    }
+
+    if($request->filled('psms')){
+      $user->psms_access = $request->psms;
+    }
+
+    if($request->filled('salesms')){
+      $user->salesms_access = $request->salesms;
+    }
+
+    if($request->filled('prapproval')){
+      $user->approval_pr = $request->prapproval;
+    }
+
+    if($request->filled('poapproval')){
+      $user->approval_po = $request->poapproval;
+    }
+
+    if($request->filled('firstname')){
+      $user->firstname = ucwords($request->firstname);
+    }
+
+    if($request->filled('middleinitial')){
+      $user->middleinitial = strtoupper($request->middleinitial);
+    }
+
+    if($request->filled('lastname')){
+      $user->lastname = ucwords($request->lastname);
+    }
+
+    if($request->filled('extensionname')){
+      $user->extensionname = ucwords($request->extensionname);
+    }
+
+    if($request->filled('position')){
+      $user->position = ucwords($request->position);
+    }
+   
     if($request->signature){
       $name = pathinfo($request->signature->getClientOriginalName(),PATHINFO_FILENAME);
       $ext = $request->signature->getClientOriginalExtension();
       $filename =  "sig_".$user->id.".".$ext;
       Storage::disk('local')->putFileAs('/users/signature/'.$id.'/',$request->signature, $filename);
-      $user->fill([
-        'signature' => $filename,
-      ]);
+      $user->signature = $filename;
     }
 
     if(!Hash::check($request->password, $user->password)){
