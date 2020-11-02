@@ -812,6 +812,8 @@ class PurchasesSupplierController extends LogsController
     if($list){
       return array(
         'id' => $list->id,
+        'recommendee' => $type == "PR" ? $list->pra_recommendee_user : null,
+        'isRecommended' => $type == "PR" ? $list->pra_recommended : null,
         'approver' => $type == "PR" ? $list->pra_approver_user : $list->poa_approver_user,
         'otherInfo' => $type == "PR" ? $list->pra_otherinfo : $list->poa_otherinfo,
         'isApproved' => $type == "PR" ? $list->pra_approved : $list->poa_approved,
@@ -828,6 +830,8 @@ class PurchasesSupplierController extends LogsController
     $users = User::select('id','username')
       ->where('id', '!=', Auth()->user()->id)
       ->where('approval_pr', 1)
+      ->where('department', '=', 'om')
+      ->where('position','=','Manager')
       ->get();
 
     $approvalList = $this->approvalArray($prsd->prApproval);
@@ -841,7 +845,7 @@ class PurchasesSupplierController extends LogsController
     $validator = Validator::make($request->all(),
       array(
         'price_id' => 'required|int',
-        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_approver_id,null,id,pra_prs_id,'.$request->price_id,
+        'approver' => 'required|string|unique:psms_prapprovaldetails,pra_recommendee_id,null,id,pra_prs_id,'.$request->price_id,
       ));
     if($validator->fails()){
       return response()->json(['errors' => $validator->errors()->all()],422);
@@ -858,8 +862,8 @@ class PurchasesSupplierController extends LogsController
     $pr = $prSupplierDetails->pr;
     $approval->fill([
       'pra_prs_id' => $request->price_id,
-      'pra_approver_id' => $request->approver,
-      'pra_approver_user' => $user->username,
+      'pra_recommendee_id' => $request->approver,
+      'pra_recommendee_user' => $user->username,
       'pra_otherinfo' => $pr->jo->jo_joborder." - ". $pr->pr_prnum,
     ]);
     $approval->save();

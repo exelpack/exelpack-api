@@ -18,7 +18,8 @@ class OperationController extends Controller
 {
   //approval on pr
   public function getPendingPrList(){
-    $userId = Auth()->user()->id;
+    $user = Auth()->user();
+    $userId = $user->id;
     $pr = DB::table('prms_prlist')
       ->select('id','pr_jo_id','pr_prnum')
       ->groupBy('id');
@@ -47,8 +48,7 @@ class OperationController extends Controller
       ->select('id','prsd_supplier_id','prsd_pr_id', 'prsd_currency')
       ->groupBy('id');
 
-    $q = PurchaseRequestApproval::where('pra_approver_id',$userId)
-      ->leftJoinSub($prPrice, 'prprice', function($join){
+    $q = PurchaseRequestApproval::leftJoinSub($prPrice, 'prprice', function($join){
         $join->on('psms_prapprovaldetails.pra_prs_id','=','prprice.id');
       })
       ->leftJoinSub($pr, 'pr', function($join){
@@ -69,6 +69,12 @@ class OperationController extends Controller
       ->leftJoinSub($po, 'po', function($join){
         $join->on('poitem.poi_po_id','=','po.id');
       });
+
+      if($user->position === 'Manager')
+        $q->where('pra_recommendee_id', $userId);
+
+      if($user->position === 'Deputy Manager')
+        $q->where('pra_approver_id', $userId);
 
       $q->select([
         DB::raw('IF(psms_prapprovaldetails.pra_approved > 0,"APPROVED",
@@ -236,21 +242,36 @@ class OperationController extends Controller
   public function requestionAction(Request $data, $id)
   {
     $request = PurchaseRequestApproval::findOrFail($id);
+    $user = Auth()->user();
 
-    if(Auth()->user()->id !== $request->pra_approver_id)
+    if($user->id !== $request->pra_approver_id || $user->id !== $request->pra_recommendee_id)
       return response()->json(['errors' => ['Permission denied']], 422);
 
-    if($request->pra_approved > 0 || $request->pra_rejected > 0)
-      return response()->json(['errors' => ['Request already approved or rejected'] ], 422); 
+    if(($request->pra_approved > 0 || $request->pra_rejected > 0) && $user->position === 'Deputy Manager')
+      return response()->json(['errors' => ['Request already approved or rejected'] ], 422);
+
+    if(($request->pra_recommended > 0 || $request->pra_rejected > 0) && $user->position === 'Manager')
+      return response()->json(['errors' => ['Request already recommended or rejected'] ], 422); 
 
     if(strtolower($data->type) != 'approved' && strtolower($data->type) != 'rejected')
-      return response()->json(['errors' => ['Type not valid']], 422); 
+      return response()->json(['errors' => ['Type not valid']], 422);
 
-    $request->fill([
-      'pra_approved' => strtolower($data->type) == 'approved' ? 1 : 0,
-      'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
-      'pra_date' => date('Y-m-d'),
-    ]);
+    if($user->position === "Deputy manager") {
+      $request->fill([
+        'pra_approved' => strtolower($data->type) == 'approved' ? 1 : 0,
+        'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
+        'pra_date' => date('Y-m-d'),
+      ]);
+    }
+
+    if($user->position === "Manager") {
+      $request->fill([
+        'pra_recommended' => strtolower($data->type) == 'approved' ? 1 : 0,
+        'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
+        'pra_recommended_date' => date('Y-m-d'),
+      ]);
+    }
+    
     $request->save();
     $request->refresh();
     $status = "PENDING";
