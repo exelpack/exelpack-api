@@ -13,6 +13,7 @@ use App\PurchaseOrder;
 use App\PurchaseOrderItems;
 use App\Customers;
 use App\PurchaseRequest;
+use App\User;
 use DB;
 class OperationController extends Controller
 {
@@ -78,7 +79,8 @@ class OperationController extends Controller
 
       $q->select([
         DB::raw('IF(psms_prapprovaldetails.pra_approved > 0,"APPROVED",
-        IF(psms_prapprovaldetails.pra_rejected > 0,"REJECTED", "PENDING")) as status'),
+        IF(psms_prapprovaldetails.pra_rejected > 0,"REJECTED",
+        IF(psms_prapprovaldetails.pra_recommended > 0, "RECOMMENDED", "PENDING") )) as status'),
         'psms_prapprovaldetails.id',
         'prprice.id as priceId',
         'supplier.sd_supplier_name as supplier',
@@ -244,7 +246,7 @@ class OperationController extends Controller
     $request = PurchaseRequestApproval::findOrFail($id);
     $user = Auth()->user();
 
-    if($user->id !== $request->pra_approver_id || $user->id !== $request->pra_recommendee_id)
+    if($user->id !== $request->pra_approver_id && $user->id !== $request->pra_recommendee_id)
       return response()->json(['errors' => ['Permission denied']], 422);
 
     if(($request->pra_approved > 0 || $request->pra_rejected > 0) && $user->position === 'Deputy Manager')
@@ -265,17 +267,29 @@ class OperationController extends Controller
     }
 
     if($user->position === "Manager") {
+      $deputy = User::where('department','=','om')
+        ->where('position','=','Deputy Manager')
+        ->first();
+
+      if(!$deputy)
+        return response()->json(['errors' => ['No Deputy Manager found!']]);
+
       $request->fill([
         'pra_recommended' => strtolower($data->type) == 'approved' ? 1 : 0,
         'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
         'pra_recommended_date' => date('Y-m-d'),
+        'pra_approver_id' => $deputy->id,
+        'pra_approver_user' => $deputy->username,
       ]);
     }
     
     $request->save();
     $request->refresh();
     $status = "PENDING";
-    if($request->pra_approved > 0)
+    if($request->pra_approved === 0 && $request->pra_recommended === 1)
+      $status = "RECOMMENDED";
+
+    if($request->pra_approved > 0 && $request->pra_recommended > 0)
       $status = "APPROVED";
 
     if($request->pra_rejected > 0)

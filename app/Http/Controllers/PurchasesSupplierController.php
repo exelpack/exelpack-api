@@ -264,6 +264,11 @@ class PurchasesSupplierController extends LogsController
     $gmName = NULL;
     $gmSig = NULL;
     $gmSigExist = false;
+
+    $recommendeeSig = false;
+    $recommendeeFilename = NULL;
+    $recommendeeName = NULL;
+
     $approvalReq = $prs->prApproval;
     $getGm = User::where('department','gm')->where('position','Manager')->first();
 
