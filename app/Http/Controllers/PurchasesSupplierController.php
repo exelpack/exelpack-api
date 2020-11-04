@@ -416,7 +416,8 @@ class PurchasesSupplierController extends LogsController
       ->select('pra_prs_id',
         DB::raw('count(*) as approvalRequestCount'),
         DB::raw('pra_approved as isApproved'),
-        DB::raw('pra_rejected as isRejected'))
+        DB::raw('pra_rejected as isRejected'),
+        DB::raw('pra_recommended as isRecommended'))
       ->groupBy('pra_prs_id');
 
     $itemsTbl = DB::table('prms_pritems')
@@ -476,7 +477,9 @@ class PurchasesSupplierController extends LogsController
       'itemCount',
       DB::raw(' IF( IFNULL(hasPo,0) > 0, "WITH PO",
         IF( IFNULL(approvalRequestCount,0) > 0,
-        IF( IFNULL(isApproved,0) > 0,"APPROVED", IF( IFNULL(isRejected,0) > 0,"REJECTED","PENDING") ),
+        IF( IFNULL(isApproved,0) > 0,"APPROVED", IF( IFNULL(isRejected,0) > 0,"REJECTED",
+      IF( IFNULL(isRecommended,0) > 0, "RECOMMENDED", "PENDING")
+        ) ),
         "NO REQUEST")
         ) as status'),
        DB::raw('IF(approvalRequestCount,true, false) as hasRequest'),

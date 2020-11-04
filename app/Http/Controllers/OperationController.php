@@ -258,7 +258,11 @@ class OperationController extends Controller
     if(strtolower($data->type) != 'approved' && strtolower($data->type) != 'rejected')
       return response()->json(['errors' => ['Type not valid']], 422);
 
-    if($user->position === "Deputy manager") {
+    if(strtolower($user->position) === "deputy manager") {
+      if($request->pra_recommended < 1)
+        return response()->json([
+          'errors' => ['Request needs to be recommended first']
+        ]);
       $request->fill([
         'pra_approved' => strtolower($data->type) == 'approved' ? 1 : 0,
         'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
@@ -266,7 +270,7 @@ class OperationController extends Controller
       ]);
     }
 
-    if($user->position === "Manager") {
+    if(strtolower($user->position) === "manager") {
       $deputy = User::where('department','=','om')
         ->where('position','=','Deputy Manager')
         ->first();
@@ -282,7 +286,6 @@ class OperationController extends Controller
         'pra_approver_user' => $deputy->username,
       ]);
     }
-    
     $request->save();
     $request->refresh();
     $status = "PENDING";
