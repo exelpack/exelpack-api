@@ -32,8 +32,8 @@
 }
 
 .sigTable tr td{
-  max-width: 25%;
-  width: 25%;
+  max-width: 20%;
+  width: 20%;
 }
 
 .signature {
@@ -234,6 +234,29 @@
         @if($omSigExist && $omSig)
         <img 
           src="{{ $url.$omSig.'&token='.$token }}"
+          alt="Cannot load signature"
+        />
+        @else
+          <img 
+            src="{{ $defaultImg }}"
+            alt="Cannot load signature"
+          />
+        @endif
+      @else
+        <div style="padding: 12.8px 0;">&nbsp;</div>
+      @endif
+      </div>
+      <p class="signature-text">
+        {{ $checkByName ?? 'Operations Manager' }}
+      </p>
+    </td>
+    <td>Recommended by:
+      <br/>
+      <div class="signature">
+      @if($isApproved)
+        @if($deputySigExist && $deputySig)
+        <img 
+          src="{{ $url.$deputySig.'&token='.$token }}"
           alt="Cannot load signature"
         />
         @else

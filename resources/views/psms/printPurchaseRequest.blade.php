@@ -27,8 +27,8 @@
 }
 
 .sigTable tr td{
-  max-width: 25%;
-  width: 25%;
+  max-width: 20%;
+  width: 20%;
 }
 
 .signature {
@@ -184,6 +184,29 @@
     <td>Recommending Approval by:
       <br/>
       <div class="signature">
+      @if($isRecommended)
+        @if($recommendeeSig && $recommendeeFilename)
+        <img 
+          src="{{ $url.$recommendeeFilename.'&token='.$token }}"
+          alt="Cannot load signature"
+        />
+        @else
+          <img 
+            src="{{ $defaultImg }}"
+            alt="Cannot load signature"
+          />
+        @endif
+      @else
+        <div style="padding: 12.8px 0;">&nbsp;</div>
+      @endif
+      </div>
+      <p class="signature-text">
+        Department Head
+      </p>
+    </td>
+    <td>Recommending Approval by:
+      <br/>
+      <div class="signature">
       @if($isApproved)
         @if($approvalSig && $approvalFileName)
         <img 
@@ -201,7 +224,7 @@
       @endif
       </div>
       <p class="signature-text">
-        Department Head
+        Deputy Department Head
       </p>
     </td>
     <td>Approved by:
@@ -229,6 +252,7 @@
     </td>
   </tr>
 </table>
+
 <p
   style="
     float: right;

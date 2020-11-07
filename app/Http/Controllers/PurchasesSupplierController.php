@@ -140,7 +140,13 @@ class PurchasesSupplierController extends LogsController
     $omSig = NULL;
     $omSigExist = false;
 
+    //om
+    $deputyName = NULL;
+    $deputySig = NULL;
+    $deputySigExist = false;
+
     $getOm = User::where('department','om')->where('position','Manager')->first();
+    $getDeputyOm = User::where('department','om')->where('position','Deputy Manager')->first();
     $getGm = User::where('department','gm')->where('position','Manager')->first();
 
     if($user){
@@ -173,11 +179,24 @@ class PurchasesSupplierController extends LogsController
         SUBSTR($getOm->firstname,0,1).$getOm->middleinitial." ".$getOm->lastname);
 
       if($isApproved){
-        if($getGm->signature)
+        if($getOm->signature)
           $omSig = $getOm->id.'/'.$getOm->signature;
 
         $omSigExist = Storage::disk('local')
           ->exists('/users/signature/'.$omSig);
+      }
+    }
+
+    if($getDeputyOm){
+      $deputyName = strtoupper($this->getTitle($getDeputyOm->gender)." ".
+        SUBSTR($getDeputyOm->firstname,0,1).$getDeputyOm->middleinitial." ".$getDeputyOm->lastname);
+
+      if($isApproved){
+        if($getDeputyOm->signature)
+          $deputySig = $getDeputyOm->id.'/'.$getDeputyOm->signature;
+
+        $deputySigExist = Storage::disk('local')
+          ->exists('/users/signature/'.$deputySig);
       }
     }
 
@@ -187,6 +206,9 @@ class PurchasesSupplierController extends LogsController
     }
 
     $pdf =  PDF::loadView('psms.printPurchaseOrder', compact(
+      'deputyName',
+      'deputySigExist',
+      'deputySig',
       'poDetails',
       'poItems',
       'preparedByName',
@@ -293,34 +315,34 @@ class PurchasesSupplierController extends LogsController
         if($approvalReq->user->signature)
           $approvalFileName = $approvalReq->pra_approver_id.'/'.$approvalReq->user->signature;
 
-        $approvalSig = Storage::disk('local')
-          ->exists('/users/signature/'.$approvalFileName);
+        if($approvalFileName){
+          $approvalSig = Storage::disk('local')
+            ->exists('/users/signature/'.$approvalFileName);
+        }
       }
 
-      if($approvalReq->pra_approved < 1 && $approvalReq->pra_recommended > 0 && $approvalReq->pra_rejected < 1){
+      if($approvalReq->pra_recommended > 0 && $approvalReq->pra_rejected < 1){
         $isRecommended = true;
 
         if($approvalReq->recommendee->signature)
           $recommendeeFilename = $approvalReq->pra_recommendee_id.'/'.$approvalReq->recommendee->signature;
 
-        $recommendeeSig = Storage::disk('local')
-          ->exists('/users/signature/'.$recommendeeFilename);
+        if($recommendeeFilename){
+          $recommendeeSig = Storage::disk('local')
+            ->exists('/users/signature/'.$recommendeeFilename);
+        }
       }
     }
 
-    return array(
-      $recommendeeSig,
-      $recommendeeFilename,
-      $isRecommended
-    );
-    return $recommendeeSig;
-
     if(!$isApproved)
       return response()->json(['errors' => ['Purchase request is not printable']], 422);
-
+    
     $pdf =  PDF::loadView('psms.printPurchaseRequest', compact(
       'items',
       'details',
+      'recommendeeSig',
+      'recommendeeFilename',
+      'isRecommended',
       'prSignature',
       'prpriceSignature',
       'isApproved',
@@ -333,7 +355,7 @@ class PurchasesSupplierController extends LogsController
       'gmSigExist',
       'token'
     ))->setPaper('a4','portrait');
-    return $pdf->stream($prs->pr->pr_prnum);
+    return $pdf->stream($prs->pr->pr_prnum.".pdf");
   }
 
   public function getPrList()

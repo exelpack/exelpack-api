@@ -98,7 +98,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function prarecommendee()
     {
-        return $this->hasMany('App\User','pra_recommendee_id');
+        return $this->hasMany('App\PurchaseRequestApproval','pra_recommendee_id');
     }
 
     public function poa()

@@ -20,4 +20,9 @@ class PurchaseRequestApproval extends Model
     return $this->belongsTo('App\User','pra_approver_id')->withTrashed();
   }
 
+  public function recommendee()
+  {
+    return $this->belongsTo('App\User','pra_recommendee_id')->withTrashed();
+  }
+
 }
