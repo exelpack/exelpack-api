@@ -249,7 +249,7 @@ class PurchasesSupplierController extends LogsController
     if($prs->pr->user->signature)
       $prFileName = $prs->pr->pr_user_id.'/'.$prs->pr->user->signature;
 
-    if($prs->pr->user->signature)
+    if($prs->user->signature)
       $prsFileName = $prs->prsd_user_id.'/'.$prs->user->signature;
     
     $prSignature = Storage::disk('local')
@@ -261,6 +261,9 @@ class PurchasesSupplierController extends LogsController
     $isApproved = false;
     $approvalSig = false;
     $approvalFileName = NULL;
+    $isRecommended = false;
+    $recommendeeSig = false;
+    $recommendeeFilename = NULL;
     $gmName = NULL;
     $gmSig = NULL;
     $gmSigExist = false;
@@ -279,7 +282,7 @@ class PurchasesSupplierController extends LogsController
     }
 
     if($approvalReq){
-      if($approvalReq->pra_approved > 0 && $approvalReq->pra_rejected < 1){
+      if($approvalReq->pra_approved > 0 && $approvalReq->pra_rejected < 1 && $approvalReq->pra_recommended > 0){
         $isApproved = true;
 
         if($approvalReq->user->signature)
@@ -288,7 +291,24 @@ class PurchasesSupplierController extends LogsController
         $approvalSig = Storage::disk('local')
           ->exists('/users/signature/'.$approvalFileName);
       }
+
+      if($approvalReq->pra_approved < 1 && $approvalReq->pra_recommended > 0 && $approvalReq->pra_rejected < 1){
+        $isRecommended = true;
+
+        if($approvalReq->recommendee->signature)
+          $recommendeeFilename = $approvalReq->pra_recommendee_id.'/'.$approvalReq->recommendee->signature;
+
+        $recommendeeSig = Storage::disk('local')
+          ->exists('/users/signature/'.$recommendeeFilename);
+      }
     }
+
+    return array(
+      $recommendeeSig,
+      $recommendeeFilename,
+      $isRecommended
+    );
+    return $recommendeeSig;
 
     if(!$isApproved)
       return response()->json(['errors' => ['Purchase request is not printable']], 422);
