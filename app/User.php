@@ -72,7 +72,13 @@ class User extends Authenticatable implements JWTSubject
           $access['production'] = true;
 
 
-        return ['department' => $this->department, 'username' => $this->username,'type' => $this->type, 'access' => $access];
+        return [
+            'department' => $this->department,
+            'username' => $this->username,
+            'type' => $this->type,
+            'access' => $access,
+            'position' => $this->position
+        ];
     }
 
     public function pr()
