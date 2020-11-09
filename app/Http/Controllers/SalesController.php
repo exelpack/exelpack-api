@@ -72,15 +72,17 @@ class SalesController extends Controller
 
   public function exportSales()
   {
-    if(!request()->has('conversion') || !request()->has('year') || !request()->has('month')){
+    if(!request()->has('conversion') || !request()->has('year')){
       return response()->json([
-        'errors' => ['Conversion & month & year parameters is required.']
+        'errors' => ['Conversion & year parameters is required.']
       ],422); 
     }
     $conversion = request()->conversion;
     $year = request()->year;
-    $month = request()->month;
-    return Excel::download(new SmsSalesExport($conversion, $year, $month), 'sales.xlsx');
+    $month = request()->month !== 'null' ? request()->month : -1;
+    $customer = request()->customer !== 'undefined' ? request()->customer : -1;
+
+    return Excel::download(new SmsSalesExport($conversion, $year, $month, $customer), 'sales.xlsx');
   }
 
   public function exportSalesSummary()
