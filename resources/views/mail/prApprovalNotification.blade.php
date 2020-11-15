@@ -5,7 +5,7 @@
 	<p>Purchase request no. : {{ $prDetails->prNumber }}</p>
 	<p>Purchase request date : {{ $prDetails->prDate }}</p>
 	<p>Requested by : {{ $prDetails->requestee }}</p>
-	<p>You can approve this request on <a href="https://odash.exelpacksystems.com">https://odash.exelpacksystems.com</a></p>
+	<p>You can approve this request on <a href="https://odash.minamotocorpsystems.com">https://odash.minamotocorpsystems.com</a></p>
 </div>
 <table 
 	style="font-size : 12px; padding : 0; margin : 0; width: 100%"
