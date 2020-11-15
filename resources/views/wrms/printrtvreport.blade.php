@@ -88,13 +88,13 @@
           <td>Inspected by: 
             <p class="signee">
               ____________________________________________________
-              <br/>Signature Over Printed Name(EXELPACK)
+              <br/>Signature Over Printed Name(MINAMOTO)
             </p>
           </td>
           <td> Checked by:
             <p class="signee">
               ____________________________________________________
-              <br/>Signature Over Printed Name(SUPPLIER
+              <br/>Signature Over Printed Name(SUPPLIER)
             </p>
           </td>
         </tr>
@@ -151,13 +151,13 @@
           <td>Inspected by: 
             <p class="signee">
               ____________________________________________________
-              <br/>Signature Over Printed Name(EXELPACK)
+              <br/>Signature Over Printed Name(MINAMOTO)
             </p>
           </td>
           <td> Checked by:
             <p class="signee">
               ____________________________________________________
-              <br/>Signature Over Printed Name(SUPPLIER
+              <br/>Signature Over Printed Name(SUPPLIER)
             </p>
           </td>
         </tr>

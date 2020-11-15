@@ -205,6 +205,25 @@ class PurchasesSupplierController extends LogsController
         SUBSTR($getGm->firstname,0,1).$getGm->middleinitial." ".$getGm->lastname);
     }
 
+    return view('psms.printPurchaseOrder', compact(
+      'deputyName',
+      'deputySigExist',
+      'deputySig',
+      'poDetails',
+      'poItems',
+      'preparedByName',
+      'checkByName',
+      'approvedByName',
+      'preparedBySig',
+      'preparedBySigFile',
+      'token',
+      'omSig',
+      'omSigExist',
+      'approvalFileName',
+      'approvalSigExist',
+      'isApproved'
+    ));
+
     $pdf =  PDF::loadView('psms.printPurchaseOrder', compact(
       'deputyName',
       'deputySigExist',
@@ -336,6 +355,25 @@ class PurchasesSupplierController extends LogsController
 
     if(!$isApproved)
       return response()->json(['errors' => ['Purchase request is not printable']], 422);
+
+    return view('psms.printPurchaseRequest', compact(
+      'items',
+      'details',
+      'recommendeeSig',
+      'recommendeeFilename',
+      'isRecommended',
+      'prSignature',
+      'prpriceSignature',
+      'isApproved',
+      'approvalSig',
+      'prFileName',
+      'prsFileName',
+      'approvalFileName',
+      'gmName',
+      'gmSig',
+      'gmSigExist',
+      'token'
+    ));
     
     $pdf =  PDF::loadView('psms.printPurchaseRequest', compact(
       'items',

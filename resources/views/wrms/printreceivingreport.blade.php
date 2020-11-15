@@ -71,7 +71,7 @@
 </style>
 
 <div class="container">
-  <p class="sm-title">Exelpack Corporation</p>
+  <p class="sm-title">Minamoto Corporation</p>
   <p class="lg-title">RECEIVING INSPECTION REPORT</p>
 
   <div>
@@ -172,7 +172,7 @@
 <br/>
 <br/>
 <div class="container">
-  <p class="sm-title">Exelpack Corporation</p>
+  <p class="sm-title">Minamoto Corporation</p>
   <p class="lg-title">RECEIVING INSPECTION REPORT</p>
 
   <div>

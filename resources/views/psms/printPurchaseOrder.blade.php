@@ -77,9 +77,9 @@
     <td align="center" style="width: 30%">
     </td>
     <td style="width: 40%; font-size: 8px; text-align: left;">
-      <b>Blk 2 Lot 2 Filinvest Techno. Park, Ciudad de Calamba Laguna</b><br/>
-      <span>Tel. Nos:(049) 502-0295/(02) 584-4424 Telefax No.:(02)-584-4424</span><br />
-      <span>Email add: purchase.exelpack@gmail.com</span><br />
+      <b>Phase 4 Filinvest Technopark,Brgy Kay-anlog Calamba Laguna </b><br/>
+      <span>Tel. Nos.:(049) 5723626</span><br />
+      <span>Email add: minamoto.purchasing02@gmail.com</span><br />
     </td>
   </tr>
 </table>
@@ -111,15 +111,15 @@
         <table style="width: 101%;" border="1" cellspacing="0" cellpadding="3">
           <tr>
             <td class="colored" style="width: 20%;">P.O NO.</td>
-            <td>{{ $poDetails->poNumber }}</td>
+            <td style="font-size: 9px;">{{ $poDetails->poNumber }}</td>
           </tr>
           <tr>
             <td class="colored">P.R. NO.</td>
-            <td style="font-size: 8px;">{{ $poDetails->prNumber }}</td>
+            <td style="font-size: 9px;">{{ $poDetails->prNumber }}</td>
           </tr>
           <tr>
             <td class="colored">Date</td>
-            <td>{{ $poDetails->date }}</td>
+            <td style="font-size: 9px;">{{ $poDetails->date }}</td>
           </tr>
           <tr>
             <td class="colored">Page</td>
@@ -198,10 +198,11 @@
     border: 1px solid black;
     font-size: 11px;"
   >
-  1. Exelpack Corporation reserves the right to reject any items that will not comply with the specification.
-  2. Please indicate exelpack P.O. &amp; P.R. number in your DR &amp; Sales Invoice.
+  1. MinaMoto Packaging Corporation reserves the right to reject any items that will not Comply with the specification.
+  2. Please indicate Minamoto Corporation P.O. &amp; P.R. number in your DR &amp; Sales Invoice.
   3. Please ensure to include original sales invoice during delivery to prevent payment delays.
-  4. For MRS corrugated board Exelpack will not accept any damage such as corrugation in outer liner, wash board, spot, short liner.
+  4. For MRS corrugated board MPC will not accept any damage such as corrugation in outer liner, wash board, spot, short liner.
+  5. For MRS corrugated board in excess of 2% overrun from delivery will not be accepted.
   </pre>
 </div>
 
@@ -227,7 +228,7 @@
         {{ $preparedByName ?? "Purchasing Officer" }}
       </p>
     </td>
-    <td>Checked by:
+    <td>Reviewed by:
       <br/>
       <div class="signature">
       @if($isApproved)
@@ -250,7 +251,7 @@
         {{ $checkByName ?? 'Operations Manager' }}
       </p>
     </td>
-    <td>Recommended by:
+    <td>Checked by:
       <br/>
       <div class="signature">
       @if($isApproved)

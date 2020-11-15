@@ -466,6 +466,13 @@ class JobOrderController extends LogsController
 	public function createJo(Request $request)
 	{
 		$item = PurchaseOrderItems::findOrFail($request->item_id);
+
+    if($item->po->isEndorsed < 1){
+      if($validator->fails()){
+        return response()->json(['errors' => 'Cannot add job order on unendorsed purchase order'],422);
+      }
+    }
+    
 		$totalJo = $item->jo()->sum('jo_quantity');
 		$remaining = $item->poi_quantity - $totalJo;
 		$validator = Validator::make($request->all(),

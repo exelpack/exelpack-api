@@ -67,7 +67,7 @@
       <img src="{{ url('img/logo.png') }}" width="200px" />
     </td>
     <td align="center" style="width: 40%">
-      <i class="small">EXELPACK CORPORATION</i><br>
+      <i class="small">MINAMOTO CORPORATION</i><br>
       <b>PURCHASE REQUISITION</b>
     </td>
     <td style="width: 30%; ">
@@ -162,7 +162,7 @@
         Signature Over Printed Name
       </p>
     </td>
-    <td>Checked by:
+    <td>Prepared by:
       <br/>
       <div class="signature">
         @if($prpriceSignature && $prsFileName)
@@ -181,7 +181,7 @@
         Purchasing Officer
       </p>
     </td>
-    <td>Recommending Approval by:
+    <td>Reviewed by:
       <br/>
       <div class="signature">
       @if($isRecommended)
@@ -204,7 +204,7 @@
         Department Head
       </p>
     </td>
-    <td>Recommending Approval by:
+    <td>Checked by:
       <br/>
       <div class="signature">
       @if($isApproved)
