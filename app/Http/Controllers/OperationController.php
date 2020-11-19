@@ -276,7 +276,7 @@ class OperationController extends Controller
         ->first();
 
       if(!$deputy)
-        return response()->json(['errors' => ['No Deputy Manager found!']]);
+        return response()->json(['errors' => ['No Deputy Manager found!']], 422);
 
       $request->fill([
         'pra_recommended' => strtolower($data->type) == 'approved' ? 1 : 0,
