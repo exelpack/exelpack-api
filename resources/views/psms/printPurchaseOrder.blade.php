@@ -209,7 +209,7 @@
 <br/>
 <table border="1" style="width: 100%;" cellspacing="0" class="sigTable">
   <tr>
-    <td style="width: 20%;">Prepared by:
+    <td style="width: 18%;">Prepared by:
       <br/>
       <div class="signature">
         @if($preparedBySig && $preparedBySigFile)
@@ -271,7 +271,7 @@
       @endif
       </div>
       <p class="signature-text">
-        {{ $checkByName ?? 'Operations Manager' }}
+        {{ $deputyName ?? 'Deputy OM' }}
       </p>
     </td>
     <td>Approved by:
@@ -297,7 +297,7 @@
         {{ $approvedByName ?? 'General Manager' }}
       </p>
     </td>
-    <td style="width: 40%;">Supplier's Confirmation:
+    <td style="width: 25%;">Supplier's Confirmation:
       <br/>
       <div style="padding: 12.8px 0;">&nbsp;</div>
       <p class="signature-text">
