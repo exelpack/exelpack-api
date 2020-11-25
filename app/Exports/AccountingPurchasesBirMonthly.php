@@ -33,6 +33,9 @@ class AccountingPurchasesBirMonthly implements FromView
     $data = AccountingPurchasesItems::join('purchasesms_supplier', function($join){
         $join->on('purchasesms_supplier.id','=','purchasesms_items.item_supplier_id');
       })
+      ->whereHas('supplier', function($q){
+        $q->where('supplier_reflect_on_report', 1);
+      })
       ->select('purchasesms_items.*')
       ->orderBy('purchasesms_supplier.supplier_name','ASC')
       ->orderBy('item_salesinvoice_no','ASC')

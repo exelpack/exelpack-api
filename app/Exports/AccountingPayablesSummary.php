@@ -37,6 +37,9 @@ class AccountingPayablesSummary implements FromView
     $items = AccountingPurchasesItems::join('purchasesms_supplier', function($join){
         $join->on('purchasesms_supplier.id','=','purchasesms_items.item_supplier_id');
       })
+      ->whereHas('supplier', function($q){
+        $q->where('supplier_reflect_on_report', 1);
+      })
       ->doesntHave('ap')
       ->select('purchasesms_items.*')
       ->whereMonth('item_datereceived',$this->monthsArray[$month])

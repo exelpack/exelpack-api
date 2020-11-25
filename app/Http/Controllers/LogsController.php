@@ -12,12 +12,60 @@ use App\PrmsLogs;
 use App\PsmsLogs;
 use App\Customers;
 use App\Supplier;
+use DB;
 use Illuminate\Support\Facades\Auth;
 
 class LogsController extends Controller
 {
 	public function getUnits()
 	{
+		// ini_set('max_execution_time', 100000);
+		// $lists = DB::table('test')->get();
+		// foreach($lists as $item){
+		// 	$pi = Db::table('purchasesms_items')->where('id', $item->id)->update([
+		// 		'item_unitprice' => $item->unitprice,
+		// 	]);
+
+		// 	echo $item->id."<br/>";
+		// }
+		// foreach($lists as $item){
+		// 	DB::table('purchasesms_apdetails')->insert([
+		// 		'ap_item_id' => $item->id,
+		// 		'ap_withholding' => intval($item->wht),
+		// 		'ap_officialreceipt_no' => $item->or_num,
+		// 		'ap_is_check' => $item->checknum !== '' ? 1 : 0,
+		// 		'ap_check_no' => $item->checknum,
+		// 		'ap_payment_date' => $item->datepaid,
+		// 	]);
+			// $supplier = Db::table('purchasesms_supplier')
+			// 	->where('supplier_name', $item->supplier_name)->first();
+			// $account = Db::table('purchasesms_accounts')
+			// 	->where('accounts_code', $item->code)->first();
+
+			// DB::table('purchasesms_items')->insert([
+			// 	'item_datereceived' => $item->date_received,
+			// 	'item_datepurchased' => $item->date_purchase,
+			// 	'item_supplier_id' => $supplier->id,
+			// 	'item_accounts_id' => $account->id,
+			// 	'item_salesinvoice_no' => $item->si,
+			// 	'item_deliveryreceipt_no' => $item->dr,
+			// 	'item_purchaseorder_no' => $item->po,
+			// 	'item_purchaserequest_no' => $item->pr,
+			// 	'item_particular' => $item->particular,
+			// 	'item_quantity' => $item->qty,
+			// 	'item_unit' => $item->unit,
+			// 	'item_with_unreleasedcheck' => $item->unreleased !== "" ? 1 : 0,
+			// 	'item_currency' => $item->currency,
+			// ]);
+		// 	echo intval($item->wht)."<br/>";
+		// }
+		// $customer = DB::table('test')->groupBy('code')->get();
+		// foreach($customer as $custom){
+		// 	DB::table('purchasesms_accounts')->insert([
+		// 		'accounts_code' => $custom->code,
+		// 		'accounts_name' => $custom->code,
+		// 	]);
+		// }
 		$units = Units::all()->pluck('unit')->toArray();
 		return response()->json(
 			[
