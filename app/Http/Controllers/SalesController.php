@@ -79,7 +79,10 @@ class SalesController extends Controller
     }
     $conversion = request()->conversion;
     $year = request()->year;
-    return Excel::download(new SmsSalesExport($conversion, $year), 'sales.xlsx');
+    $month = request()->month !== 'null' ? request()->month : -1;
+    $customer = request()->customer !== 'undefined' ? request()->customer : -1;
+
+    return Excel::download(new SmsSalesExport($conversion, $year, $month, $customer), 'sales.xlsx');
   }
 
   public function exportSalesSummary()

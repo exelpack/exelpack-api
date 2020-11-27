@@ -386,7 +386,8 @@ class PurchasesController extends Controller
         Db::raw('UPPER(supplier_name) as supplier'),
         'supplier_payment_terms as terms',
         Db::raw('UPPER(supplier_address) as address'),
-        Db::raw('UPPER(supplier_tin_number) as tin')  
+        Db::raw('UPPER(supplier_tin_number) as tin'),
+        Db::raw('supplier_reflect_on_report as reflectOnReport')  
       )->get();
 
     return response()->json([
@@ -403,6 +404,7 @@ class PurchasesController extends Controller
         'terms' => 'integer|min:0|nullable',
         'address' => 'string|min:1|max:300|required',
         'tin' => 'string|min:1|max:50|required',
+        'reflectOnReport' => 'boolean|required',
       )
     );
 
@@ -416,6 +418,7 @@ class PurchasesController extends Controller
       'supplier_payment_terms' => $request->terms,
       'supplier_address' => $request->address,
       'supplier_tin_number' => $request->tin,
+      'supplier_reflect_on_report' => $request->reflectOnReport,
     ));
     $supplier->save();
 
@@ -425,6 +428,7 @@ class PurchasesController extends Controller
       'terms' => $supplier->supplier_payment_terms,
       'address' => strtoupper($supplier->supplier_address),
       'tin' => strtoupper($supplier->supplier_tin_number),
+      'reflectOnReport' => strtoupper($supplier->supplier_reflect_on_report),
     );
 
     return response()->json([
@@ -443,6 +447,7 @@ class PurchasesController extends Controller
         'terms' => 'integer|min:0|nullable',
         'address' => 'string|min:1|max:300|required',
         'tin' => 'string|min:1|max:50|required',
+        'reflectOnReport' => 'boolean|required',
       )
     );
 
@@ -456,6 +461,7 @@ class PurchasesController extends Controller
       'supplier_payment_terms' => $request->terms,
       'supplier_address' => $request->address,
       'supplier_tin_number' => $request->tin,
+      'supplier_reflect_on_report' => $request->reflectOnReport,
     ));
     
     if($supplier->isDirty()){
@@ -468,6 +474,7 @@ class PurchasesController extends Controller
       'terms' => $supplier->supplier_payment_terms,
       'address' => strtoupper($supplier->supplier_address),
       'tin' => strtoupper($supplier->supplier_tin_number),
+      'reflectOnReport' => strtoupper($supplier->supplier_reflect_on_report),
     );
 
     return response()->json([

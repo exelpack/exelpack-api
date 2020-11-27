@@ -43,9 +43,9 @@ class MasterlistController extends LogsController
 			'remarks' => 'nullable|max:150',
 			'partnum' => 'string|nullable',
 			'customer' => 'required|min:1',
-			'dwg' => 'nullable|mimes:pdf|max:2000',
-			'bom' => 'nullable|mimes:pdf|max:2000',
-			'costing' => 'nullable|mimes:pdf|max:2000',
+			'dwg' => 'nullable|mimes:pdf|max:5000',
+			'bom' => 'nullable|mimes:pdf|max:5000',
+			'costing' => 'nullable|mimes:pdf|max:5000',
 		);
 	}
 

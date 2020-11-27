@@ -51,7 +51,7 @@
         <td style="border : 1px solid #2d3436; text-align:right;">{{ number_format($row['total_accounts_payable_php'],2) }}</td>
         <td style="border : 1px solid #2d3436; text-align:right;">{{ number_format($row['total_accounts_payable_usd'],2) }}</td>
         <td style="border : 1px solid #2d3436; text-align:center;">{{ $row['terms'] }}</td>
-        <td style="border : 1px solid #2d3436; text-align:right;">$ {{ number_format($row['first_php'],2) }}</td>
+        <td style="border : 1px solid #2d3436; text-align:right;">{{ number_format($row['first_php'],2) }}</td>
         <td style="border : 1px solid #2d3436; text-align:right;">{{ number_format($row['first_usd'],2) }}</td>
 
         <td style="border : 1px solid #2d3436; text-align:right;">{{ number_format($row['second_php'],2) }}</td>

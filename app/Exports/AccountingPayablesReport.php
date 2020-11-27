@@ -22,6 +22,9 @@ class AccountingPayablesReport implements FromView
       ->join('purchasesms_supplier', function($join){
         $join->on('purchasesms_supplier.id','=','purchasesms_items.item_supplier_id');
       })
+      ->whereHas('supplier', function($q){
+        $q->where('supplier_reflect_on_report', 1);
+      })
       ->orderBy('purchasesms_supplier.supplier_name','ASC')
       ->orderBy('item_salesinvoice_no','ASC')
       ->select('purchasesms_items.*')

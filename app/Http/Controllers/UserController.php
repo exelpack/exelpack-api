@@ -222,12 +222,12 @@ class UserController extends Controller
     $validator = Validator::make(
       $request->all(),
       [
-        'username' => 'min:2|max:12|required|unique:users_account,username,'.$id,
+        'username' => 'min:2|max:12|nullable|unique:users_account,username,'.$id,
         'password' => 'min:3|max:12|nullable',
-        'type' => 'min:4|max:20|required|in:default,admin,management',
-        'department' => 'min:2|max:20|required',
-        'gender' => 'string|max:6|in:male,female|required',
-        'password' => 'min:3|max:12|required',
+        'type' => 'min:4|max:20|nullable|in:default,admin,management',
+        'department' => 'min:2|max:20|nullable',
+        'gender' => 'string|max:6|in:male,female|nullable',
+        'password' => 'min:3|max:12|nullable',
         'npd' => 'boolean|nullable',
         'pmms' => 'boolean|nullable',
         'cposms' => 'boolean|nullable',
@@ -238,11 +238,11 @@ class UserController extends Controller
         'salesms' => 'boolean|nullable',
         'prapproval' => 'boolean|nullable',
         'poapproval' => 'boolean|nullable',
-        'firstname' => 'string|max:50|required',
-        'middleinitial' => 'string|max:5|required',
-        'lastname' => 'string|max:50|required',
+        'firstname' => 'string|max:50|nullable',
+        'middleinitial' => 'string|max:5|nullable',
+        'lastname' => 'string|max:50|nullable',
         'extensionname' => 'string|max:5|nullable',
-        'position' => 'string|max:50|required',
+        'position' => 'string|max:50|nullable',
         'signature' => 'nullable|mimes:png,jpg,jpeg|max:2000',
       ]
     );
