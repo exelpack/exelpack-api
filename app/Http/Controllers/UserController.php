@@ -123,7 +123,7 @@ class UserController extends Controller
       'salesms' => $user->salesms_access,
       'prapproval' => $user->approval_pr,
       'poapproval' => $user->approval_po,
-      'firstname' => $user->fullname,
+      'firstname' => $user->firstname,
       'middleinitial' => $user->middleinitial,
       'lastname' => $user->lastname,
       'extensionname' => $user->extensionname,
@@ -252,7 +252,6 @@ class UserController extends Controller
     }
 
     $user = User::findOrFail($id);
-
     if($request->filled('username')){
       $user->username = $request->username;
     }
