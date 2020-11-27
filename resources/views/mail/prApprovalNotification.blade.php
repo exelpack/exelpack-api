@@ -1,5 +1,5 @@
 <h3>PURCHASE REQUEST DETAILS</h3>
-<div style="line-height: 0.5; font-size : 14px">
+<div style="font-size : 14px">
 	<p>Customer's purchase order : {{ $prDetails->customerPo }}</p>
 	<p>Supplier : {{ $prDetails->supplier }}</p>
 	<p>Purchase request no. : {{ $prDetails->prNumber }}</p>

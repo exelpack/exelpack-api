@@ -1,4 +1,4 @@
-<div style="line-height: 0.5; font-size : 14px">
+<div style="font-size : 14px">
 	<p>Customer name : {{ $poDetails->customer }}</p>
 	<p>Purchase order no. : {{ $poDetails->po_num }}</p>
 	<p>Date : {{ $poDetails->date }}</p>

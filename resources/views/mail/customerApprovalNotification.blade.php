@@ -1,5 +1,5 @@
 <h3>CUSTOMER DETAILS</h3>
-<div style="line-height: 0.5; font-size : 14px">
+<div style="font-size : 14px">
 	<p>Name : {{ $customer->companyname }}</p>
 	<p>Address : {{ $customer->companyaddress }}</p>
 	<p>Nature of business : {{ $customer->companynature }}</p>
