@@ -24,6 +24,10 @@
       <th class="thead">Sum of USD Amount</th>
       <th class="thead">Sum of PHP Amount</th>
       <th class="thead">Sum of Total Amount</th>
+      <th class="thead">Output Tax</th>
+      <th class="thead">Vatable Sales</th>
+      <th class="thead">Zerorated ($)</th>
+      <th class="thead">Zerorated (PHP)</th>
       <th class="thead">Paymen terms</th>
       <th class="thead">With Holding Tax</th>
       <th class="thead">OR No.</th>
@@ -53,6 +57,11 @@
           @foreach($sale->items as $row)
         
           @php
+
+            $output_tax = 0;
+            $vatable_sales = 0;
+            $zerorated_usd = 0;
+            $zerorated_php = 0;
              
             $usd = 0;
             $php = 0;
@@ -65,6 +74,16 @@
             }else{
               $php = $row->sitem_totalamount;
               $total = $row->sitem_totalamount;
+            }
+
+            if($sale->customer->c_isVatable === 1) {
+              $output_tax = $total * 0.12;
+              $vatable_sales = $total / 1.12;
+            }else{
+              if($sale->s_currency === 'USD')
+                $zerorated_usd = $total;
+              else
+                $zerorated_php = $total;
             }
 
 
@@ -87,6 +106,10 @@
             <td class="a-right">{{ number_format($usd,4) }}</td>
             <td class="a-right">{{ number_format($php,4) }}</td>
             <td class="a-right">{{ number_format($total,4) }}</td>
+            <td class="a-right">{{ number_format($output_tax,4) }}</td> <!-- test -->
+            <td class="a-right">{{ number_format($vatable_sales,4) }}</td>
+            <td class="a-right">{{ number_format($zerorated_usd,4) }}</td>
+            <td class="a-right">{{ number_format($zerorated_php,4) }}</td>
             <td>{{ $sale->customer->c_paymentterms }}</td>
             <td>{{ $sale->s_withholding }}</td>
             <td>{{ $sale->s_ornumber }}</td>
@@ -115,13 +138,17 @@
         <td></td>
         <td></td>
         <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
       </tr>
 
       @endforeach
 
     @else
       <tr>
-        <td colspan="9" style="text-align:center">NO RECORD</td>
+        <td colspan="22" style="text-align:center">NO RECORD</td>
       </tr>
     @endif
   </tbody>

@@ -79,9 +79,8 @@ class SalesController extends Controller
     }
     $conversion = request()->conversion;
     $year = request()->year;
-    $month = request()->month !== 'null' ? request()->month : -1;
-    $customer = request()->customer !== 'undefined' ? request()->customer : -1;
-
+    $month = request()->has('month') ? request()->month : -1;
+    $customer = request()->has('customer') ? request()->customer : -1;
     return Excel::download(new SmsSalesExport($conversion, $year, $month, $customer), 'sales.xlsx');
   }
 
@@ -191,6 +190,7 @@ class SalesController extends Controller
       'id' => $customer->id,
       'customer_name' => $customer->c_customername,
       'payment_terms' => $customer->c_paymentterms,
+      'isVatable' => $customer->c_isVatable,
     );
    });
 
@@ -206,7 +206,8 @@ class SalesController extends Controller
 
     $validator = Validator::make($request->all(),[
       'customer_name' => 'string|max:150|required|unique:salesms_customers,c_customername',
-      'payment_terms' => 'min:1|integer|min:1'
+      'payment_terms' => 'min:1|integer|min:1',
+      'isVatable' => 'boolean|required',
     ]);
 
     if($validator->fails()){
@@ -216,13 +217,15 @@ class SalesController extends Controller
     $customer = new SalesCustomer();  
     $customer->fill([
       'c_customername' => strtoupper($request->customer_name),
-      'c_paymentterms' => $request->payment_terms
+      'c_paymentterms' => $request->payment_terms,
+      'c_isVatable' => $request->isVatable,
     ]);
     $customer->save();
     $newCustomer = array(
       'id' => $customer->id,
       'customer_name' => $customer->c_customername,
       'payment_terms' => $customer->c_paymentterms,
+      'isVatable' => $customer->c_isVatable,
     );
 
     return response()->json(
@@ -238,7 +241,8 @@ class SalesController extends Controller
 
     $validator = Validator::make($request->all(),[
       'customer_name' => 'string|max:150|required|unique:salesms_customers,c_customername,'.$id,
-      'payment_terms' => 'min:1|integer|min:1'
+      'payment_terms' => 'min:1|integer|min:1',
+      'isVatable' => 'boolean|required',
     ]);
 
     if($validator->fails()){
@@ -251,13 +255,15 @@ class SalesController extends Controller
     }
     $customer->update([
       'c_customername' => strtoupper($request->customer_name),
-      'c_paymentterms' => $request->payment_terms
+      'c_paymentterms' => $request->payment_terms,
+      'c_isVatable' => $request->isVatable,
     ]);
 
     $newCustomer = array(
       'id' => $customer->id,
       'customer_name' => $customer->c_customername,
       'payment_terms' => $customer->c_paymentterms,
+      'isVatable' => $customer->c_isVatable,
     );
 
     return response()->json(
