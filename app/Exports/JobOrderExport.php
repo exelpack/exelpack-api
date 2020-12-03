@@ -28,7 +28,7 @@ class JobOrderExport implements FromArray, WithHeadings
           'poi_po_id',
           'poi_itemdescription',
           'poi_code',
-          'poi_partnumber',
+          'poi_partnum',
           'poi_quantity'
         )->groupBy('id');
 
@@ -70,7 +70,7 @@ class JobOrderExport implements FromArray, WithHeadings
         'jo_dateissued as date_issued',
         'jo_dateneeded as date_needed',
         'poi_code as code',
-        'poi_partnumber as partNum',
+        'poi_partnum as partNum',
         'poi_itemdescription as itemDesc',
         'jo_quantity as quantity',
         Db::raw('IFNULL(producedQty,0) as producedQty'),
