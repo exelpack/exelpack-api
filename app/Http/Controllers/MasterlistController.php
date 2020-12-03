@@ -275,9 +275,9 @@ class MasterlistController extends LogsController
 
 		$validator = Validator::make($request->all(),
 			[
-				'dwg' => 'mimetypes:application/pdf|max:2000|nullable',
-				'bom' => 'mimetypes:application/pdf|max:2000|nullable',
-				'costing' => 'mimetypes:application/pdf|max:2000|nullable',
+				'dwg' => 'mimetypes:application/pdf|max:5000|nullable',
+				'bom' => 'mimetypes:application/pdf|max:5000|nullable',
+				'costing' => 'mimetypes:application/pdf|max:5000|nullable',
 				'item_id' => 'integer|required|min:1',
 				'type' => 'string|required|max:7|min:1|in:DWG,BOM,COSTING,dwg,bom,costing'
 			]);
