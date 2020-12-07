@@ -58,8 +58,8 @@
               }
 
               if($sale->customer->c_isVatable === 1) {
-                $output_tax = $total * 0.12;
                 $vatable_sales = $total / 1.12;
+                $output_tax = $vatable_sales * 0.12;
               }else{
                 if($sale->s_currency === 'USD')
                   $zerorated_usd = $total;
