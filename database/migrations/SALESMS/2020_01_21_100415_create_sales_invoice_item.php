@@ -19,7 +19,7 @@ class CreateSalesInvoiceItem extends Migration
             $table->string('sitem_drnum',50)->nullable();
             $table->string('sitem_ponum',50);
             $table->string('sitem_partnum',100)->nullable();
-            $table->integer('sitem_quantity');
+            $table->double('sitem_quantity');
             $table->double('sitem_unitprice');
             $table->double('sitem_totalamount');
             $table->timestamps();

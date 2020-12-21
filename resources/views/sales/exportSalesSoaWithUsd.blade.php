@@ -69,7 +69,7 @@ for($i = 0; $i <= 5; $i++){
     <td></td>
     <td></td>
     <td></td>
-    <td>Blk2 Lot2 Filinvest Technology Park</td>
+    <td>Blk 2 Lot 2 Ph4 Filinvest Technopark</td>
   </tr>
   <tr>
     <td></td>
@@ -77,7 +77,7 @@ for($i = 0; $i <= 5; $i++){
     <td></td>
     <td></td>
     <td></td>
-    <td>Ciudad De Calamba</td>
+    <td>Brgy. Kay Anlog</td>
   </tr>
   <tr>
     <td></td>
@@ -93,7 +93,7 @@ for($i = 0; $i <= 5; $i++){
     <td></td>
     <td></td>
     <td></td>
-    <td>Email: exelpack@gmail.com</td>
+    <td>Email: acctg.minamotopackaging@gmail.com</td>
   </tr>
   <tr>
     <td></td>
@@ -101,7 +101,7 @@ for($i = 0; $i <= 5; $i++){
     <td></td>
     <td></td>
     <td></td>
-    <td>Telefax No. 049-502-0295</td>
+    <td>Mobile No. 09190003557</td>
   </tr>
 </table>
 
@@ -129,12 +129,12 @@ for($i = 0; $i <= 5; $i++){
   <tr>
     <td>FROM</td>
     <td>:</td>
-    <td  colspan="3">Exelpack Corporation</td>
+    <td  colspan="3">Minamoto Corporation</td>
   </tr>
   <tr>
     <td></td>
     <td></td>
-    <td  colspan="3">Blk 2 Lot 2 Filinvest Technology Park</td>
+    <td  colspan="3">Blk 2 Lot 2 Ph4 Filinvest Technopark</td>
   </tr>
 </table>
 
@@ -142,10 +142,10 @@ for($i = 0; $i <= 5; $i++){
 <table style="text-align:center">
   <thead>
     <tr>
-      <td style="text-align:center; background-color:#C7F7B6;" colspan="9">STATEMENT OF ACCOUNT</td> 
+      <td style="text-align:center; background-color:#FF6C6C;" colspan="9">STATEMENT OF ACCOUNT</td> 
     </tr>
     <tr>
-      <td style="text-align:center; background-color:#C7F7B6;" colspan="9">FOR THE MONTH OF {{ date('F Y') }} </td> 
+      <td style="text-align:center; background-color:#FF6C6C;" colspan="9">FOR THE MONTH OF {{ date('F Y') }} </td> 
     </tr>
   </thead>
 </table>
@@ -273,15 +273,15 @@ for($i = 0; $i <= 5; $i++){
     <tr>
       <td style="background: #E5E5E5; border:1px solid black;" rowspan="2">No. of Days from Date Delivered</td>
       <td style="border:1px solid black; text-align:center; background-color:#E5E5E5;" rowspan="2">0-{{ $terms[0] }}</td>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center; color : #e74c3c;" colspan="5">PAST DUE</td>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center; color : #e74c3c;" rowspan="2">TOTAL DUE FOR PAYMENT</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center; color : #e74c3c;" colspan="5">PAST DUE</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center; color : #e74c3c;" rowspan="2">TOTAL DUE FOR PAYMENT</td>
     </tr>   
     <tr>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[0] + 1 }}-{{ $terms[1] }}</td>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[1] + 1 }}-{{ $terms[2] }}</td>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[2] + 1 }}-{{ $terms[3] }}</td>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[3] + 1 }}-{{ $terms[4] }}</td>
-      <td style="background: #C7F7B6; border:1px solid black; text-align : center;">{{ $terms[4] + 1 }}-{{ $terms[5] }} UP</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center;">{{ $terms[0] + 1 }}-{{ $terms[1] }}</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center;">{{ $terms[1] + 1 }}-{{ $terms[2] }}</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center;">{{ $terms[2] + 1 }}-{{ $terms[3] }}</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center;">{{ $terms[3] + 1 }}-{{ $terms[4] }}</td>
+      <td style="background: #FF6C6C; border:1px solid black; text-align : center;">{{ $terms[4] + 1 }}-{{ $terms[5] }} UP</td>
     </tr>
   </thead>
   <tbody>
@@ -329,13 +329,13 @@ for($i = 0; $i <= 5; $i++){
       <td colspan="9" align="center"></td>
     </tr>
    <tr>
-      <td style="text-align:center; background-color:#C7F7B6;"  colspan="9">
+      <td style="text-align:center; background-color:#FF6C6C;"  colspan="9">
       This is your outstanding balance for the month of {{ date('F') }} as per our record. If the amount is correct please sign in the space below. 
       </td>
     </tr>
     <tr>
-      <td style="text-align:center; background-color:#C7F7B6;"  colspan="9">
-         Should there be any discrepancy please state so and send to EXELPACK CORPORATION through our Fax No. 049-502-0295 loc. 103.
+      <td style="text-align:center; background-color:#FF6C6C;"  colspan="9">
+         Should there be any discrepancy please state so and send to MINAMOTO CORPORATION through our contact No. 09190003557.
       </td> 
     </tr>
     <tr>

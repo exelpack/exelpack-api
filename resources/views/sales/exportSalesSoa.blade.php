@@ -122,12 +122,12 @@ for($i = 0; $i <= 5; $i++){
   <tr>
     <td>FROM</td>
     <td>:</td>
-    <td  colspan="3">Exelpack Corporation</td>
+    <td  colspan="3">Minamoto Corporation</td>
   </tr>
   <tr>
     <td></td>
     <td></td>
-    <td  colspan="3">Blk 2 Lot 2 Filinvest Technology Park</td>
+    <td  colspan="3">Blk 2 Lot 2 Ph4 Filinvest Technopark</td>
   </tr>
 </table>
 
