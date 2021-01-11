@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LogsController;
 use App\Masterlist;
+use App\PurchaseOrderItems;
 use App\Customers;
 
 use DB;
@@ -76,6 +77,26 @@ class MasterlistController extends LogsController
 		if($item->m_costing !== NULL)
 			$attachment .= "(w/ costing)";
 
+		$status = "NOT ACTIVE";
+
+		$now = Carbon::now();
+		$created_at = Carbon::parse($item->created_at ?? "01-06-2020");
+		$difference = $created_at->diffInMonths($now);
+
+		if($difference < 6)
+			$status = "ACTIVE";
+
+
+		$poItems = PurchaseOrderItems::where('poi_code', $item->m_code)->latest()->first();
+		$po_created_at = $poItems ? $poItems->po ? $poItems->po->po_date : "" : "";
+
+		if($po_created_at !== ""){
+			$parse_po_date = Carbon::parse($po_created_at);
+			if($parse_po_date->diffInMonths($now) < 6)
+				$status = "ACTIVE";
+		}
+
+
 		return array(
 			'id' => $item->id,
 			'moq' => $item->m_moq,
@@ -98,6 +119,8 @@ class MasterlistController extends LogsController
 			'bom' => $item->m_bom,
 			'costing' => $item->m_costing,
 			'attachment' => $attachment,
+			'status' => $status,
+			'created_at' => $po_created_at,
 		);
 
 
