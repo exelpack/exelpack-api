@@ -672,7 +672,7 @@ class SalesController extends Controller
       'sitem_quantity' => $item['quantity'],
       'sitem_unitprice' => number_format($item['unitprice'],4,'.',''),
       'sitem_totalamount' => doubleval($item['unitprice']) 
-        * intval($item['quantity']),
+        * doubleval($item['quantity']),
     );
   }
 
