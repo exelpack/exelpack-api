@@ -743,8 +743,8 @@ class JobOrderController extends LogsController
         'psms_spurchaseorderitems.id',
         'spoi_code as code',
         'spoi_mspecs as mspecs',
-        Db::raw('CAST(totalDelivered as int) as totalDelivered'),
-        Db::raw('CAST(spoi_quantity - totalDelivered as int) as pendingDelivery')
+        Db::raw('CAST(totalDelivered as SIGNED) as totalDelivered'),
+        Db::raw('CAST(spoi_quantity - totalDelivered as SIGNED) as pendingDelivery')
       )
       ->get();
     $inventory = Inventory::select(

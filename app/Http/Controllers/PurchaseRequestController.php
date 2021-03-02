@@ -99,7 +99,7 @@ class PurchaseRequestController extends LogsController
       'jo_remarks as remarks',
       'jo_others as others',
       Db::raw('IF(jo_quantity > IFNULL(producedQty,0),"OPEN","SERVED" ) as status'),
-      DB::raw('cast(IFNULL(prCount,0) as int) as prCount'),
+      DB::raw('cast(IFNULL(prCount,0) as SIGNED) as prCount'),
       'prnumbers'
     );
 

@@ -22,9 +22,9 @@ class ExportSupplierPurchaseOrder implements FromArray, WithHeadings
         prsd.prsd_spo_id,
         prsd.prsd_currency as currency,
         GROUP_CONCAT(pr_prnum) as prnumbers,
-        CAST(sum(itemCount) as int) as itemCount,
-        CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
-        IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered
+        CAST(sum(itemCount) as SIGNED) as itemCount,
+        CAST(sum(totalPrQuantity) as SIGNED) as totalPoQuantity,
+        IFNULL(CAST(sum(quantityDelivered) as SIGNED),0) as quantityDelivered
         FROM prms_prlist
         LEFT JOIN psms_prsupplierdetails prsd 
         ON prsd.prsd_pr_id = prms_prlist.id
@@ -33,11 +33,11 @@ class ExportSupplierPurchaseOrder implements FromArray, WithHeadings
         FROM prms_pritems
         GROUP BY pri_pr_id) pri
         ON pri.pri_pr_id = prms_prlist.id
-        LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_pritem_id 
+        LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_poitem_id 
         FROM psms_supplierinvoice
         WHERE ssi_receivedquantity > 0
-        GROUP BY ssi_pritem_id) prsi
-        ON prsi.ssi_pritem_id = pri.id
+        GROUP BY ssi_poitem_id) prsi
+        ON prsi.ssi_poitem_id = pri.id
         GROUP BY prsd_spo_id";
 
       $supplier = DB::table('psms_supplierdetails')

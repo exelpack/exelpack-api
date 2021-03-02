@@ -70,8 +70,8 @@ class ReceivingController extends LogsController
       })
       ->select(DB::raw('count(*) as itemCount'),
         'spoi_po_id',
-        DB::raw('IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered'),
-        DB::raw('CAST(SUM(spoi_quantity) as int) as totalPoQuantity')
+        DB::raw('IFNULL(CAST(sum(quantityDelivered) as SIGNED),0) as quantityDelivered'),
+        DB::raw('CAST(SUM(spoi_quantity) as SIGNED) as totalPoQuantity')
       )
       ->groupBy('spoi_po_id');
     

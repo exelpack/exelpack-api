@@ -65,7 +65,7 @@ class InventoryController extends LogsController
   			'm_outs as outs',
   			'm_unitprice as unitprice',
   			'm_remarks as remarks',
-        Db::raw('CAST(IFNULL(inventoryQty,0) as integer) as inventoryQty')
+        Db::raw('CAST(IFNULL(inventoryQty,0) as SIGNED) as inventoryQty')
       )
   		->get();
 		return response()->json(

@@ -40,8 +40,8 @@ class ExportSupplierPurchaseOrderItems implements FromArray, WithHeadings
       ->select(
         'ssi_poitem_id',
         DB::raw('count(*) as invoiceCount'),
-        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as int) as totalDelivered'),
-        DB::raw('CAST(SUM(ssi_drquantity) as int) as totalInvoiceQty')
+        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as SIGNED) as totalDelivered'),
+        DB::raw('CAST(SUM(ssi_drquantity) as SIGNED) as totalInvoiceQty')
       )
       ->groupBy('ssi_poitem_id');
 
@@ -66,9 +66,9 @@ class ExportSupplierPurchaseOrderItems implements FromArray, WithHeadings
         'spoi_unitprice as unitPrice',
         'spoi_quantity as quantity',
         'currency',
-        DB::raw('CAST((spoi_unitprice * spoi_quantity) as int) as totalAmount'),
-        DB::raw('CAST(IFNULL(totalDelivered,0) as int) as totalDelivered'),
-        Db::raw('CAST((spoi_quantity - IFNULL(totalDelivered,0)) as int) as remaining'),
+        DB::raw('CAST((spoi_unitprice * spoi_quantity) as SIGNED) as totalAmount'),
+        DB::raw('CAST(IFNULL(totalDelivered,0) as SIGNED) as totalDelivered'),
+        Db::raw('CAST((spoi_quantity - IFNULL(totalDelivered,0)) as SIGNED) as remaining'),
         'spoi_deliverydate as deliverydate',
         DB::raw('
           IF(IFNULL(totalDelivered,0) >= spoi_quantity,

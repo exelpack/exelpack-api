@@ -83,8 +83,8 @@ class PurchasesSupplierController extends LogsController
 
     $deliveredSub = SupplierInvoice::select(
       Db::raw('SUM(ssi_receivedquantity) as delivered'),
-      'ssi_pritem_id')
-      ->groupBy('ssi_pritem_id');
+      'ssi_poitem_id')
+      ->groupBy('ssi_poitem_id');
     $prNumber = implode(",", $getPr);
     $poItems = $po->poitems()->get()->map(function ($item) {
       return (object)array(
@@ -1086,9 +1086,9 @@ class PurchasesSupplierController extends LogsController
       prsd.prsd_spo_id,
       prsd.prsd_currency as currency,
       GROUP_CONCAT(pr_prnum) as prnumbers
-      -- CAST(sum(itemCount) as int) as itemCount,
-      -- CAST(sum(totalPrQuantity) as int) as totalPoQuantity,
-      -- IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered
+      -- CAST(sum(itemCount) as SIGNED) as itemCount,
+      -- CAST(sum(totalPrQuantity) as SIGNED) as totalPoQuantity,
+      -- IFNULL(CAST(sum(quantityDelivered) as SIGNED),0) as quantityDelivered
       FROM prms_prlist
       LEFT JOIN psms_prsupplierdetails prsd 
       ON prsd.prsd_pr_id = prms_prlist.id
@@ -1097,11 +1097,11 @@ class PurchasesSupplierController extends LogsController
       -- FROM prms_pritems
       -- GROUP BY pri_pr_id) pri
       -- ON pri.pri_pr_id = prms_prlist.id
-      -- LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_pritem_id 
+      -- LEFT JOIN (SELECT SUM(ssi_receivedquantity + ssi_underrunquantity) as quantityDelivered,ssi_poitem_id 
       -- FROM psms_supplierinvoice
       -- WHERE ssi_receivedquantity > 0
-      -- GROUP BY ssi_pritem_id) prsi
-      -- ON prsi.ssi_pritem_id = pri.id
+      -- GROUP BY ssi_poitem_id) prsi
+      -- ON prsi.ssi_poitem_id = pri.id
       GROUP BY prsd_spo_id";
 
     $supplier = DB::table('psms_supplierdetails')
@@ -1124,8 +1124,8 @@ class PurchasesSupplierController extends LogsController
       })
       ->select(DB::raw('count(*) as itemCount'),
         'spoi_po_id',
-        DB::raw('IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered'),
-        DB::raw('CAST(SUM(spoi_quantity) as int) as totalPoQuantity')
+        DB::raw('IFNULL(CAST(sum(quantityDelivered) as SIGNED),0) as quantityDelivered'),
+        DB::raw('CAST(SUM(spoi_quantity) as SIGNED) as totalPoQuantity')
       )
       ->groupBy('spoi_po_id');
 
@@ -1417,8 +1417,8 @@ class PurchasesSupplierController extends LogsController
       ->select(
         'ssi_poitem_id',
         DB::raw('count(*) as invoiceCount'),
-        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as int) as totalDelivered'),
-        DB::raw('CAST(SUM(ssi_drquantity) as int) as totalInvoiceQty')
+        DB::raw('CAST(SUM(ssi_receivedquantity + ssi_underrunquantity) as SIGNED) as totalDelivered'),
+        DB::raw('CAST(SUM(ssi_drquantity) as SIGNED) as totalInvoiceQty')
       )
       ->groupBy('ssi_poitem_id');
 
@@ -1449,11 +1449,11 @@ class PurchasesSupplierController extends LogsController
         'spoi_unitprice as unitPrice',
         'spoi_quantity as quantity',
         'currency',
-        DB::raw('CAST((spoi_unitprice * spoi_quantity) as int) as totalAmount'),
-        DB::raw('CAST(IFNULL(totalDelivered,0) as int) as totalDelivered'),
-        DB::raw('CAST(IFNULL(invoiceCount,0) as int) as invoiceCount'),
-        DB::raw('CAST(IFNULL(totalInvoiceQty,0) as int) as totalInvoiceQty'),
-        Db::raw('CAST((spoi_quantity - IFNULL(totalDelivered,0)) as int) as remaining'),
+        DB::raw('CAST((spoi_unitprice * spoi_quantity) as SIGNED) as totalAmount'),
+        DB::raw('CAST(IFNULL(totalDelivered,0) as SIGNED) as totalDelivered'),
+        DB::raw('CAST(IFNULL(invoiceCount,0) as SIGNED) as invoiceCount'),
+        DB::raw('CAST(IFNULL(totalInvoiceQty,0) as SIGNED) as totalInvoiceQty'),
+        Db::raw('CAST((spoi_quantity - IFNULL(totalDelivered,0)) as SIGNED) as remaining'),
         'spoi_deliverydate as deliverydate'
       );
 
@@ -1865,7 +1865,7 @@ class PurchasesSupplierController extends LogsController
       })
       ->select(
         'spoi_mspecs as materialSpecification',
-        Db::raw('cast(sum(totalReceivedQty) as int) as totalQtyBought')
+        Db::raw('cast(sum(totalReceivedQty) as SIGNED) as totalQtyBought')
       )
       ->orderBy('totalQtyBought', 'DESC')
       ->groupBy('spoi_mspecs')
