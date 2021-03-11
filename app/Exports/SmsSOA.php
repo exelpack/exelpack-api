@@ -29,6 +29,7 @@ class SmsSOA implements FromView
         $q->where('s_ornumber','=',NULL)
         ->where('s_datecollected','=',NULL)
         ->where('s_isRevised',0)
+        ->where('deleted_at','=', NULL)
         ->whereNotBetween('s_deliverydate',
           [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()])
         ->where('s_customer_id',$this->cid);
