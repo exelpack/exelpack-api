@@ -177,7 +177,7 @@
 
   <div>
     <p class="ctrl">CONTROL NO. : {{ $rrDetails->rrNum }}</p>
-    <p class="date">DATE : {{ date('Y-m-d') }}</p>
+    <p class="date">DATE : {{ $rrDetails->arrivalDate }}</p>
   </div>
 
   <table class="rrtable-info" border="1" cellspacing="0" cellpadding="1">
