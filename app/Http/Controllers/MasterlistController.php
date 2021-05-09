@@ -119,6 +119,7 @@ class MasterlistController extends LogsController
 			'bom' => $item->m_bom,
 			'costing' => $item->m_costing,
 			'attachment' => $attachment,
+			'productsize' => $item->m_product_size,
 			'status' => $status,
 			'created_at' => $po_created_at,
 		);
@@ -179,7 +180,8 @@ class MasterlistController extends LogsController
 			'm_supplierprice' => $item->supplierprice,
 			'm_remarks' => $item->remarks,
 			'm_customer_id' => $item->customer,
-			'm_budgetprice' => $item->budgetprice
+			'm_budgetprice' => $item->budgetprice,
+			'm_product_size' => $item->productsize,
 		);
 
 	}

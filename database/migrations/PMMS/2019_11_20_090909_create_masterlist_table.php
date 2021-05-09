@@ -29,7 +29,8 @@ class CreateMasterlistTable extends Migration
             $table->string('m_supplierprice', 100)->nullable();
             $table->string('m_remarks', 150)->nullable();
             $table->double('m_budgetprice')->nullable();
-            $table->integer('m_customer_id')->unsigned();
+            $table->string('m_remarks', 150)->nullable();
+            $table->string('m_product_size')->nullable();
             $table->string('m_dwg', 150)->nullable();
             $table->string('m_bom', 150)->nullable();
             $table->string('m_costing', 150)->nullable();
