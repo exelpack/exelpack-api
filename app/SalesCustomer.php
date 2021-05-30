@@ -11,7 +11,7 @@ class SalesCustomer extends Model
 	use SoftDeletes;
 
   protected $table = 'salesms_customers';
-  protected $fillable = ['c_customername','c_paymentterms'];
+  protected $fillable = ['c_customername','c_paymentterms', 'c_tin', 'c_address'];
 
   protected $hidden = ['created_at','deleted_at','updated_at'];
 

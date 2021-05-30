@@ -191,6 +191,8 @@ class SalesController extends Controller
       'id' => $customer->id,
       'customer_name' => $customer->c_customername,
       'payment_terms' => $customer->c_paymentterms,
+      'tin' => $customer->c_tin,
+      'address' => $customer->c_address,
     );
    });
 
@@ -216,13 +218,17 @@ class SalesController extends Controller
     $customer = new SalesCustomer();  
     $customer->fill([
       'c_customername' => strtoupper($request->customer_name),
-      'c_paymentterms' => $request->payment_terms
+      'c_paymentterms' => $request->payment_terms,
+      'c_tin' => $request->tin,
+      'c_address' => $request->address,
     ]);
     $customer->save();
     $newCustomer = array(
       'id' => $customer->id,
       'customer_name' => $customer->c_customername,
       'payment_terms' => $customer->c_paymentterms,
+      'tin' => $customer->c_tin,
+      'address' => $customer->c_address
     );
 
     return response()->json(
@@ -251,13 +257,17 @@ class SalesController extends Controller
     }
     $customer->update([
       'c_customername' => strtoupper($request->customer_name),
-      'c_paymentterms' => $request->payment_terms
+      'c_paymentterms' => $request->payment_terms,
+      'c_tin' => $request->tin,
+      'c_address' => $request->address,
     ]);
 
     $newCustomer = array(
       'id' => $customer->id,
       'customer_name' => $customer->c_customername,
       'payment_terms' => $customer->c_paymentterms,
+      'tin' => $customer->c_tin,
+      'address' => $customer->c_address
     );
 
     return response()->json(
