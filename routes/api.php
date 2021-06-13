@@ -117,8 +117,9 @@ Route::group(['middleware' => ['auth:api']], function() {
 
 	Route::group(['middleware' => ['pmms']], function() {
 		Route::get('/pmms/logs','LogsController@getpmmsLogs');
-
+    
 		Route::get('/pmms/masterlist/option/customers','MasterlistController@getCustomerList');
+		Route::get('/pmms/masterlist/option/conversions','MasterlistController@getConversions');
 
 		Route::post('/pmms/masterlist', 'MasterlistController@addItem');
 		Route::put('/pmms/masterlist/{id}', 'MasterlistController@editItem');

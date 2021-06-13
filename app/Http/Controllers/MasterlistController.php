@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\LogsController;
 use App\Masterlist;
 use App\Customers;
+use App\MasterlistConversion;
 
 use DB;
 use Excel;
@@ -43,6 +44,7 @@ class MasterlistController extends LogsController
 			'remarks' => 'nullable|max:150',
 			'partnum' => 'string|nullable',
 			'customer' => 'required|min:1',
+			'conversions' => 'array',
 			'dwg' => 'nullable|mimes:pdf|max:5000',
 			'bom' => 'nullable|mimes:pdf|max:5000',
 			'costing' => 'nullable|mimes:pdf|max:5000',
@@ -98,6 +100,9 @@ class MasterlistController extends LogsController
 			'bom' => $item->m_bom,
 			'costing' => $item->m_costing,
 			'attachment' => $attachment,
+			'conversions' => $item->conversions->map(function($data) {
+				return $data->id;
+			}),
 		);
 
 
@@ -121,6 +126,16 @@ class MasterlistController extends LogsController
 		return response()->json(
 			[
 				'customerList' => $customers
+			]);
+	}
+
+	public function getConversions()
+	{
+		$conversions = MasterlistConversion::all();
+
+		return response()->json(
+			[
+				'conversions' => $conversions
 			]);
 	}
 
@@ -226,7 +241,7 @@ class MasterlistController extends LogsController
 			$filename = $this->addAttachment($createdItem->id,$request->costing,"cost");
 			$createdItem->m_costing = $filename;
 		}
-
+		$createdItem->conversions()->sync($request->conversions);
 		$createdItem->save();
 		$newItem = $this->getItem($createdItem);
 		return response()->json([
@@ -254,7 +269,7 @@ class MasterlistController extends LogsController
 
 		$item = Masterlist::findOrFail($id);
 		$item->fill($this->itemArray($request));
-
+		$item->conversions()->sync($request->conversions);
 		if($item->isDirty())
 		{
 			$this->editLogForMasterlistItem($item->getDirty(),$item->getOriginal());
@@ -323,6 +338,7 @@ class MasterlistController extends LogsController
 		$itemdesc = $item->m_projectname;
 		$mspecs = $item->m_mspecs;
 		Storage::deleteDirectory('/pmms/files/'.$id);
+		$item->conversions()->detach();
 		$item->delete();
 
 		$this->createDeleteLogForMasterlistItem(
