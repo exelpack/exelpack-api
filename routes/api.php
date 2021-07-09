@@ -111,7 +111,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/pjoms/jo/itemdetails/{id}', 'JobOrderController@getItemDetails');
 		//exports
 		Route::get('/pjoms/jo/export-csv/dl','JobOrderController@exportJobOrder');
-		Route::get('/pjoms/jo/print','JobOrderController@printJobOrder');
+    Route::get('/pjoms/jo/export/dl','JobOrderController@printJobOrder');
 		
 	});
 
