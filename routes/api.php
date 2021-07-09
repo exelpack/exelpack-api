@@ -21,7 +21,7 @@ Route::group(['middleware' => ['auth:api']], function() {
   Route::get('/pmms/masterlist','MasterlistController@getMasterlist');
   Route::get('/pmms/masterlist/attachment/{id}/{type}','MasterlistController@downloadAttachment');
   Route::get('/pjoms/jo', 'JobOrderController@fetchJo');
-  Route::get('/pjoms/jo/{id}', 'JobOrderController@getJobOrderDetails');
+  Route::get('/pjoms/jo/{id}', 'JobOrderController@getJobOrderDetails');// eto suspek. same route/ kinoconsider nya as {id} yung /print
   
   // PurchasesSupplierController@printPurchaseOrder
 	// ['error' => 'Unauthorized'],
@@ -111,7 +111,7 @@ Route::group(['middleware' => ['auth:api']], function() {
 		Route::get('/pjoms/jo/itemdetails/{id}', 'JobOrderController@getItemDetails');
 		//exports
 		Route::get('/pjoms/jo/export-csv/dl','JobOrderController@exportJobOrder');
-		Route::get('/pjoms/jo/print','JobOrderController@printJobOrder');
+    Route::get('/pjoms/jo/export/dl','JobOrderController@printJobOrder');
 		
 	});
 
