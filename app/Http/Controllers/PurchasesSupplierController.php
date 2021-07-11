@@ -309,17 +309,17 @@ class PurchasesSupplierController extends LogsController
     }
 
     if($approvalReq){
-      if($approvalReq->pra_approved > 0 && $approvalReq->pra_rejected < 1 && $approvalReq->pra_recommended > 0){
-        $isApproved = true;
+      // if($approvalReq->pra_approved > 0 && $approvalReq->pra_rejected < 1 && $approvalReq->pra_recommended > 0){
+      //   $isApproved = true;
 
-        if($approvalReq->user->signature)
-          $approvalFileName = $approvalReq->pra_approver_id.'/'.$approvalReq->user->signature;
+      //   if($approvalReq->user->signature)
+      //     $approvalFileName = $approvalReq->pra_approver_id.'/'.$approvalReq->user->signature;
 
-        if($approvalFileName){
-          $approvalSig = Storage::disk('local')
-            ->exists('/users/signature/'.$approvalFileName);
-        }
-      }
+      //   if($approvalFileName){
+      //     $approvalSig = Storage::disk('local')
+      //       ->exists('/users/signature/'.$approvalFileName);
+      //   }
+      // }
 
       if($approvalReq->pra_recommended > 0 && $approvalReq->pra_rejected < 1){
         $isRecommended = true;

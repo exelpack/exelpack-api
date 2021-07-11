@@ -32,8 +32,8 @@
 }
 
 .sigTable tr td{
-  max-width: 20%;
-  width: 20%;
+  max-width: 25%;
+  width: 25%;
 }
 
 .signature {
@@ -251,7 +251,7 @@
         {{ $checkByName ?? 'Operations Manager' }}
       </p>
     </td>
-    <td>Checked by:
+    <!-- <td>Checked by:
       <br/>
       <div class="signature">
       @if($isApproved)
@@ -273,7 +273,7 @@
       <p class="signature-text">
         {{ $deputyName ?? 'Deputy OM' }}
       </p>
-    </td>
+    </td> -->
     <td>Approved by:
       <br/>
       <div class="signature">

@@ -280,6 +280,7 @@ class OperationController extends Controller
 
       $request->fill([
         'pra_recommended' => strtolower($data->type) == 'approved' ? 1 : 0,
+        'pra_approved' => strtolower($data->type) == 'approved' ? 1 : 0, // added this to enable approved on recommendation
         'pra_rejected' => strtolower($data->type) == 'rejected' ? 1 : 0,
         'pra_recommended_date' => date('Y-m-d'),
         'pra_approver_id' => $deputy->id,
