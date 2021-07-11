@@ -323,6 +323,7 @@ class PurchasesSupplierController extends LogsController
 
       if($approvalReq->pra_recommended > 0 && $approvalReq->pra_rejected < 1){
         $isRecommended = true;
+        $isApproved = true;
 
         if($approvalReq->recommendee->signature)
           $recommendeeFilename = $approvalReq->pra_recommendee_id.'/'.$approvalReq->recommendee->signature;
