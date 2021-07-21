@@ -325,6 +325,8 @@ class SalesController extends Controller
           'sitem_totalamount as totalAmount',
           'sitem_partnum as partnum',
           'sitem_sales_id',
+          'sitem_vat as vatAmount',
+          'sitem_total as totalVatAmount',
         ]);
       }];
     }
@@ -653,6 +655,8 @@ class SalesController extends Controller
       'unitprice' => number_format($item->sitem_unitprice,4,'.',''),
       'remarks' => $item->sitem_remarks,
       'totalAmount' => $item->sitem_totalamount,
+      'vatAmount' => $item->sitem_vat,
+      'totalVatAmount' => $item->sitem_total,
     );
   }
 
@@ -669,14 +673,16 @@ class SalesController extends Controller
   }
 
   public function invoiceInputItemArray($item){
+    $total_amount = doubleval($item['unitprice']) * intval($item['quantity']);
     return array(
       'sitem_drnum' => $item['dr'],
       'sitem_ponum' => $item['po'],
       'sitem_partnum' => $item['partnum'] == '' ? 'NA' : $item['partnum'],
       'sitem_quantity' => $item['quantity'],
       'sitem_unitprice' => number_format($item['unitprice'],4,'.',''),
-      'sitem_totalamount' => doubleval($item['unitprice']) 
-        * intval($item['quantity']),
+      'sitem_totalamount' => $total_amount,
+      'sitem_vat' => $item['vatAmount'],
+      'sitem_total' => $item['totalVatAmount'],
     );
   }
 
