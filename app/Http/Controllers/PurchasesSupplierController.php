@@ -559,46 +559,46 @@ class PurchasesSupplierController extends LogsController
         'budgetPrice' => $budgetPrice
       ));
     }
+    $poPurchasesHistory = [];
+    // $poPurchasesHistory = PurchaseOrderSupplier::whereHas('prprice.pr.jo.poitems.po',
+    //   function($q) use ($po_id) {
+    //     $q->where('id', $po_id);
+    //   })
+    //   ->get()
+    //   ->map(function($po) {
+    //     $joNumbers = JobOrder::whereHas('pr.prpricing.po', function($q) use ($po) {
+    //         $q->where('id', $po->id);
+    //       })
+    //       ->get()
+    //       ->pluck('jo_joborder')
+    //       ->implode(',');
 
-    $poPurchasesHistory = PurchaseOrderSupplier::whereHas('prprice.pr.jo.poitems.po',
-      function($q) use ($po_id) {
-        $q->where('id', $po_id);
-      })
-      ->get()
-      ->map(function($po) {
-        $joNumbers = JobOrder::whereHas('pr.prpricing.po', function($q) use ($po) {
-            $q->where('id', $po->id);
-          })
-          ->get()
-          ->pluck('jo_joborder')
-          ->implode(',');
+    //     $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q) use ($po) {
+    //         $q->where('id', $po->id);
+    //       })
+    //       ->get()
+    //       ->pluck('pr_prnum')
+    //       ->implode(',');
 
-        $prNumbers = PurchaseRequest::whereHas('prpricing.po', function($q) use ($po) {
-            $q->where('id', $po->id);
-          })
-          ->get()
-          ->pluck('pr_prnum')
-          ->implode(',');
+    //     $itemDescription = PurchaseOrderItems::whereHas('jo.pr.prpricing.po', function($q) use ($po) {
+    //         $q->where('id', $po->id);
+    //       })
+    //       ->get()
+    //       ->pluck('poi_itemdescription')
+    //       ->implode(',');
 
-        $itemDescription = PurchaseOrderItems::whereHas('jo.pr.prpricing.po', function($q) use ($po) {
-            $q->where('id', $po->id);
-          })
-          ->get()
-          ->pluck('poi_itemdescription')
-          ->implode(',');
-
-        return array( 
-          'supplierName' => $po->prprice()->first()->supplier->sd_supplier_name,
-          'joNumber' => $joNumbers,
-          'prNumbers' => $prNumbers,
-          'poNumber' => $po->spo_ponum,
-          'itemDescription' => $itemDescription,
-          'totalAmount' => $po->poitems()->sum(Db::raw('spoi_quantity * spoi_unitprice')),
-          'isSent' => $po->spo_sentToSupplier ? "YES" : "NO",
-        );
-        return $po;
-      })
-      ->values();
+    //     return array( 
+    //       'supplierName' => $po->prprice()->first()->supplier->sd_supplier_name,
+    //       'joNumber' => $joNumbers,
+    //       'prNumbers' => $prNumbers,
+    //       'poNumber' => $po->spo_ponum,
+    //       'itemDescription' => $itemDescription,
+    //       'totalAmount' => $po->poitems()->sum(Db::raw('spoi_quantity * spoi_unitprice')),
+    //       'isSent' => $po->spo_sentToSupplier ? "YES" : "NO",
+    //     );
+    //     return $po;
+    //   })
+    //   ->values();
     foreach($po->poitems as $row){
       $totalAmt = $row->poi_unitprice * $row->poi_quantity;
       $masterlist = Masterlist::where('m_code',$row->poi_code)->first();
@@ -1053,8 +1053,10 @@ class PurchasesSupplierController extends LogsController
   public function purchaseOrderInfo($id)
   {
     $po = PurchaseOrderSupplier::findOrFail($id);
-    $poItems = PurchaseRequestItems::whereHas('pr.prpricing.po', function($q) use ($id){
-        return $q->where('id', $id);
+    $prIds = $po->prprice->pluck('prsd_pr_id')->toArray();
+    // return $prIds;
+    $poItems = PurchaseRequestItems::wherehas('pr', function($q) use ($prIds){
+        return $q->whereIn('id', $prIds);
       })
       ->get()
       ->map(function($item) {
@@ -1124,8 +1126,8 @@ class PurchasesSupplierController extends LogsController
       })
       ->select(DB::raw('count(*) as itemCount'),
         'spoi_po_id',
-        DB::raw('IFNULL(CAST(sum(quantityDelivered) as int),0) as quantityDelivered'),
-        DB::raw('CAST(SUM(spoi_quantity) as int) as totalPoQuantity')
+        DB::raw('IFNULL(CAST(sum(quantityDelivered) as unsigned),0) as quantityDelivered'),
+        DB::raw('CAST(SUM(spoi_quantity) as unsigned) as totalPoQuantity')
       )
       ->groupBy('spoi_po_id');
 
