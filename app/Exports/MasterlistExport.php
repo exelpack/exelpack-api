@@ -44,7 +44,7 @@ class MasterlistExport implements FromArray, WithHeadings
     public function getItem($item){
 
     	return array(
-    		'customer_label' => $item->customer->companyname,
+    		'customer_label' => $item->customer ? $item->customer->companyname : "NO CUSTOMER",
     		'code' => $item->m_code,
     		'moq' => $item->m_moq,
     		'mspecs' => $item->m_mspecs,
