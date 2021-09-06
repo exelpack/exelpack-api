@@ -18,6 +18,7 @@ class InventoryExport implements FromArray, WithHeadings
     {
       $inventory = Inventory::select(
           'i_mspecs',
+          'i_projectname',
           DB::raw('IF(count(*) > 0,group_concat(i_code),i_code) as code'),
           DB::raw('IF(count(*) > 0,group_concat(i_partnumber),i_partnumber) as partnum'),
           DB::raw('IF(count(*) > 0,SUM(i_quantity),i_quantity) as quantity'),
@@ -26,16 +27,17 @@ class InventoryExport implements FromArray, WithHeadings
           DB::raw('IF(count(*) > 0,0,i_max) as max')
         )
         ->groupBy('i_mspecs')
+        ->where('i_quantity', '>', 0)
         ->orderBy('i_quantity','desc')
         ->get()
         ->map(function($item,$key) {
-
         $price = PurchaseRequestItems::has('pr.prpricing')
           ->where('pri_mspecs', $item->i_mspecs)
           ->latest('id')
           ->first();
         return array(
           'mspecs' => $item->i_mspecs,
+          'item_description' => $item->i_projectname,
           'partnum' => $item->partnum,
           'code' => $item->code,
           'unit' => $item->unit,
@@ -56,6 +58,7 @@ class InventoryExport implements FromArray, WithHeadings
     {
       return [
         'MATERIAL SPECIFICATION',
+        'ITEM DESCRIPTION',
         'PART NUMBER',
         'CODE',
         'UNIT',

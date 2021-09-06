@@ -409,12 +409,51 @@ class ReceivingController extends LogsController
     if(!$rr->ssi_rrnum)
       return response()->json(['errors' => ['No receiving report available!']], 422);
 
-    $jobOrders = JobOrder::whereHas('pr.prpricing.po.poitems.invoice', function($q) use ($id){
-        $q->where('id', $id);
+    // $jobOrders = JobOrder::whereHas('pr.prpricing.po.poitems.invoice', function($q) use ($id){
+    //     $q->where('id', $id);
+    //   })
+    //   ->get()
+    //   ->pluck('jo_joborder')
+    //   ->toArray();
+
+    $pr = Db::table('prms_prlist')->select(
+      Db::raw('count(*) as prCount'),
+      'pr_jo_id',
+      'pr_prnum',
+      'id'
+    )->groupBy('pr_jo_id');
+
+    $prsd = Db::table('psms_prsupplierdetails')
+      ->select('prsd_pr_id', 'prsd_spo_id')
+      ->groupBy('prsd_pr_id');
+
+    $suppPo = DB::table('psms_spurchaseorder')
+      ->select('id', DB::raw('count(*) as hasPo'))
+      ->groupBy('id');
+
+    $spoItems = DB::table('psms_spurchaseorderitems')
+      ->select('spoi_po_id', 'id')
+      ->groupBy('spoi_po_id');
+
+    $spoItemsInvoice = DB::table('psms_supplierinvoice')
+      ->select('ssi_poitem_id', 'id')
+      ->groupBy('ssi_poitem_id');
+      
+    $jobOrders = JobOrder::leftJoinSub($pr, 'pr', function($join){
+        $join->on('pr.pr_jo_id','=','pjoms_joborder.id');
+      })->leftJoinSub($prsd, 'prsd', function($join){
+        $join->on('prsd.prsd_pr_id','=','pr.id');
       })
-      ->get()
-      ->pluck('jo_joborder')
-      ->toArray();
+      ->leftJoinSub($suppPo, 'spo', function($join){
+        $join->on('spo.id','=','prsd.prsd_spo_id');
+      })->leftJoinSub($spoItems, 'spoi', function($join){
+        $join->on('spoi.spoi_po_id','=','spo.id');
+      })->leftJoinSub($spoItemsInvoice, 'invoice', function($join){
+        $join->on('spoi.id','=','invoice.ssi_poitem_id');
+      })->whereRaw('invoice.id = ?',$id)
+        ->get()
+        ->pluck('jo_joborder')
+        ->toArray();
 
     $rrDetails = (object) array(
       'rrNum' => $rr->ssi_rrnum,
@@ -431,7 +470,6 @@ class ReceivingController extends LogsController
       'rejectQty' => $rr->ssi_rejectquantity,
       'rejectRemarks' => $rr->ssi_rejectionremarks,
     );
-
     $pdf =  PDF::loadView('wrms.printreceivingreport', compact('rrDetails'))->setPaper('a4','landscape');
     return $pdf->stream();
   }
