@@ -391,67 +391,67 @@ class JobOrderController extends LogsController
         );
       });
 
-    // $po = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
-    //     $q->where('id', $id);
-    //   })
-    //   ->get()
-    //   ->map(function($po) {
-    //     return array(
-    //       'id' => $po->id,
-    //       'date' => $po->spo_date,
-    //       'poNumber' => $po->spo_ponum,
-    //       'items' => $po->poitems->map(function($item) {
-    //         return array(
-    //           'itemId' => $item->id,
-    //           'code' => $item->spoi_code,
-    //           'materialSpecs' => $item->spoi_mspecs,
-    //           'uom' => $item->spoi_uom,
-    //           'quantity' => $item->spoi_quantity,
-    //           'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
-    //           'deliverydate' => $item->spoi_deliverydate,
-    //         );
-    //       })
-    //     );
-    //   });
+    $po = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
+        $q->where('id', $id);
+      })
+      ->get()
+      ->map(function($po) {
+        return array(
+          'id' => $po->id,
+          'date' => $po->spo_date,
+          'poNumber' => $po->spo_ponum,
+          'items' => $po->poitems->map(function($item) {
+            return array(
+              'itemId' => $item->id,
+              'code' => $item->spoi_code,
+              'materialSpecs' => $item->spoi_mspecs,
+              'uom' => $item->spoi_uom,
+              'quantity' => $item->spoi_quantity,
+              'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
+              'deliverydate' => $item->spoi_deliverydate,
+            );
+          })
+        );
+      });
 
 
-    // $deliveredItems = SupplierInvoice::whereHas('poitem.spo.prprice.pr.jo', function($jo) use ($id){
-    //     return $jo->where('id', $id);
-    //   })
-    //   ->where('ssi_receivedquantity','>', 0)
-    //   ->where('ssi_rrnum', '!=', null)
-    //   ->get()
-    //   ->map(function($delivered) {
-    //     return array(
-    //       'id' => $delivered->id,
-    //       'code' => $delivered->poitem->spoi_code,
-    //       'materialSpecs' => $delivered->poitem->spoi_mspecs,
-    //       'invoice' => $delivered->ssi_invoice,
-    //       'dr' => $delivered->ssi_dr,
-    //       'date' => $delivered->ssi_date,
-    //       'quantity' => $delivered->ssi_receivedquantity,
-    //     );
-    //   });
+    $deliveredItems = SupplierInvoice::whereHas('poitem.spo.prprice.pr.jo', function($jo) use ($id){
+        return $jo->where('id', $id);
+      })
+      ->where('ssi_receivedquantity','>', 0)
+      ->where('ssi_rrnum', '!=', null)
+      ->get()
+      ->map(function($delivered) {
+        return array(
+          'id' => $delivered->id,
+          'code' => $delivered->poitem->spoi_code,
+          'materialSpecs' => $delivered->poitem->spoi_mspecs,
+          'invoice' => $delivered->ssi_invoice,
+          'dr' => $delivered->ssi_dr,
+          'date' => $delivered->ssi_date,
+          'quantity' => $delivered->ssi_receivedquantity,
+        );
+      });
 
 
-    // $releasedRm = $joborder->outgoing->map(function($out) {
-    //   $inventory = $out->inventory ?? (Object) array();
-    //   return array(
-    //     'id' => $out->id,
-    //     'code' => $inventory->i_code ?? '',
-    //     'materialSpecs' => $inventory->i_mspecs ?? '',
-    //     'code' => $inventory->i_code ?? '',
-    //     'quantity' => $out->out_quantity,
-    //     'date' => $out->out_date,
-    //     'remarks' => $out->out_remarks,
-    //   );
-    // });
+    $releasedRm = $joborder->outgoing->map(function($out) {
+      $inventory = $out->inventory ?? (Object) array();
+      return array(
+        'id' => $out->id,
+        'code' => $inventory->i_code ?? '',
+        'materialSpecs' => $inventory->i_mspecs ?? '',
+        'code' => $inventory->i_code ?? '',
+        'quantity' => $out->out_quantity,
+        'date' => $out->out_date,
+        'remarks' => $out->out_remarks,
+      );
+    });
 
     return response()->json([
       'pr' => $pr,
-      'po' => [],
-      'deliveredItems' => [],
-      'releasedRm' => [],
+      'po' => $po,
+      'deliveredItems' => $deliveredItems,
+      'releasedRm' => $releasedRm,
     ]);
   }
 
@@ -727,26 +727,26 @@ class JobOrderController extends LogsController
 	public function getItemDetails($id)
 	{
 
-    $deliverySub = Db::table('psms_supplierinvoice')
-      ->select('ssi_poitem_id as id',Db::raw('IFNULL(sum(ssi_receivedquantity), 0) as totalDelivered'))
-      ->groupBy('ssi_poitem_id');
+    // $deliverySub = Db::table('psms_supplierinvoice')
+    //   ->select('ssi_poitem_id as id',Db::raw('IFNULL(sum(ssi_receivedquantity), 0) as totalDelivered'))
+    //   ->groupBy('ssi_poitem_id');
 
-		$item = PurchaseOrderItems::findOrFail($id);
-    $code = $item->poi_code;
-    $orderedItems = PurchaseOrderSupplierItems::whereHas('spo.prprice.pr.jo.poitems', function($q) use ($code){
-        return $q->where('poi_code', $code);
-      })
-      ->leftJoinSub($deliverySub, 'delivery', function($join){
-        return $join->on('psms_spurchaseorderitems.id','=','delivery.id');
-      })
-      ->select(
-        'psms_spurchaseorderitems.id',
-        'spoi_code as code',
-        'spoi_mspecs as mspecs',
-        Db::raw('CAST(totalDelivered as int) as totalDelivered'),
-        Db::raw('CAST(spoi_quantity - totalDelivered as int) as pendingDelivery')
-      )
-      ->get();
+		// $item = PurchaseOrderItems::findOrFail($id);
+    // $code = $item->poi_code;
+    // $orderedItems = PurchaseOrderSupplierItems::whereHas('spo.prprice.pr.jo.poitems', function($q) use ($code){
+    //     return $q->where('poi_code', $code);
+    //   })
+    //   ->leftJoinSub($deliverySub, 'delivery', function($join){
+    //     return $join->on('psms_spurchaseorderitems.id','=','delivery.id');
+    //   })
+    //   ->select(
+    //     'psms_spurchaseorderitems.id',
+    //     'spoi_code as code',
+    //     'spoi_mspecs as mspecs',
+    //     Db::raw('CAST(totalDelivered as int) as totalDelivered'),
+    //     Db::raw('CAST(spoi_quantity - totalDelivered as int) as pendingDelivery')
+    //   )
+    //   ->get();
     $inventory = Inventory::select(
         'id',
         'i_mspecs as mspecs',
@@ -757,40 +757,40 @@ class JobOrderController extends LogsController
         'i_max as max'
       )->get();
 
-		$itemDeliveryDetails = array();
-		$jobOrderDetails = array();
-		//loop through delivery of the item
-		foreach($item->delivery()->latest()->get() as $delivery)
-		{
+		// $itemDeliveryDetails = array();
+		// $jobOrderDetails = array();
+		// //loop through delivery of the item
+		// foreach($item->delivery()->latest()->get() as $delivery)
+		// {
 
-			array_push($itemDeliveryDetails,
-				array(
-					'id' => $delivery->id.uniqid(),
-					'quantity' => $delivery->poidel_quantity,
-					'deliverydate' => $delivery->poidel_deliverydate,
-				)
-			);
+		// 	array_push($itemDeliveryDetails,
+		// 		array(
+		// 			'id' => $delivery->id.uniqid(),
+		// 			'quantity' => $delivery->poidel_quantity,
+		// 			'deliverydate' => $delivery->poidel_deliverydate,
+		// 		)
+		// 	);
 
-		}
+		// }
 		//loop through jo of the item
-		foreach($item->jo as $jo)
-		{
-			$producedQty = intval($jo->produced()->sum('jop_quantity'));
-			$status = $jo->jo_quantity > $producedQty ? 'OPEN' : 'SERVED';
-			array_push($jobOrderDetails,
-				array(
-					'id' => $jo->id.uniqid(),
-					'jobOrder' => $jo->jo_joborder,
-					'date_issued' => $jo->jo_dateissued,
-					'date_needed' => $jo->jo_dateneeded,
-					'quantity' => $jo->jo_quantity,
-					'producedQty' => $producedQty,
-					'status' => $status,
-					'forwardToWarehouse' => $jo->jo_forwardToWarehouse ? 'YES' : 'NO',
-				)
-			);
+		// foreach($item->jo as $jo)
+		// {
+		// 	$producedQty = intval($jo->produced()->sum('jop_quantity'));
+		// 	$status = $jo->jo_quantity > $producedQty ? 'OPEN' : 'SERVED';
+		// 	array_push($jobOrderDetails,
+		// 		array(
+		// 			'id' => $jo->id.uniqid(),
+		// 			'jobOrder' => $jo->jo_joborder,
+		// 			'date_issued' => $jo->jo_dateissued,
+		// 			'date_needed' => $jo->jo_dateneeded,
+		// 			'quantity' => $jo->jo_quantity,
+		// 			'producedQty' => $producedQty,
+		// 			'status' => $status,
+		// 			'forwardToWarehouse' => $jo->jo_forwardToWarehouse ? 'YES' : 'NO',
+		// 		)
+		// 	);
 
-		}
+		// }
 
     $series = JobOrderSeries::first();
     $number = str_pad($series->series_number,5,"0",STR_PAD_LEFT);
@@ -798,12 +798,12 @@ class JobOrderController extends LogsController
 
 		return response()->json(
 			[
-        'orderedItems' => $orderedItems,
-				'itemDeliveryDetails' => $itemDeliveryDetails,
-				'jobOrderDetails' => $jobOrderDetails,
+        'orderedItems' => [],
+		'itemDeliveryDetails' => [],
+		'jobOrderDetails' => [],
         'inventory' => $inventory,
         'joSeries' => $joSeries,
-			]);
+		]);
 
 	}
 
