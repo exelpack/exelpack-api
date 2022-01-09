@@ -366,9 +366,9 @@ class JobOrderController extends LogsController
   //get job order details
   public function getJobOrderDetails($id) {
     $joborder = JobOrder::findOrFail($id);
-    // $prItems = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
-    //   $q->where('id', $id);
-    // })->get();
+    $prItems = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
+      $q->where('id', $id);
+    })->get();
     $pr = PurchaseRequest::whereHas('jo', function($q) use ($id) {
         $q->where('id', $id);
       })
@@ -391,67 +391,67 @@ class JobOrderController extends LogsController
         );
       });
 
-    $po = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
-        $q->where('id', $id);
-      })
-      ->get()
-      ->map(function($po) {
-        return array(
-          'id' => $po->id,
-          'date' => $po->spo_date,
-          'poNumber' => $po->spo_ponum,
-          'items' => $po->poitems->map(function($item) {
-            return array(
-              'itemId' => $item->id,
-              'code' => $item->spoi_code,
-              'materialSpecs' => $item->spoi_mspecs,
-              'uom' => $item->spoi_uom,
-              'quantity' => $item->spoi_quantity,
-              'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
-              'deliverydate' => $item->spoi_deliverydate,
-            );
-          })
-        );
-      });
+    // $po = PurchaseOrderSupplier::wherehas('prprice.pr.jo', function($q) use ($id){
+    //     $q->where('id', $id);
+    //   })
+    //   ->get()
+    //   ->map(function($po) {
+    //     return array(
+    //       'id' => $po->id,
+    //       'date' => $po->spo_date,
+    //       'poNumber' => $po->spo_ponum,
+    //       'items' => $po->poitems->map(function($item) {
+    //         return array(
+    //           'itemId' => $item->id,
+    //           'code' => $item->spoi_code,
+    //           'materialSpecs' => $item->spoi_mspecs,
+    //           'uom' => $item->spoi_uom,
+    //           'quantity' => $item->spoi_quantity,
+    //           'delivered' => intval($item->invoice()->sum('ssi_receivedquantity')),
+    //           'deliverydate' => $item->spoi_deliverydate,
+    //         );
+    //       })
+    //     );
+    //   });
 
 
-    $deliveredItems = SupplierInvoice::whereHas('poitem.spo.prprice.pr.jo', function($jo) use ($id){
-        return $jo->where('id', $id);
-      })
-      ->where('ssi_receivedquantity','>', 0)
-      ->where('ssi_rrnum', '!=', null)
-      ->get()
-      ->map(function($delivered) {
-        return array(
-          'id' => $delivered->id,
-          'code' => $delivered->poitem->spoi_code,
-          'materialSpecs' => $delivered->poitem->spoi_mspecs,
-          'invoice' => $delivered->ssi_invoice,
-          'dr' => $delivered->ssi_dr,
-          'date' => $delivered->ssi_date,
-          'quantity' => $delivered->ssi_receivedquantity,
-        );
-      });
+    // $deliveredItems = SupplierInvoice::whereHas('poitem.spo.prprice.pr.jo', function($jo) use ($id){
+    //     return $jo->where('id', $id);
+    //   })
+    //   ->where('ssi_receivedquantity','>', 0)
+    //   ->where('ssi_rrnum', '!=', null)
+    //   ->get()
+    //   ->map(function($delivered) {
+    //     return array(
+    //       'id' => $delivered->id,
+    //       'code' => $delivered->poitem->spoi_code,
+    //       'materialSpecs' => $delivered->poitem->spoi_mspecs,
+    //       'invoice' => $delivered->ssi_invoice,
+    //       'dr' => $delivered->ssi_dr,
+    //       'date' => $delivered->ssi_date,
+    //       'quantity' => $delivered->ssi_receivedquantity,
+    //     );
+    //   });
 
 
-    $releasedRm = $joborder->outgoing->map(function($out) {
-      $inventory = $out->inventory ?? (Object) array();
-      return array(
-        'id' => $out->id,
-        'code' => $inventory->i_code ?? '',
-        'materialSpecs' => $inventory->i_mspecs ?? '',
-        'code' => $inventory->i_code ?? '',
-        'quantity' => $out->out_quantity,
-        'date' => $out->out_date,
-        'remarks' => $out->out_remarks,
-      );
-    });
+    // $releasedRm = $joborder->outgoing->map(function($out) {
+    //   $inventory = $out->inventory ?? (Object) array();
+    //   return array(
+    //     'id' => $out->id,
+    //     'code' => $inventory->i_code ?? '',
+    //     'materialSpecs' => $inventory->i_mspecs ?? '',
+    //     'code' => $inventory->i_code ?? '',
+    //     'quantity' => $out->out_quantity,
+    //     'date' => $out->out_date,
+    //     'remarks' => $out->out_remarks,
+    //   );
+    // });
 
     return response()->json([
       'pr' => $pr,
-      'po' => $po,
-      'deliveredItems' => $deliveredItems,
-      'releasedRm' => $releasedRm,
+      'po' => [],
+      'deliveredItems' => [],
+      'releasedRm' => [],
     ]);
   }
 
