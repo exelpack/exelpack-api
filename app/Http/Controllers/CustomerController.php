@@ -116,7 +116,7 @@ class CustomerController extends Controller
 
     $cinfo = new Customers;
     $cinfo->fill($this->fillCustomer($request));
-    $this->sendEmail($cinfo,"om");
+    // $this->sendEmail($cinfo,"om");
 
     $cinfo->save();
     $cinfo->refresh();
@@ -210,7 +210,7 @@ class CustomerController extends Controller
         'recommended_date' => date('Y-m-d')
       ]);
 
-      $this->sendEmail($customer,"gm");
+      // $this->sendEmail($customer,"gm");
     }
 
     if($gm > 0 && $request->src === "gm" && $approvalStatus !== 'REJECTED') {
